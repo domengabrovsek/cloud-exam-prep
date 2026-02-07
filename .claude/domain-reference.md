@@ -2,7 +2,9 @@
 
 Quick lookup: which file and section covers a given topic.
 
-## Domain 1 -- `01-cloud-environment-setup.md`
+## GCP Associate Cloud Engineer (`gcp/ace/`)
+
+### Domain 1 -- `gcp/ace/01-cloud-environment-setup.md`
 
 | Topic | Section |
 |-------|---------|
@@ -19,7 +21,7 @@ Quick lookup: which file and section covers a given topic.
 | Billing exports to BigQuery | 1.2 |
 | Labels for cost attribution | 1.2 |
 
-## Domain 2 -- `02-planning-and-configuring.md`
+### Domain 2 -- `gcp/ace/02-planning-and-configuring.md`
 
 | Topic | Section |
 |-------|---------|
@@ -34,7 +36,7 @@ Quick lookup: which file and section covers a given topic.
 | Network Service Tiers (Premium vs Standard) | 2.3 |
 | Resource location/scope (global/regional/zonal) | 2.3 |
 
-## Domain 3 -- `03-deploying-and-implementing.md`
+### Domain 3 -- `gcp/ace/03-deploying-and-implementing.md`
 
 | Topic | Section |
 |-------|---------|
@@ -61,7 +63,7 @@ Quick lookup: which file and section covers a given topic.
 | Config Connector | 3.6 |
 | Helm charts | 3.6 |
 
-## Domain 4 -- `04-operations.md`
+### Domain 4 -- `gcp/ace/04-operations.md`
 
 | Topic | Section |
 |-------|---------|
@@ -95,7 +97,7 @@ Quick lookup: which file and section covers a given topic.
 | Managed Prometheus | 4.6 |
 | Audit logs (4 types, always-on vs configurable) | 4.6 |
 
-## Domain 5 -- `05-access-and-security.md`
+### Domain 5 -- `gcp/ace/05-access-and-security.md`
 
 | Topic | Section |
 |-------|---------|
@@ -115,10 +117,10 @@ Quick lookup: which file and section covers a given topic.
 | Workload Identity Federation (GitHub, AWS, Azure) | 5.2 |
 | Org policy constraints for IAM | 5.2 |
 
-## CLI Cheat Sheet -- `06-key-gcloud-commands.md`
+### CLI Cheat Sheet -- `gcp/ace/06-key-gcloud-commands.md`
 
 Covers commands for: config, compute, container, run, functions, iam, projects, organizations, resource-manager, services, storage/gsutil, bq, kubectl, logging, monitoring, pubsub, sql, dns, billing, terraform.
 
-## Practice Questions -- `07-practice-questions.md`
+### Practice Questions -- `gcp/ace/07-practice-questions.md`
 
 60 questions: D1 (Q1-12), D2 (Q13-22), D3 (Q23-37), D4 (Q38-49), D5 (Q50-60).
