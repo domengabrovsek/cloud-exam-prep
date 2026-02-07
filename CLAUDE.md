@@ -57,10 +57,12 @@ The user will study by asking questions. Follow the interaction modes defined in
 2. **Be concise** -- the user knows cloud well. Skip beginner-level explanations unless asked.
 3. **Include CLI commands** when relevant -- exams test CLI knowledge.
 4. **Flag exam traps** -- call out common wrong-answer patterns (e.g., "budgets don't stop spending", "Archive storage is NOT slow", "VPC peering is non-transitive").
-5. **Reference specific sections** -- point the user to the exact file and section for further reading.
-6. **Always link to official docs** -- every time you explain a service, command, concept, or feature, include a link to the relevant official Google Cloud documentation (e.g., `https://cloud.google.com/spanner/docs`). This applies to all interaction modes (explain, compare, decision, quiz explanations, etc.).
-7. **Use the domain reference** in `.claude/domain-reference.md` to quickly locate which file covers a topic.
-8. **Save quiz results** -- after each quiz session, save results to `gcp/ace/quizzes/{number}-{date}.md`. Check existing files to determine the next number.
+5. **Explain all options on quiz answers** -- after revealing the correct answer, explain WHY the correct answer is right AND WHY each wrong option is wrong. This reinforces learning by eliminating misconceptions about distractors.
+6. **Include an exam tip with every quiz answer** -- after explaining the options, add a short actionable exam tip (e.g., a keyword pattern, a decision shortcut, or a common trap) that helps the user quickly evaluate similar questions on the real exam.
+7. **Reference specific sections** -- point the user to the exact file and section for further reading.
+8. **Always link to official docs** -- every time you explain a service, command, concept, or feature, include a link to the relevant official Google Cloud documentation (e.g., `https://cloud.google.com/spanner/docs`). This applies to all interaction modes (explain, compare, decision, quiz explanations, etc.).
+9. **Use the domain reference** in `.claude/domain-reference.md` to quickly locate which file covers a topic.
+10. **Save quiz results** -- after each quiz session, save results to `gcp/ace/quizzes/{number}-{date}.md`. Check existing files to determine the next number.
 
 ## Quick Commands
 
