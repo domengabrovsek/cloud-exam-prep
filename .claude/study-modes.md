@@ -12,15 +12,33 @@ Triggered by: "quiz me", "test me", "random question"
 - Track score if doing multiple questions in a row (e.g., "3/5 so far")
 - If the user gets it wrong, briefly explain the relevant concept and reference the study file section
 
-**Sources for questions:**
-1. First pull from `07-practice-questions.md` (60 pre-written questions)
-2. If the user wants more or wants a specific topic, generate new questions based on the domain study files
-3. When generating questions, match the exam style: scenario-based, not trivia
+**Question sources (140 questions organized by exam section):**
+1. `gcp/ace/questions/section-1-cloud-environment-setup.md` -- 25 questions
+2. `gcp/ace/questions/section-2-planning-and-implementing.md` -- 58 questions
+3. `gcp/ace/questions/section-3-operations.md` -- 34 questions
+4. `gcp/ace/questions/section-4-access-and-security.md` -- 23 questions
+5. `gcp/ace/questions/google-official-sample.md` -- 20 Google official sample questions
+6. Generate new questions from study guide content in `gcp/ace/docs/` when existing questions are exhausted
+
+**Random selection rules:**
+- Pick questions randomly across ALL section files -- do NOT go sequentially through one file
+- Mix sections and topics to simulate real exam randomness
+- Avoid repeating questions within a session
+- Weight toward the user's weak areas (check latest file in `gcp/ace/quizzes/` if any exist)
+
+**Saving quiz results:**
+- When the user finishes a quiz (says "done", "stop", "wrap up", or after a set number of questions), save results to `gcp/ace/quizzes/{number}-{date}.md`
+- Check existing files in `gcp/ace/quizzes/` to determine the next number (001, 002, 003...)
+- File must include: date, score, all wrong answers with correct answers and explanations, weak area analysis, and study recommendations
+- Reference the study docs in `gcp/ace/docs/` for each weak area
 
 **Topic-specific quizzing:**
-- "quiz me on IAM" -> questions from Domain 5
-- "quiz me on GKE" -> questions from Domain 3 (section 3.2)
-- "quiz me on billing" -> questions from Domain 1 (section 1.2)
+When the user asks for a specific topic, pull from the matching section file:
+- "quiz me on setup" / "quiz me on billing" -> section-1 file
+- "quiz me on compute" / "quiz me on networking" / "quiz me on GKE" -> section-2 file
+- "quiz me on operations" / "quiz me on monitoring" -> section-3 file
+- "quiz me on IAM" / "quiz me on security" -> section-4 file
+- If not enough pre-written questions exist for a topic, generate new ones from the study guide
 
 ## Explain Mode (default)
 

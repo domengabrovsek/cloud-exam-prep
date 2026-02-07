@@ -916,7 +916,142 @@ Docs: [Dataflow overview](https://cloud.google.com/dataflow/docs/overview)
 
 ---
 
-### 3.4.8 Cloud Storage
+### 3.4.8 Google Cloud Managed Service for Apache Kafka
+
+Fully managed Apache Kafka service for event streaming and real-time data pipelines.
+
+```bash
+# Create a Kafka cluster
+gcloud managed-kafka clusters create my-kafka-cluster \
+  --location=us-central1 \
+  --cpu=3 \
+  --memory=3GiB
+
+# Create a topic
+gcloud managed-kafka topics create my-topic \
+  --cluster=my-kafka-cluster \
+  --location=us-central1 \
+  --partitions=3 \
+  --replication-factor=3
+
+# List clusters
+gcloud managed-kafka clusters list --location=us-central1
+
+# List topics
+gcloud managed-kafka topics list \
+  --cluster=my-kafka-cluster \
+  --location=us-central1
+
+# Delete a topic
+gcloud managed-kafka topics delete my-topic \
+  --cluster=my-kafka-cluster \
+  --location=us-central1
+```
+
+**Key differences from Pub/Sub:**
+
+| Feature | Managed Kafka | Pub/Sub |
+|---------|--------------|---------|
+| API compatibility | **Kafka API** (use existing Kafka client libraries) | **Pub/Sub API** (Google proprietary) |
+| Consumption model | **Pull-based with consumer groups** | **Push and pull subscriptions** |
+| Message retention | Configurable (days to indefinite) | Up to 31 days |
+| Ordering | Per-partition ordering | Per-key ordering (with ordering keys) |
+| Use case | Existing Kafka apps, need Kafka semantics, replay from arbitrary offset | Native GCP apps, event-driven architectures, serverless integration |
+
+**When to use Managed Kafka vs Pub/Sub:**
+- **Managed Kafka** -- You have existing Kafka applications or tooling, need Kafka API compatibility, require consumer group semantics, or need to replay messages from arbitrary offsets.
+- **Pub/Sub** -- Native GCP integration, serverless workloads (Cloud Run, Cloud Functions), simpler operational model, or starting fresh without Kafka dependencies.
+
+**Integration with GCP services:**
+- **Dataflow**: Read from/write to Kafka topics using Apache Beam Kafka connectors.
+- **BigQuery**: Load Kafka data via Dataflow pipelines.
+- **Cloud Storage**: Archive Kafka topics via Kafka Connect or Dataflow.
+- **Monitoring**: Integrated with Cloud Monitoring for cluster health and metrics.
+
+> **Exam tip:** If a question mentions "existing Kafka applications" or "need Kafka API compatibility" or "migrate from on-prem Kafka", the answer is **Managed Service for Apache Kafka**. If it asks for the simplest event streaming for native GCP apps, choose **Pub/Sub**.
+
+Docs: [Managed Service for Apache Kafka overview](https://cloud.google.com/managed-kafka/docs/overview)
+
+---
+
+### 3.4.9 Google Cloud NetApp Volumes
+
+Enterprise-grade managed file storage with support for both NFS and SMB protocols.
+
+```bash
+# Create a storage pool
+gcloud netapp storage-pools create my-pool \
+  --location=us-central1 \
+  --service-level=PREMIUM \
+  --capacity=4096 \
+  --network=my-vpc
+
+# Create a volume
+gcloud netapp volumes create my-volume \
+  --location=us-central1 \
+  --storage-pool=my-pool \
+  --capacity=1024 \
+  --protocols=NFSV3 \
+  --share-name=vol1
+
+# Create a volume with SMB
+gcloud netapp volumes create my-smb-volume \
+  --location=us-central1 \
+  --storage-pool=my-pool \
+  --capacity=2048 \
+  --protocols=SMBA \
+  --share-name=smbshare
+
+# Create a snapshot
+gcloud netapp snapshots create my-snapshot \
+  --location=us-central1 \
+  --volume=my-volume
+
+# List volumes
+gcloud netapp volumes list --location=us-central1
+
+# Delete a volume
+gcloud netapp volumes delete my-volume --location=us-central1
+```
+
+**Key features:**
+- **Protocols**: NFS (v3, v4.1) AND SMB (2.x, 3.x) -- Filestore only supports NFS.
+- **Snapshots**: Point-in-time copies, instant creation, minimal storage overhead.
+- **Cloning**: Create writable clones from snapshots for dev/test environments.
+- **Replication**: Cross-region replication for DR and data distribution.
+- **Tiering**: Automatically tier cold data to Cloud Storage (capacity tier).
+- **Service levels**: Standard, Premium, Extreme (increasing performance/cost).
+
+**When to use NetApp Volumes vs Filestore vs Cloud Storage:**
+
+| Need | Service |
+|------|---------|
+| **SMB protocol** (Windows file shares) | **NetApp Volumes** |
+| **Enterprise features** (snapshots, cloning, replication) | **NetApp Volumes** |
+| **NFS-only**, simple use case | **Filestore** (lower cost) |
+| **Object storage**, no POSIX filesystem needed | **Cloud Storage** |
+| **High IOPS** (>100K), low latency (<1ms) | **NetApp Volumes Extreme tier** |
+| **Shared file access** across VMs | **NetApp Volumes or Filestore** |
+
+**NetApp Volumes vs Filestore:**
+
+| Feature | NetApp Volumes | Filestore |
+|---------|---------------|-----------|
+| Protocols | **NFS + SMB** | **NFS only** |
+| Snapshots | Built-in, instant | Via backup API |
+| Cloning | Instant writable clones | Not available |
+| Replication | Cross-region replication | Manual backup/restore |
+| Tiering | Auto-tier to Cloud Storage | Not available |
+| Min size | 1 TiB | 1 TiB (Basic), 2.5 TiB (Enterprise) |
+| Max throughput | Up to 4.5 GiB/s (Extreme) | Up to 1.2 GiB/s (HDD), 2.6 GiB/s (SSD) |
+
+> **Exam tip:** If the question requires **SMB protocol** or **enterprise features like snapshots/cloning/replication**, choose **NetApp Volumes**. If it's a simple NFS shared filesystem with no special requirements, **Filestore** is more cost-effective. If the workload doesn't need a POSIX filesystem, use **Cloud Storage** instead.
+
+Docs: [NetApp Volumes overview](https://cloud.google.com/netapp/volumes/docs/overview)
+
+---
+
+### 3.4.10 Cloud Storage
 
 Object storage with multiple storage classes for different access patterns.
 
@@ -998,6 +1133,179 @@ gcloud transfer jobs create \
 - **Storage Transfer Service** is for scheduled/recurring transfers from external or cross-bucket sources.
 
 Docs: [Cloud Storage overview](https://cloud.google.com/storage/docs/introduction) | [Storage Transfer Service](https://cloud.google.com/storage-transfer/docs/overview)
+
+---
+
+### 3.4.11 Multi-Region Redundancy Across Data Solutions
+
+Different GCP data services implement multi-region redundancy in different ways. Understanding these patterns is critical for designing highly available, globally distributed architectures.
+
+#### Cloud Storage
+
+```bash
+# Create a multi-region bucket (automatic geo-redundancy)
+gcloud storage buckets create gs://my-multi-region-bucket \
+  --location=US \
+  --default-storage-class=STANDARD
+
+# Multi-region options: US, EU, ASIA
+# Data is automatically replicated across multiple regions within the geography
+```
+
+**Multi-region locations:**
+- **US**: Data stored in at least two geographic locations separated by at least 100 miles within the US.
+- **EU**: Data stored in at least two geographic locations within the EU.
+- **ASIA**: Data stored in at least two geographic locations within Asia.
+
+#### Cloud SQL
+
+```bash
+# HA configuration: multi-zone only, NOT multi-region
+gcloud sql instances create my-db \
+  --database-version=POSTGRES_15 \
+  --region=us-central1 \
+  --availability-type=REGIONAL  # HA within region (multi-zone)
+
+# Cross-region read replicas for DR and read scaling
+gcloud sql instances create my-db-replica \
+  --master-instance-name=my-db \
+  --region=europe-west1  # Different region
+
+# Promote a replica to a standalone instance (for DR failover)
+gcloud sql instances promote-replica my-db-replica
+```
+
+**Cloud SQL redundancy:**
+- **HA (REGIONAL)**: Synchronous replication to a standby in another zone within the same region. Automatic failover.
+- **Read replicas**: Asynchronous cross-region replication. Must be manually promoted for failover.
+
+#### Cloud Spanner
+
+```bash
+# Multi-region instance config (automatic global replication)
+gcloud spanner instances create my-global-instance \
+  --config=nam-eur-asia1 \
+  --description="Global Spanner Instance" \
+  --nodes=3
+
+# Regional instance config (multi-zone within region)
+gcloud spanner instances create my-regional-instance \
+  --config=regional-us-central1 \
+  --description="Regional Spanner Instance" \
+  --nodes=1
+```
+
+**Multi-region configs:**
+- **nam-eur-asia1**: 3 read-write replicas (Iowa, Belgium, Taiwan). Majority voting for writes.
+- **nam3**: 3 read-write replicas within North America (Iowa, South Carolina, Oregon).
+- **eur3**: 3 read-write replicas within Europe (Belgium, London, Frankfurt).
+
+**Spanner redundancy:**
+- **Regional configs**: Data replicated across 3 zones in one region.
+- **Multi-region configs**: Data replicated across 3+ regions for global HA and low-latency reads worldwide.
+- All configs provide automatic failover with **no data loss**.
+
+#### Firestore
+
+```bash
+# Multi-region database (automatic replication)
+gcloud firestore databases create \
+  --location=nam5 \
+  --type=firestore-native
+
+# Regional database
+gcloud firestore databases create \
+  --location=us-central1 \
+  --type=firestore-native
+```
+
+**Multi-region locations:**
+- **nam5**: US multi-region (Iowa, South Carolina).
+- **eur3**: EU multi-region (Belgium, Frankfurt).
+- Regional locations: us-central1, us-east1, europe-west1, etc.
+
+**Firestore redundancy:**
+- **Multi-region**: Data replicated across multiple regions. Strong consistency. Higher cost.
+- **Regional**: Data replicated across zones within one region. Strong consistency. Lower cost.
+
+#### BigQuery
+
+```bash
+# Multi-region dataset (automatic geo-redundancy)
+bq mk --dataset --location=US my-project:my_dataset
+
+# EU multi-region dataset
+bq mk --dataset --location=EU my-project:eu_dataset
+
+# Regional dataset
+bq mk --dataset --location=us-central1 my-project:regional_dataset
+```
+
+**Multi-region locations:**
+- **US**: Data stored across multiple regions in the US.
+- **EU**: Data stored across multiple regions in the EU.
+- Regional locations: us-central1, europe-west1, asia-northeast1, etc.
+
+**BigQuery redundancy:**
+- Multi-region datasets automatically replicate data for geo-redundancy.
+- You **cannot change** a dataset's location after creation.
+- Query data only from tables in the same location (or multi-region).
+
+#### Bigtable
+
+```bash
+# Create a Bigtable instance with replicated clusters
+gcloud bigtable instances create my-bigtable \
+  --display-name="Multi-region Bigtable" \
+  --cluster=cluster-us-central,zone=us-central1-a,nodes=3 \
+  --cluster=cluster-eu-west,zone=europe-west1-b,nodes=3
+
+# Add a cluster to an existing instance
+gcloud bigtable clusters create cluster-asia \
+  --instance=my-bigtable \
+  --zone=asia-east1-a \
+  --nodes=3
+```
+
+**Bigtable redundancy:**
+- **Replication**: Add up to 8 clusters across different regions.
+- **Eventually consistent** cross-region replication.
+- **Automatic failover**: Application routing handles cluster failures.
+- Use cases: global low-latency reads, disaster recovery, live migration.
+
+#### AlloyDB
+
+```bash
+# Cross-region read pool (requires AlloyDB Omni or specific tiers)
+# Primary instance in one region, read pools in other regions
+gcloud alloydb instances create my-read-pool-eu \
+  --cluster=my-cluster \
+  --region=europe-west1 \
+  --instance-type=READ_POOL \
+  --cpu-count=2 \
+  --read-pool-node-count=2
+```
+
+**AlloyDB redundancy:**
+- **Within-region HA**: Automatic failover within region (multi-zone).
+- **Cross-region replication**: Use read pools in other regions for read scaling and DR.
+- Not as mature for multi-region as Spanner, but supports cross-region read replicas.
+
+#### Summary Table
+
+| Service | Regional HA | Multi-Region | Failover Type | Consistency |
+|---------|------------|--------------|---------------|-------------|
+| **Cloud Storage** | Single-region buckets | US/EU/ASIA multi-region | Automatic | Strongly consistent |
+| **Cloud SQL** | REGIONAL (multi-zone) | Cross-region read replicas | Manual promotion for replicas | Strong (primary), eventual (replicas) |
+| **Cloud Spanner** | Regional configs (3 zones) | Multi-region configs (3+ regions) | Automatic, zero data loss | External consistency (global) |
+| **Firestore** | Regional (multi-zone) | nam5, eur3 multi-region | Automatic | Strongly consistent |
+| **BigQuery** | Regional datasets | US/EU multi-region | Automatic | Strongly consistent |
+| **Bigtable** | Single-zone clusters | Multi-cluster replication (up to 8) | Automatic (app routing) | Eventually consistent |
+| **AlloyDB** | Multi-zone within region | Cross-region read pools | Automatic (within region) | Strong (primary), eventual (read pools) |
+
+> **Exam tip:** Know which services offer **automatic multi-region failover** (Spanner, Firestore multi-region, BigQuery, Cloud Storage) vs which require **manual intervention** (Cloud SQL cross-region replicas). Understand that **Spanner** is the only globally distributed relational database with automatic multi-region failover and strong consistency.
+
+Docs: [Designing for high availability](https://cloud.google.com/architecture/framework/reliability/high-availability)
 
 ---
 
@@ -1354,6 +1662,187 @@ Docs: [Terraform on Google Cloud](https://cloud.google.com/docs/terraform)
 
 ---
 
+#### IaC State Management, Versioning, and Updates
+
+Proper state management is critical for team collaboration and safe infrastructure updates.
+
+**Remote State Backend (GCS)**
+
+Store Terraform state remotely in a Cloud Storage bucket for team access and state locking.
+
+```hcl
+# backend.tf
+terraform {
+  backend "gcs" {
+    bucket = "my-terraform-state-bucket"
+    prefix = "terraform/state"
+  }
+}
+```
+
+```bash
+# Create a GCS bucket for state with versioning
+gcloud storage buckets create gs://my-terraform-state-bucket \
+  --location=us-central1 \
+  --uniform-bucket-level-access
+
+# Enable versioning to keep state history
+gcloud storage buckets update gs://my-terraform-state-bucket --versioning
+
+# Initialize Terraform with the backend
+terraform init
+
+# Migrate local state to remote backend
+terraform init -migrate-state
+```
+
+**State Locking:**
+- GCS backend automatically supports **state locking** via Cloud Storage object locks.
+- Prevents concurrent `terraform apply` operations from corrupting state.
+- If a lock fails, you'll see an error message with lock details.
+
+**State Commands:**
+
+```bash
+# List all resources in state
+terraform state list
+
+# Show detailed state for a specific resource
+terraform state show google_compute_instance.my-vm
+
+# Move a resource to a different name in state (refactoring)
+terraform state mv google_compute_instance.old google_compute_instance.new
+
+# Remove a resource from state (resource still exists in GCP)
+terraform state rm google_compute_instance.my-vm
+
+# Import an existing resource into state
+terraform import google_compute_instance.my-vm \
+  projects/my-project/zones/us-central1-a/instances/my-vm
+
+# Replace a resource (force recreation)
+terraform apply -replace=google_compute_instance.my-vm
+
+# Pull remote state to local
+terraform state pull > terraform.tfstate.backup
+
+# Push local state to remote (dangerous -- use with caution)
+terraform state push terraform.tfstate
+```
+
+**Versioning and Provider Locking:**
+
+```hcl
+# versions.tf
+terraform {
+  required_version = ">= 1.9"
+
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 6.0"  # Allow 6.x, but not 7.0
+    }
+  }
+}
+```
+
+```bash
+# Initialize and create lock file
+terraform init
+# This creates .terraform.lock.hcl
+
+# Upgrade providers to latest allowed versions
+terraform init -upgrade
+
+# View provider versions
+terraform version
+terraform providers
+```
+
+**Lock file (`.terraform.lock.hcl`):**
+- Pins exact provider versions for reproducible builds.
+- Committed to version control.
+- Ensures all team members use the same provider versions.
+
+**Understanding Terraform Updates:**
+
+```bash
+# Preview changes before applying
+terraform plan
+
+# See detailed diff with resource changes
+terraform plan -out=tfplan
+
+# Apply the saved plan
+terraform apply tfplan
+
+# Auto-approve (skip confirmation -- CI/CD use case)
+terraform apply -auto-approve
+
+# Target a specific resource
+terraform apply -target=google_compute_instance.my-vm
+```
+
+**Change types:**
+- **`+` (create)**: Resource will be created.
+- **`-` (destroy)**: Resource will be destroyed.
+- **`~` (in-place update)**: Resource will be updated without recreation.
+- **`-/+` (force-new)**: Resource will be destroyed and recreated (e.g., changing immutable properties like zone).
+- **`<=` (read)**: Data source will be read.
+
+**Terraform Workspaces:**
+
+Workspaces allow managing multiple environments (dev, staging, prod) with the same config.
+
+```bash
+# List workspaces
+terraform workspace list
+
+# Create a new workspace
+terraform workspace new dev
+
+# Switch to a workspace
+terraform workspace select prod
+
+# Show current workspace
+terraform workspace show
+
+# Delete a workspace (must be empty)
+terraform workspace delete dev
+```
+
+**Workspace usage:**
+
+```hcl
+# main.tf
+resource "google_compute_instance" "my-vm" {
+  name         = "my-vm-${terraform.workspace}"
+  machine_type = terraform.workspace == "prod" ? "n2-standard-4" : "e2-medium"
+  zone         = "us-central1-a"
+
+  boot_disk {
+    initialize_params {
+      image = "debian-cloud/debian-12"
+    }
+  }
+
+  network_interface {
+    network = "default"
+  }
+}
+```
+
+**Best practices:**
+- Use **separate workspaces** or **separate state files** for each environment.
+- Many teams prefer separate directories/repos per environment over workspaces.
+- Workspaces share the same backend but have separate state files.
+
+> **Exam tip:** Know that Terraform state should be stored **remotely in GCS** with **versioning enabled**. Understand `terraform state` commands for importing and managing resources. Know that `.terraform.lock.hcl` pins provider versions for reproducibility. Understand the difference between **in-place updates** (`~`) and **force-new updates** (`-/+`).
+
+Docs: [Terraform state](https://developer.hashicorp.com/terraform/language/state) | [Remote backends](https://developer.hashicorp.com/terraform/language/settings/backends/gcs)
+
+---
+
 ### 3.6.2 Cloud Foundation Toolkit (CFT)
 
 A collection of **opinionated, production-ready Terraform modules** maintained by Google. Implements Google Cloud best practices for common infrastructure patterns.
@@ -1492,9 +1981,12 @@ Docs: [Using Helm with GKE](https://cloud.google.com/kubernetes-engine/docs/how-
 | Global relational DB, strong consistency | **Cloud Spanner** |
 | NoSQL document DB | **Firestore** |
 | Data warehouse / analytics | **BigQuery** |
-| Async messaging | **Pub/Sub** |
+| Async messaging (native GCP) | **Pub/Sub** |
+| Kafka-compatible event streaming | **Managed Service for Apache Kafka** |
 | Stream/batch ETL processing | **Dataflow** |
 | Object storage | **Cloud Storage** |
+| NFS-only shared file storage | **Filestore** |
+| NFS + SMB with enterprise features | **NetApp Volumes** |
 | IaC with declarative configs | **Terraform** |
 | K8s-native GCP resource management | **Config Connector** |
 | K8s package management | **Helm** |
@@ -1532,3 +2024,13 @@ Docs: [Using Helm with GKE](https://cloud.google.com/kubernetes-engine/docs/how-
 14. **HA VPN = 2 tunnels + BGP + 99.99% SLA. Classic VPN = 1 tunnel + static or BGP + 99.9% SLA.**
 
 15. **Dataflow drain vs cancel**: `drain` finishes processing in-flight data then stops. `cancel` stops immediately.
+
+16. **Managed Kafka vs Pub/Sub**: If the question mentions "existing Kafka applications" or "Kafka API compatibility", choose Managed Kafka. For native GCP event streaming, choose Pub/Sub.
+
+17. **NetApp Volumes vs Filestore**: NetApp Volumes supports both NFS and SMB, plus enterprise features (snapshots, cloning, replication). Filestore is NFS-only. If the question requires SMB or enterprise features, choose NetApp Volumes.
+
+18. **Multi-region redundancy**: Know which services offer automatic multi-region failover (Spanner, Firestore multi-region, BigQuery, Cloud Storage) vs manual failover (Cloud SQL cross-region replicas). Spanner is the only globally distributed relational DB with automatic failover and strong consistency.
+
+19. **Terraform state in GCS**: Store state remotely in a GCS bucket with versioning enabled for team collaboration. State locking is automatic with GCS backend.
+
+20. **Terraform updates**: `terraform plan` shows what will change. `~` = in-place update, `-/+` = force-new (destroy and recreate). Always plan before apply.

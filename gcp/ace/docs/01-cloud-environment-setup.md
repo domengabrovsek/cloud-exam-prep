@@ -286,6 +286,57 @@ gcloud identity groups memberships list --group-email="dev-team@example.com"
 
 ---
 
+### Setting Up Standalone Organizations
+
+You can create an Organization node without Google Workspace by using **Cloud Identity Free**. This is common for companies that want to use GCP with a centralized org structure but don't need Google Workspace email and collaboration tools.
+
+**How standalone organizations work:**
+
+- An Organization node is automatically created when you set up Cloud Identity (or Google Workspace).
+- With **Cloud Identity Free**, you get identity management (users, groups, 2FA, SSO) but no Gmail, Drive, or Workspace apps.
+- Cloud Identity Free supports up to 50 users for free; if you need more, you must upgrade to a paid Cloud Identity tier.
+- The organization domain must be verified -- you prove you own the domain via DNS TXT records or HTML file upload.
+
+**Steps to set up a standalone organization:**
+
+1. Go to `cloud.google.com` and sign in with a Gmail account or any Google account.
+2. Navigate to **Cloud Console > IAM & Admin > Identity & Organization**.
+3. Follow the prompts to set up Cloud Identity. You will be asked to provide a domain you own (e.g., `example.com`).
+4. Verify domain ownership via DNS TXT record or HTML file upload (similar to Google Search Console verification).
+5. Complete the Cloud Identity account setup in the Google Admin Console (`admin.google.com`).
+6. The Organization node is **automatically created** once Cloud Identity setup is complete.
+7. Verify the organization exists:
+
+```bash
+# List organizations you have access to
+gcloud organizations list
+
+# Describe the organization
+gcloud organizations describe 123456789012
+```
+
+**Difference between Google Workspace-backed and standalone orgs:**
+
+| Aspect | Google Workspace | Cloud Identity Free |
+|---|---|---|
+| **Organization node** | Created automatically | Created automatically |
+| **Identity management** | Yes (users, groups, SSO, 2FA) | Yes (users, groups, SSO, 2FA) |
+| **Gmail, Drive, Docs, etc.** | Included | Not included |
+| **Cost** | Paid per user | Free (up to 50 users) |
+| **Use case** | Orgs that need collaboration tools + GCP | Orgs that only need GCP with centralized identity |
+
+**Exam tips:**
+
+- **Cloud Identity Free is sufficient for GCP-only organizations.** You do not need to pay for Google Workspace to get an Organization node.
+- The Organization node is tied to a **domain** (e.g., `example.com`), not to individual user accounts. You cannot create an Organization using a personal Gmail account (like `john@gmail.com`).
+- Once the Organization is created, the **first Super Admin** (the person who set up Cloud Identity) becomes the de facto owner. This user should grant `roles/resourcemanager.organizationAdmin` to other admins.
+- **Domain verification is required** before Cloud Identity can be fully activated and the Organization node is created.
+- If you delete an Organization, all resources under it remain, but they become standalone projects. The Organization **cannot be easily deleted** once created -- it requires contacting Google Support.
+
+**Docs:** [Cloud Identity Overview](https://cloud.google.com/identity/docs/overview) | [Set Up Cloud Identity](https://cloud.google.com/resource-manager/docs/creating-managing-organization)
+
+---
+
 ### Enabling APIs Within Projects
 
 Every GCP service requires its API to be enabled in the project before you can use it. New projects have a small set of APIs enabled by default.
@@ -329,6 +380,101 @@ gcloud services disable compute.googleapis.com --project=my-project-id
 - Disabling an API does **not** delete resources created by that API, but those resources become inaccessible until the API is re-enabled.
 
 **Docs:** [Enabling and Disabling APIs](https://cloud.google.com/service-usage/docs/enable-disable)
+
+---
+
+### Using Cloud Asset Inventory and Gemini Cloud Assist
+
+**Cloud Asset Inventory** provides a complete inventory of all GCP resources, IAM policies, and organization policies across your organization, folders, and projects. It is essential for resource governance, security audits, and compliance.
+
+**What is Cloud Asset Inventory?**
+
+- A **metadata database** that tracks all resources in your GCP organization in near real-time.
+- Captures resource configurations, IAM policies, and organization policies.
+- Supports querying, exporting, and analyzing assets at scale.
+- Does **not** store resource data (e.g., VM disk contents or database rows) -- only metadata (e.g., "this VM exists in us-central1-a with 4 vCPUs").
+
+**Key capabilities:**
+
+| Capability | Description |
+|---|---|
+| **Search all resources** | Find all resources of a specific type (e.g., "all VMs") across the entire org |
+| **Search all IAM policies** | Find who has access to what (e.g., "which users have Owner on any project?") |
+| **Export inventory** | Export full asset snapshots to BigQuery or Cloud Storage for analysis |
+| **Analyze IAM policies** | Use the IAM Policy Analyzer to trace effective permissions and access paths |
+| **Get resource history** | See the state of a resource at a previous point in time (up to 35 days of history) |
+
+**Key gcloud commands:**
+
+```bash
+# Search for all Compute Engine instances across the organization
+gcloud asset search-all-resources \
+  --scope=organizations/123456789012 \
+  --asset-types=compute.googleapis.com/Instance
+
+# Search for all Cloud Storage buckets in a project
+gcloud asset search-all-resources \
+  --scope=projects/my-project-id \
+  --asset-types=storage.googleapis.com/Bucket
+
+# Search for all IAM policies granting the Owner role
+gcloud asset search-all-iam-policies \
+  --scope=organizations/123456789012 \
+  --query="policy:roles/owner"
+
+# Search for IAM policies granting access to a specific user
+gcloud asset search-all-iam-policies \
+  --scope=organizations/123456789012 \
+  --query="policy:user:alice@example.com"
+
+# Export all assets to BigQuery
+gcloud asset export \
+  --organization=123456789012 \
+  --output-bigquery-table=projects/my-project-id/datasets/my_dataset/asset_export \
+  --content-type=resource
+
+# Export all IAM policies to Cloud Storage
+gcloud asset export \
+  --organization=123456789012 \
+  --output-path=gs://my-bucket/asset-export.json \
+  --content-type=iam-policy
+
+# Analyze IAM policy to check if a principal has access to a resource
+gcloud asset analyze-iam-policy \
+  --organization=123456789012 \
+  --full-resource-name="//compute.googleapis.com/projects/my-project-id/zones/us-central1-a/instances/my-vm" \
+  --identity="user:alice@example.com"
+```
+
+**Gemini Cloud Assist:**
+
+**Gemini Cloud Assist** is an AI-powered assistant that helps you analyze resources, troubleshoot issues, and get configuration recommendations using natural language queries.
+
+**How Gemini Cloud Assist works with Cloud Asset Inventory:**
+
+- Gemini can query Cloud Asset Inventory to answer questions like "What VMs are running in us-east1?" or "Which service accounts have not been used in 90 days?"
+- It can analyze IAM policies and recommend least-privilege changes (e.g., "Which users have overly broad permissions?").
+- It provides compliance checking (e.g., "Are there any public Cloud Storage buckets?").
+- It offers configuration recommendations (e.g., "Which VMs are underutilized and can be resized?").
+
+**Use cases for governance:**
+
+- **Compliance audits:** "Show me all resources in the EU."
+- **Security reviews:** "Which service accounts have the Owner role?"
+- **Cost optimization:** "List all idle VMs."
+- **Policy enforcement:** "Are there any VMs with external IPs in the production folder?"
+
+**Exam tips:**
+
+- Cloud Asset Inventory is **separate from Cloud Monitoring metrics**. It tracks resource metadata and IAM policies, not performance metrics.
+- The **Cloud Asset Viewer** role (`roles/cloudasset.viewer`) is required to search and export assets.
+- Asset history is retained for **35 days** (also called the "temporal window"). You can query historical state during this window.
+- Asset exports to BigQuery are useful for **custom compliance reporting** and **showback/chargeback** by tagging resources with labels and querying them.
+- The `gcloud asset search-all-resources` command uses a query syntax similar to Cloud Console search (e.g., `--query="labels.env=prod"`).
+- **IAM Policy Analyzer** (`gcloud asset analyze-iam-policy`) is the tool for answering "who has access to this resource?" and "what can this user access?" questions.
+- Gemini Cloud Assist integrates with Cloud Asset Inventory to provide **natural language querying** and **AI-driven insights** -- this is a newer feature and may appear in updated exam content.
+
+**Docs:** [Cloud Asset Inventory Overview](https://cloud.google.com/asset-inventory/docs/overview) | [Searching Resources and Policies](https://cloud.google.com/asset-inventory/docs/searching-resources) | [Gemini Cloud Assist](https://cloud.google.com/gemini/docs)
 
 ---
 
@@ -452,6 +598,99 @@ gcloud beta quotas info list --service=compute.googleapis.com --project=my-proje
 - Some quotas can be managed through **quota override** using the Service Usage API or Terraform.
 
 **Docs:** [Working with Quotas](https://cloud.google.com/docs/quotas/view-manage)
+
+---
+
+### Confirming Availability of Products in Geographical Locations
+
+Not all GCP products are available in all regions and zones. Before deploying resources, you must confirm that the product you need is available in your target geographical location.
+
+**Google Cloud Locations:**
+
+- Google Cloud has **regions** (independent geographic areas, e.g., `us-central1`, `europe-west1`) and **zones** (isolated locations within a region, e.g., `us-central1-a`, `us-central1-b`).
+- The official reference for all locations is the **Google Cloud Locations page**: `cloud.google.com/about/locations`
+- Each product has different regional availability. Some products are global, some regional, some zonal.
+
+**How to check product availability:**
+
+1. **Use the Cloud Locations page:**
+   - Visit `cloud.google.com/about/locations`
+   - Filter by region to see which products are available there.
+   - Example: Cloud Spanner is only available in specific regions; Cloud SQL supports different database engines in different regions.
+
+2. **Use gcloud commands to list regions/zones for specific products:**
+
+```bash
+# List all available Compute Engine regions
+gcloud compute regions list
+
+# Describe a specific region (shows available CPUs, quotas, etc.)
+gcloud compute regions describe us-central1
+
+# List all available zones
+gcloud compute zones list
+
+# List available zones in a specific region
+gcloud compute zones list --filter="region:us-central1"
+
+# List Cloud Spanner instance configurations (regional and multi-regional)
+gcloud spanner instance-configs list
+
+# Describe a specific Cloud Spanner configuration to see which regions it covers
+gcloud spanner instance-configs describe regional-us-central1
+
+# List available GKE versions per region
+gcloud container get-server-config --region=us-central1
+
+# List available Cloud SQL regions (via API or Console; no direct gcloud command)
+# Check the Cloud Console or use the SQL Admin API
+```
+
+3. **Product-specific documentation:**
+   - Each product's documentation includes a "Locations" or "Regions and Zones" page.
+   - Example: Cloud SQL documentation lists supported regions and database versions per region.
+
+**Resource scope: Global vs Regional vs Zonal**
+
+Understanding resource scope is critical for the exam. Here is a reference table:
+
+| Scope | What It Means | Examples |
+|---|---|---|
+| **Global** | Resource is not tied to a specific region or zone; accessible from anywhere | IAM policies, Cloud DNS, global load balancers, VPC networks, firewall rules, global Cloud Storage buckets (but data is stored in a location) |
+| **Regional** | Resource exists in a specific region (replicated across zones in that region) | Cloud SQL instances, GKE clusters (regional), Cloud Storage regional buckets, external IP addresses (regional), subnets |
+| **Zonal** | Resource exists in a specific zone only (not replicated) | Compute Engine VM instances, persistent disks, GKE node pools (zonal clusters) |
+
+**Key facts for the exam:**
+
+- A **zonal resource** (like a VM) can only be used in the zone where it was created. To move it, you must recreate it in another zone or use snapshots/images.
+- A **regional resource** (like a regional GKE cluster) is replicated across multiple zones in the region for high availability.
+- **Global resources** like VPC networks and IAM policies are shared across all regions. However, subnets within a VPC are regional.
+- **Cloud Storage buckets** are created with a location (single region, dual-region, or multi-region). Data is stored in that location, but the bucket name is globally unique.
+- Some products are only available in specific regions (e.g., Cloud Spanner multi-region `nam-eur-asia1` spans North America, Europe, and Asia).
+
+**Exam tips:**
+
+- Questions like "Which products can be used in `us-west1`?" require you to know the difference between global, regional, and zonal scope.
+- If a question mentions latency or proximity to users, the answer usually involves deploying resources in a region **close to the users** (e.g., `asia-southeast1` for users in Singapore).
+- **Compliance and data residency** scenarios often test your knowledge of `constraints/gcp.resourceLocations` org policy to restrict where resources can be created.
+- A common trick: "Can you attach a persistent disk in `us-central1-a` to a VM in `us-central1-b`?" -- **No**, disks are zonal and must be in the same zone as the VM. You can snapshot the disk and create a new disk in the target zone.
+- **Regional persistent disks** (replica PDs) are an exception -- they replicate across two zones in a region and can be attached to VMs in either zone.
+- When designing for high availability, the pattern is: **regional resources** (like regional GKE or Cloud SQL with HA) or **multi-zonal deployments** (like a managed instance group spread across zones).
+
+**gcloud examples for availability checks:**
+
+```bash
+# Check if a specific machine type is available in a zone
+gcloud compute machine-types list --filter="zone:us-central1-a AND name:n1-standard-4"
+
+# List all GPU types available in a zone
+gcloud compute accelerator-types list --filter="zone:us-central1-a"
+
+# Check available Cloud SQL tiers in a region (done via Console or SQL Admin API)
+# No direct gcloud command; use: gcloud sql tiers list --project=my-project-id
+```
+
+**Docs:** [Google Cloud Locations](https://cloud.google.com/about/locations) | [Regions and Zones](https://cloud.google.com/compute/docs/regions-zones) | [Geography and Regions](https://cloud.google.com/docs/geography-and-regions)
 
 ---
 

@@ -18,29 +18,50 @@ Study guide for the Google Cloud Associate Cloud Engineer certification renewal 
 
 ## Exam Domains
 
+**Standard exam:**
+
 | # | Domain | Weight | Study Guide |
 |---|--------|--------|-------------|
-| 1 | Setting up a cloud solution environment | ~20% | [01-cloud-environment-setup.md](./01-cloud-environment-setup.md) |
-| 2 | Planning and configuring a cloud solution | ~17.5% | [02-planning-and-configuring.md](./02-planning-and-configuring.md) |
-| 3 | Deploying and implementing a cloud solution | **~25%** | [03-deploying-and-implementing.md](./03-deploying-and-implementing.md) |
-| 4 | Ensuring successful operation of a cloud solution | ~20% | [04-operations.md](./04-operations.md) |
-| 5 | Configuring access and security | ~17.5% | [05-access-and-security.md](./05-access-and-security.md) |
+| 1 | Setting up a cloud solution environment | ~23% | [docs/01-cloud-environment-setup.md](./docs/01-cloud-environment-setup.md) |
+| 2 | Planning and implementing a cloud solution | **~30%** | [docs/02-planning-and-configuring.md](./docs/02-planning-and-configuring.md), [docs/03-deploying-and-implementing.md](./docs/03-deploying-and-implementing.md) |
+| 3 | Ensuring successful operation of a cloud solution | ~27% | [docs/04-operations.md](./docs/04-operations.md) |
+| 4 | Configuring access and security | ~20% | [docs/05-access-and-security.md](./docs/05-access-and-security.md) |
 
-**Additional resources:**
-- [06-key-gcloud-commands.md](./06-key-gcloud-commands.md) - CLI cheat sheet
-- [07-practice-questions.md](./07-practice-questions.md) - 60 practice questions with answers
-- [08-answered-questions.md](./08-answered-questions.md) - 20 answered questions with detailed explanations
-- [09-decision-trees.md](./09-decision-trees.md) - Service selection decision trees and scenario quick reference
+**Renewal exam** (Section 1 not included):
+
+| # | Domain | Weight |
+|---|--------|--------|
+| 2 | Planning and implementing a cloud solution | **~40%** |
+| 3 | Ensuring successful operation of a cloud solution | **~40%** |
+| 4 | Configuring access and security | ~20% |
+
+**Additional study resources:**
+- [docs/06-key-gcloud-commands.md](./docs/06-key-gcloud-commands.md) - CLI cheat sheet
+- [docs/09-decision-trees.md](./docs/09-decision-trees.md) - Service selection decision trees and scenario quick reference
+
+**Practice questions** (140 questions organized by exam section):
+
+| Section | Questions | File |
+|---------|-----------|------|
+| 1 -- Setting up cloud environment | 25 | [questions/section-1-cloud-environment-setup.md](./questions/section-1-cloud-environment-setup.md) |
+| 2 -- Planning and implementing | 58 | [questions/section-2-planning-and-implementing.md](./questions/section-2-planning-and-implementing.md) |
+| 3 -- Ensuring successful operation | 34 | [questions/section-3-operations.md](./questions/section-3-operations.md) |
+| 4 -- Configuring access and security | 23 | [questions/section-4-access-and-security.md](./questions/section-4-access-and-security.md) |
+| Google official samples | 20 | [questions/google-official-sample.md](./questions/google-official-sample.md) |
+
+**Quizzes** (gitignored, local only):
+- `quizzes/` -- Quiz attempt results with scores and wrong answer analysis
+- Naming: `{number}-{date}.md` (e.g., `001-2026-02-07.md`)
 
 ## 1-Day Study Strategy
 
 Since you use GCP daily, focus on:
 
-1. **Skim all 5 domain files** - flag anything unfamiliar (~1-2 hours)
-2. **Deep dive on weak spots** - especially Domain 3 (deploying) which is 25% of the exam (~1 hour)
+1. **Skim all study guides in `docs/`** - flag anything unfamiliar (~1-2 hours)
+2. **Deep dive on weak spots** - especially Section 2 (30% standard / 40% renewal) (~1 hour)
 3. **Review the CLI cheat sheet** - know the key commands for each service (~30 min)
 4. **Do all practice questions** - aim for 85%+ before taking the real exam (~1-2 hours)
-5. **Review wrong answers** - re-read the relevant domain sections (~30 min)
+5. **Review wrong answers** - check your quiz results in `quizzes/` and re-read relevant sections (~30 min)
 
 **Key exam trends:**
 - Scenario-based questions (not pure memorization)
@@ -63,4 +84,3 @@ Since you use GCP daily, focus on:
 - [Google Cloud Cheat Sheet](https://googlecloudcheatsheet.withgoogle.com/)
 - [GCP Flowcharts](https://grumpygrace.dev/posts/gcp-flowcharts/)
 - [Awesome GCP Certifications (GitHub)](https://github.com/sathishvj/awesome-gcp-certifications)
-

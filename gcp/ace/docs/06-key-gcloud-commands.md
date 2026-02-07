@@ -1515,6 +1515,536 @@ terraform apply -replace=google_compute_instance.my_vm   # Recreate a specific r
 
 ---
 
+## 21. gcloud asset -- Cloud Asset Inventory
+
+```bash
+# Search all resources in a project
+gcloud asset search-all-resources --scope=projects/PROJECT_ID
+
+# Search all resources in an organization
+gcloud asset search-all-resources --scope=organizations/ORG_ID
+
+# Search resources by type
+gcloud asset search-all-resources --scope=projects/PROJECT_ID \
+  --asset-types=compute.googleapis.com/Instance
+
+# Search IAM policies in a project
+gcloud asset search-all-iam-policies --scope=projects/PROJECT_ID
+
+# Search IAM policies in an organization
+gcloud asset search-all-iam-policies --scope=organizations/ORG_ID
+
+# Search for who has a specific role
+gcloud asset search-all-iam-policies --scope=projects/PROJECT_ID \
+  --query="policy:roles/editor"
+
+# Export all assets to Cloud Storage
+gcloud asset export --project=PROJECT_ID \
+  --output-path=gs://BUCKET/FILE.json \
+  --content-type=resource
+
+# Export IAM policies to Cloud Storage
+gcloud asset export --project=PROJECT_ID \
+  --output-path=gs://BUCKET/iam-policies.json \
+  --content-type=iam-policy
+
+# Analyze IAM policy (who has access to what)
+gcloud asset analyze-iam-policy --organization=ORG_ID \
+  --full-resource-name="//cloudresourcemanager.googleapis.com/projects/PROJECT_ID"
+
+# Analyze IAM policy for a specific identity
+gcloud asset analyze-iam-policy --organization=ORG_ID \
+  --identity="user:alice@example.com"
+```
+
+---
+
+## 22. Hyperdisk Commands
+
+```bash
+# Create a Hyperdisk Extreme disk with provisioned IOPS and throughput
+gcloud compute disks create my-hyperdisk-extreme \
+  --zone=us-central1-a \
+  --type=hyperdisk-extreme \
+  --provisioned-iops=100000 \
+  --provisioned-throughput=2400 \
+  --size=1000GB
+
+# Create a Hyperdisk Balanced disk
+gcloud compute disks create my-hyperdisk-balanced \
+  --zone=us-central1-a \
+  --type=hyperdisk-balanced \
+  --size=500GB
+
+# Update IOPS and throughput on an existing Hyperdisk Extreme
+gcloud compute disks update my-hyperdisk-extreme \
+  --zone=us-central1-a \
+  --provisioned-iops=150000 \
+  --provisioned-throughput=3000
+
+# Attach Hyperdisk to a VM
+gcloud compute instances attach-disk my-vm \
+  --disk=my-hyperdisk-extreme \
+  --zone=us-central1-a
+```
+
+---
+
+## 23. Cloud NGFW / Network Firewall Policies
+
+```bash
+# Create a global network firewall policy
+gcloud compute network-firewall-policies create my-policy --global
+
+# Create a regional network firewall policy
+gcloud compute network-firewall-policies create my-regional-policy \
+  --region=us-central1
+
+# List firewall policies
+gcloud compute network-firewall-policies list --global
+gcloud compute network-firewall-policies list --region=us-central1
+
+# Describe a firewall policy
+gcloud compute network-firewall-policies describe my-policy --global
+
+# Create a firewall rule in the policy
+gcloud compute network-firewall-policies rules create 1000 \
+  --firewall-policy=my-policy \
+  --global \
+  --action=allow \
+  --direction=INGRESS \
+  --src-ip-ranges=0.0.0.0/0 \
+  --layer4-configs=tcp:443 \
+  --description="Allow HTTPS from internet"
+
+# Create a deny rule
+gcloud compute network-firewall-policies rules create 2000 \
+  --firewall-policy=my-policy \
+  --global \
+  --action=deny \
+  --direction=EGRESS \
+  --dest-ip-ranges=0.0.0.0/0 \
+  --layer4-configs=tcp:22
+
+# List rules in a policy
+gcloud compute network-firewall-policies rules describe 1000 \
+  --firewall-policy=my-policy \
+  --global
+
+# Update a rule
+gcloud compute network-firewall-policies rules update 1000 \
+  --firewall-policy=my-policy \
+  --global \
+  --src-ip-ranges=10.0.0.0/8
+
+# Delete a rule
+gcloud compute network-firewall-policies rules delete 1000 \
+  --firewall-policy=my-policy \
+  --global
+
+# Associate a firewall policy with a VPC network
+gcloud compute network-firewall-policies associations create \
+  --firewall-policy=my-policy \
+  --network=my-vpc \
+  --global-firewall-policy
+
+# List associations
+gcloud compute network-firewall-policies associations list \
+  --firewall-policy=my-policy \
+  --global
+
+# Delete an association
+gcloud compute network-firewall-policies associations delete \
+  --name=ASSOCIATION_NAME \
+  --firewall-policy=my-policy \
+  --global
+
+# Delete a firewall policy
+gcloud compute network-firewall-policies delete my-policy --global
+```
+
+---
+
+## 24. Resource Manager Tags (Secure Tags)
+
+```bash
+# Create a tag key at the organization level
+gcloud resource-manager tags keys create my-tag-key \
+  --parent=organizations/ORG_ID \
+  --purpose=GCE_FIREWALL \
+  --purpose-data=network=my-vpc
+
+# Create a tag key without firewall purpose
+gcloud resource-manager tags keys create environment \
+  --parent=organizations/ORG_ID
+
+# List tag keys
+gcloud resource-manager tags keys list --parent=organizations/ORG_ID
+
+# Describe a tag key
+gcloud resource-manager tags keys describe TAG_KEY_ID
+
+# Create a tag value under a tag key
+gcloud resource-manager tags values create production \
+  --parent=TAG_KEY_ID
+
+gcloud resource-manager tags values create staging \
+  --parent=TAG_KEY_ID
+
+# List tag values
+gcloud resource-manager tags values list --parent=TAG_KEY_ID
+
+# Bind a tag to a resource (e.g., VM instance)
+gcloud resource-manager tags bindings create \
+  --tag-value=TAG_VALUE_ID \
+  --parent=//compute.googleapis.com/projects/PROJECT_ID/zones/ZONE/instances/VM_NAME
+
+# Bind a tag to a project
+gcloud resource-manager tags bindings create \
+  --tag-value=TAG_VALUE_ID \
+  --parent=//cloudresourcemanager.googleapis.com/projects/PROJECT_ID
+
+# List tag bindings on a resource
+gcloud resource-manager tags bindings list \
+  --parent=//compute.googleapis.com/projects/PROJECT_ID/zones/ZONE/instances/VM_NAME
+
+# Delete a tag binding
+gcloud resource-manager tags bindings delete \
+  --tag-value=TAG_VALUE_ID \
+  --parent=//compute.googleapis.com/projects/PROJECT_ID/zones/ZONE/instances/VM_NAME
+
+# Delete a tag value
+gcloud resource-manager tags values delete TAG_VALUE_ID
+
+# Delete a tag key
+gcloud resource-manager tags keys delete TAG_KEY_ID
+```
+
+---
+
+## 25. Bigtable Backup Commands
+
+```bash
+# Create a backup of a Bigtable table
+gcloud bigtable backups create my-backup \
+  --instance=my-instance \
+  --cluster=my-cluster \
+  --table=my-table \
+  --retention-period=30d
+
+# Create a backup with expiration time
+gcloud bigtable backups create my-backup \
+  --instance=my-instance \
+  --cluster=my-cluster \
+  --table=my-table \
+  --expiration-date=2026-12-31T00:00:00Z
+
+# List backups in a cluster
+gcloud bigtable backups list \
+  --instance=my-instance \
+  --cluster=my-cluster
+
+# Describe a backup
+gcloud bigtable backups describe my-backup \
+  --instance=my-instance \
+  --cluster=my-cluster
+
+# Update backup expiration
+gcloud bigtable backups update my-backup \
+  --instance=my-instance \
+  --cluster=my-cluster \
+  --retention-period=60d
+
+# Restore a table from a backup
+gcloud bigtable instances tables restore \
+  --source-instance=my-instance \
+  --source-cluster=my-cluster \
+  --source-backup=my-backup \
+  --destination=restored-table \
+  --destination-instance=my-instance
+
+# Restore to a different instance
+gcloud bigtable instances tables restore \
+  --source-instance=source-instance \
+  --source-cluster=source-cluster \
+  --source-backup=my-backup \
+  --destination=restored-table \
+  --destination-instance=destination-instance
+
+# Delete a backup
+gcloud bigtable backups delete my-backup \
+  --instance=my-instance \
+  --cluster=my-cluster
+```
+
+---
+
+## 26. Spanner Backup Commands
+
+```bash
+# Create a backup of a Spanner database
+gcloud spanner backups create my-backup \
+  --instance=my-instance \
+  --database=my-database \
+  --retention-period=7d
+
+# Create a backup with expiration time
+gcloud spanner backups create my-backup \
+  --instance=my-instance \
+  --database=my-database \
+  --expiration-date=2026-06-01T00:00:00Z
+
+# List backups in an instance
+gcloud spanner backups list --instance=my-instance
+
+# Describe a backup
+gcloud spanner backups describe my-backup --instance=my-instance
+
+# Update backup expiration
+gcloud spanner backups update my-backup \
+  --instance=my-instance \
+  --retention-period=14d
+
+# Restore a database from a backup
+gcloud spanner databases restore \
+  --instance=my-instance \
+  --source-backup=my-backup \
+  --source-instance=my-instance \
+  --destination-database=restored-db
+
+# Restore to a different instance
+gcloud spanner databases restore \
+  --instance=destination-instance \
+  --source-backup=my-backup \
+  --source-instance=source-instance \
+  --destination-database=new-db
+
+# Delete a backup
+gcloud spanner backups delete my-backup --instance=my-instance
+```
+
+---
+
+## 27. AlloyDB Commands
+
+```bash
+# Create an AlloyDB cluster
+gcloud alloydb clusters create my-cluster \
+  --region=us-central1 \
+  --password=MY_PASSWORD \
+  --network=projects/PROJECT_ID/global/networks/my-vpc
+
+# List clusters
+gcloud alloydb clusters list --region=us-central1
+
+# Describe a cluster
+gcloud alloydb clusters describe my-cluster --region=us-central1
+
+# Create a primary instance in the cluster
+gcloud alloydb instances create my-primary \
+  --cluster=my-cluster \
+  --region=us-central1 \
+  --instance-type=PRIMARY \
+  --cpu-count=2
+
+# Create a read pool instance
+gcloud alloydb instances create my-read-pool \
+  --cluster=my-cluster \
+  --region=us-central1 \
+  --instance-type=READ_POOL \
+  --read-pool-node-count=2 \
+  --cpu-count=2
+
+# List instances in a cluster
+gcloud alloydb instances list --cluster=my-cluster --region=us-central1
+
+# Describe an instance
+gcloud alloydb instances describe my-primary \
+  --cluster=my-cluster \
+  --region=us-central1
+
+# Update an instance (e.g., resize)
+gcloud alloydb instances update my-primary \
+  --cluster=my-cluster \
+  --region=us-central1 \
+  --cpu-count=4
+
+# Restart an instance
+gcloud alloydb instances restart my-primary \
+  --cluster=my-cluster \
+  --region=us-central1
+
+# Create a backup
+gcloud alloydb backups create my-backup \
+  --cluster=my-cluster \
+  --region=us-central1
+
+# List backups
+gcloud alloydb backups list --region=us-central1
+
+# Describe a backup
+gcloud alloydb backups describe my-backup --region=us-central1
+
+# Restore from a backup (creates a new cluster)
+gcloud alloydb clusters restore my-restored-cluster \
+  --region=us-central1 \
+  --backup=my-backup \
+  --network=projects/PROJECT_ID/global/networks/my-vpc
+
+# Delete an instance
+gcloud alloydb instances delete my-primary \
+  --cluster=my-cluster \
+  --region=us-central1
+
+# Delete a cluster (must delete all instances first)
+gcloud alloydb clusters delete my-cluster --region=us-central1
+
+# Delete a backup
+gcloud alloydb backups delete my-backup --region=us-central1
+```
+
+---
+
+## 28. Database Center
+
+**Note:** Database Center is a **Console-only** feature. There are no gcloud commands for Database Center. Access it via the Cloud Console:
+
+```
+Cloud Console > Database Center
+```
+
+Database Center provides a unified view of all databases in your project (Cloud SQL, Spanner, AlloyDB, Bigtable, Firestore) with insights, recommendations, and monitoring dashboards.
+
+---
+
+## 29. Custom Static Routes
+
+```bash
+# Create a custom static route with next-hop as an instance (network appliance)
+gcloud compute routes create my-route \
+  --network=my-vpc \
+  --destination-range=10.0.0.0/8 \
+  --next-hop-instance=appliance-vm \
+  --next-hop-instance-zone=us-central1-a \
+  --priority=100
+
+# Create a route with next-hop as an IP address
+gcloud compute routes create my-route \
+  --network=my-vpc \
+  --destination-range=192.168.0.0/16 \
+  --next-hop-address=10.1.0.10 \
+  --priority=100
+
+# Create a route with next-hop as a VPN tunnel
+gcloud compute routes create vpn-route \
+  --network=my-vpc \
+  --destination-range=172.16.0.0/12 \
+  --next-hop-vpn-tunnel=my-vpn-tunnel \
+  --next-hop-vpn-tunnel-region=us-central1
+
+# Create a route with next-hop as the default internet gateway
+gcloud compute routes create internet-route \
+  --network=my-vpc \
+  --destination-range=0.0.0.0/0 \
+  --next-hop-gateway=default-internet-gateway
+
+# Create a route with next-hop as an internal load balancer
+gcloud compute routes create ilb-route \
+  --network=my-vpc \
+  --destination-range=10.20.0.0/16 \
+  --next-hop-ilb=my-ilb \
+  --next-hop-ilb-region=us-central1
+
+# List all routes
+gcloud compute routes list
+
+# List routes in a specific VPC
+gcloud compute routes list --filter="network:my-vpc"
+
+# List routes by destination
+gcloud compute routes list --filter="destRange:10.0.0.0/8"
+
+# Describe a route
+gcloud compute routes describe my-route
+
+# Delete a route
+gcloud compute routes delete my-route
+```
+
+---
+
+## 30. Active Assist / Recommender Commands
+
+```bash
+# List all available recommenders
+gcloud recommender recommenders list
+
+# List machine type recommendations for VMs in a zone
+gcloud recommender recommendations list \
+  --project=PROJECT_ID \
+  --location=us-central1-a \
+  --recommender=google.compute.instance.MachineTypeRecommender
+
+# List idle VM recommendations
+gcloud recommender recommendations list \
+  --project=PROJECT_ID \
+  --location=us-central1-a \
+  --recommender=google.compute.instance.IdleResourceRecommender
+
+# List IAM policy recommendations (remove unused permissions)
+gcloud recommender recommendations list \
+  --project=PROJECT_ID \
+  --location=global \
+  --recommender=google.iam.policy.Recommender
+
+# List unattended project recommendations
+gcloud recommender recommendations list \
+  --project=PROJECT_ID \
+  --location=global \
+  --recommender=google.resourcemanager.projectUtilization.Recommender
+
+# Describe a specific recommendation
+gcloud recommender recommendations describe RECOMMENDATION_ID \
+  --project=PROJECT_ID \
+  --location=us-central1-a \
+  --recommender=google.compute.instance.MachineTypeRecommender
+
+# Mark a recommendation as claimed (in progress)
+gcloud recommender recommendations mark-claimed RECOMMENDATION_ID \
+  --project=PROJECT_ID \
+  --location=us-central1-a \
+  --recommender=google.compute.instance.MachineTypeRecommender \
+  --etag=ETAG
+
+# Mark a recommendation as succeeded (applied)
+gcloud recommender recommendations mark-succeeded RECOMMENDATION_ID \
+  --project=PROJECT_ID \
+  --location=us-central1-a \
+  --recommender=google.compute.instance.MachineTypeRecommender \
+  --etag=ETAG
+
+# Mark a recommendation as failed
+gcloud recommender recommendations mark-failed RECOMMENDATION_ID \
+  --project=PROJECT_ID \
+  --location=us-central1-a \
+  --recommender=google.compute.instance.MachineTypeRecommender \
+  --etag=ETAG
+
+# List IAM insights (who has access but hasn't used it)
+gcloud recommender insights list \
+  --project=PROJECT_ID \
+  --location=global \
+  --insight-type=google.iam.policy.Insight
+
+# Describe an insight
+gcloud recommender insights describe INSIGHT_ID \
+  --project=PROJECT_ID \
+  --location=global \
+  --insight-type=google.iam.policy.Insight
+```
+
+---
+
 ## Quick Reference: Common Patterns
 
 ### Format & Filter Examples

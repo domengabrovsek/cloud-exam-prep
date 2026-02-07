@@ -896,6 +896,88 @@ kubectl annotate serviceaccount KSA_NAME \
   iam.gke.io/gcp-service-account=my-app-sa@PROJECT_ID.iam.gserviceaccount.com
 ```
 
+#### Using Google Cloud Service Account with GKE Application (End-to-End)
+
+Here is a complete end-to-end example of configuring Workload Identity so that a GKE pod can access Google Cloud services (e.g., Cloud Storage) without using service account keys:
+
+**Step 1: Create a GCP service account with specific permissions**
+
+```bash
+# Create a GCP service account
+gcloud iam service-accounts create my-gke-app-sa \
+  --display-name="GKE App Service Account"
+
+# Grant the service account the necessary permissions
+# Example: read Cloud Storage objects
+gcloud projects add-iam-policy-binding PROJECT_ID \
+  --member="serviceAccount:my-gke-app-sa@PROJECT_ID.iam.gserviceaccount.com" \
+  --role="roles/storage.objectViewer"
+```
+
+**Step 2: Create a Kubernetes service account**
+
+```bash
+# Create a namespace and Kubernetes service account
+kubectl create namespace my-app
+kubectl create serviceaccount my-ksa --namespace my-app
+```
+
+**Step 3: Bind the GCP SA and K8s SA with Workload Identity**
+
+```bash
+# Allow the Kubernetes service account to act as the GCP service account
+gcloud iam service-accounts add-iam-policy-binding \
+  my-gke-app-sa@PROJECT_ID.iam.gserviceaccount.com \
+  --role="roles/iam.workloadIdentityUser" \
+  --member="serviceAccount:PROJECT_ID.svc.id.goog[my-app/my-ksa]"
+```
+
+**Step 4: Annotate the Kubernetes service account**
+
+```bash
+# Link the K8s SA to the GCP SA via annotation
+kubectl annotate serviceaccount my-ksa \
+  --namespace my-app \
+  iam.gke.io/gcp-service-account=my-gke-app-sa@PROJECT_ID.iam.gserviceaccount.com
+```
+
+**Step 5: Deploy a pod using the Kubernetes service account**
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-app-pod
+  namespace: my-app
+spec:
+  serviceAccountName: my-ksa
+  containers:
+  - name: app
+    image: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    command: ["sleep", "3600"]
+```
+
+```bash
+kubectl apply -f pod.yaml
+```
+
+**Step 6: The pod now authenticates as the GCP SA automatically**
+
+```bash
+# Exec into the pod and test GCP access
+kubectl exec -it my-app-pod --namespace my-app -- /bin/bash
+
+# Inside the pod, list Cloud Storage buckets (using the GCP SA's permissions)
+gcloud storage buckets list
+
+# Or use Application Default Credentials from any client library
+# The pod automatically has credentials for my-gke-app-sa@PROJECT_ID.iam.gserviceaccount.com
+```
+
+The pod's application can now use Google Cloud client libraries without any key files. The GKE metadata server automatically provides credentials for the GCP service account.
+
+> **Exam tip:** Workload Identity is Google's **recommended way** for GKE apps to access GCP services. No keys needed, per-workload identity. This is the secure and scalable approach for production GKE workloads. Always prefer Workload Identity over mounting service account key files into pods.
+
 > **Exam tip:** Workload Identity Federation is the answer whenever the question involves authenticating an **external workload** (on-premises, AWS, CI/CD pipelines) to GCP without service account keys. Workload Identity (for GKE) is the answer for **GKE pods** that need to call Google APIs.
 
 Docs: [Workload Identity Federation](https://cloud.google.com/iam/docs/workload-identity-federation) | [Workload Identity for GKE](https://cloud.google.com/kubernetes-engine/docs/concepts/workload-identity)
