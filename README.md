@@ -1,159 +1,69 @@
-# gcp-ace-prep
+# GCP Associate Cloud Engineer - Renewal Exam Prep
 
-Resources I've used for preparation for Google Cloud Platform -  Associate Cloud Engineer certification.
+Study guide for the Google Cloud Associate Cloud Engineer certification renewal exam.
 
-## Resources
+## Exam Overview
 
-### Study areas
+| Detail | Value |
+|--------|-------|
+| **Format** | Multiple choice & multiple select |
+| **Duration** | ~60 minutes |
+| **Questions** | ~20-25 |
+| **Passing score** | ~70% |
+| **Cost** | $75 USD |
+| **Validity** | 3 years from renewal |
+| **Official page** | [Associate Cloud Engineer Certification](https://cloud.google.com/learn/certification/cloud-engineer) |
+| **Exam guide** | [Exam Guide (detailed)](https://cloud.google.com/learn/certification/guides/cloud-engineer/) |
+| **Register** | [CertMetrics](https://cp.certmetrics.com/google/en/login) |
 
-- Setting up a Cloud Solution Environment
-  - Setting up cloud projects and accounts
-  - Managing billing configuration
-  - Installing and configuring the CLI (Cloud SDK)
-- Planning and Configuring Cloud Solutions
-  - Planning and estimating using the Pricing Calculator
-  - Planning and configuring compute resources
-  - Planning and configuring data storage options
-  - Planning and configuring network resources
-- Deploying and Implementing Cloud Solutions
-  - Deploying and implementing Compute Engine resources
-  - Deploying and implementing Google Kubernetes Engine resources
-  - Deploying and implementing Cloud Run and Cloud Functions resources
-  - Deploying and implementing data solutions
-  - Deploying and implementing networking resources
-  - Deploying a solution using Cloud Marketplace
-  - Implementing resources via infrastructure as code
-- Ensuring Successful Operation of a Cloud Solution
-  - Managing Compute Engine resources
-  - Managing Google Kubernetes Engine resources
-  - Managing Cloud Run resources
-  - Managing storage and database solutions
-  - Managing networking resources Monitoring and logging
-- Configuring Access and Security
-  - Managing IAM
-  - Managing service accounts
-  - Viewing audit logs
+## Exam Domains
 
-## Books
+| # | Domain | Weight | Study Guide |
+|---|--------|--------|-------------|
+| 1 | Setting up a cloud solution environment | ~20% | [01-cloud-environment-setup.md](./01-cloud-environment-setup.md) |
+| 2 | Planning and configuring a cloud solution | ~17.5% | [02-planning-and-configuring.md](./02-planning-and-configuring.md) |
+| 3 | Deploying and implementing a cloud solution | **~25%** | [03-deploying-and-implementing.md](./03-deploying-and-implementing.md) |
+| 4 | Ensuring successful operation of a cloud solution | ~20% | [04-operations.md](./04-operations.md) |
+| 5 | Configuring access and security | ~17.5% | [05-access-and-security.md](./05-access-and-security.md) |
 
-- [Official Google Cloud Certified Associate Cloud Engineer Study Guide](<https://www.amazon.com/Google-Cloud-Certified-Associate-Engineer/dp/1119564417>)
+**Additional resources:**
+- [06-key-gcloud-commands.md](./06-key-gcloud-commands.md) - CLI cheat sheet
+- [07-practice-questions.md](./07-practice-questions.md) - 50+ practice questions with answers
 
-### Learning path - Coursera
+## 1-Day Study Strategy
 
-- Specializations
-  - [Architecting with Google Compute Engine Specialization](<https://www.coursera.org/specializations/gcp-architecture>)
-  - [Preparing for Google Cloud Certification: Cloud Engineer](https://www.coursera.org/professional-certificates/cloud-engineering-gcp)
+Since you use GCP daily, focus on:
 
-- Individual Courses
-  - [Google Cloud Fundamentals: Core Infrastructure](https://www.coursera.org/learn/gcp-fundamentals?specialization=cloud-engineering-gcp)
-  - [Essential Google Cloud Infrastructure: Foundation](https://www.coursera.org/learn/gcp-infrastructure-foundation?specialization=cloud-engineering-gcp)
-  - [Essential Google Cloud Infrastructure: Core Services](https://www.coursera.org/learn/gcp-infrastructure-core-services?specialization=cloud-engineering-gcp) 
-  - [Elastic Google Cloud Infrastructure: Scaling and Automation](https://www.coursera.org/learn/gcp-infrastructure-scaling-automation?specialization=cloud-engineering-gcp)
-  - [Architecting with Google Kubernetes Engine: Foundations](https://www.coursera.org/learn/foundations-google-kubernetes-engine-gke?specialization=cloud-engineering-gcp)
-  - [Preparing for Your Associate Cloud Engineer Journey](https://www.coursera.org/learn/preparing-cloud-associate-cloud-engineer-exam?specialization=cloud-engineering-gcp)
-  - [Reliable Google Cloud Infrastructure: Design and Process](<https://www.coursera.org/learn/cloud-infrastructure-design-process>)
+1. **Skim all 5 domain files** - flag anything unfamiliar (~1-2 hours)
+2. **Deep dive on weak spots** - especially Domain 3 (deploying) which is 25% of the exam (~1 hour)
+3. **Review the CLI cheat sheet** - know the key commands for each service (~30 min)
+4. **Do all practice questions** - aim for 85%+ before taking the real exam (~1-2 hours)
+5. **Review wrong answers** - re-read the relevant domain sections (~30 min)
 
-### CloudSkillBoost Quests
+**Key exam trends:**
+- Scenario-based questions (not pure memorization)
+- Heavy on choosing the right service for a workload
+- IAM and least-privilege principles come up frequently
+- IaC (Terraform) is now part of the exam
+- Cloud Operations suite (formerly Stackdriver) naming
 
-- [Create and Manage Cloud Resources](<https://www.qwiklabs.com/quests/120> )
-- [Set Up and Configure a Cloud Environment in Google Cloud](<https://www.qwiklabs.com/quests/119>)
-- [Perform Foundational Infrastructure Tasks in Google Cloud](<https://www.qwiklabs.com/quests/118>)
+## Practice Exams (External)
 
-### Notes
+- [Google Official Sample Questions](https://docs.google.com/forms/d/e/1FAIpQLSfexWKtXT2OSFJ-obA4iT3GmzgiOCGvjrT9OfxilWC1yPtmfQ/viewform)
+- [ExamTopics - GCP ACE](https://www.examtopics.com/exams/google/associate-cloud-engineer/)
+- [Tutorials Dojo Practice Exams](https://tutorialsdojo.com/courses/google-certified-associate-cloud-engineer-practice-exams/)
+- [Ditectrev GitHub - Practice Q&A](https://github.com/Ditectrev/Google-Cloud-Platform-GCP-Associate-Cloud-Engineer-Practice-Tests-Exams-Questions-Answers)
 
-- Misc
-  - [General](./notes/general.md)
-  - [IAM](./notes/iam.md)
-  - [PubSub](./notes/pub-sub.md)
-- Storage
-  - [Cloud Storage](./notes/cloud-storage.md)
-  - [Cloud BigQuery](./notes/storage/big-query.md)
-  - [Cloud Bigtable](./notes/storage/big-table.md)
-- Compute
-  - [Compute Engine](./notes/compute-engine.md)
-  - [App Engine](./notes/compute/app-engine.md)
-  - [Cloud Functions](./notes/compute/cloud-functions.md)
-  - [GKE](./notes/compute/gke.md)
-- [IAM](./notes/iam.md)
+## Official Learning Resources
 
-### Sample Exam Questions
+- [Cloud Engineer Learning Path (Cloud Skills Boost)](https://www.cloudskillsboost.google/paths/11)
+- [Google Cloud Documentation](https://cloud.google.com/docs)
+- [Google Cloud Cheat Sheet](https://googlecloudcheatsheet.withgoogle.com/)
+- [GCP Flowcharts](https://grumpygrace.dev/posts/gcp-flowcharts/)
+- [Awesome GCP Certifications (GitHub)](https://github.com/sathishvj/awesome-gcp-certifications)
 
-- [Whizlabs Questions 1](<https://www.whizlabs.com/blog/google-cloud-interview-questions/>)
-- [Whizlabs Questions 2](<https://www.whizlabs.com/blog/gcp-associate-cloud-engineer-questions/>)
-- [ExamTopics - GCP ACE](<https://www.examtopics.com/exams/google/associate-cloud-engineer/view/>)
-- [Google Sample Questions](<https://docs.google.com/forms/d/e/1FAIpQLSfexWKtXT2OSFJ-obA4iT3GmzgiOCGvjrT9OfxilWC1yPtmfQ/viewform>)
+## Existing Notes (Supplementary)
 
-### Relevant Official Documentation
-
-- [IAM](<https://cloud.google.com/iam/docs/overview>)
-  - [Resources hierarchy](<https://cloud.google.com/resource-manager/docs/cloud-platform-resource-hierarchy#resource-hierarchy-detail>)
-  - [Projects](<https://cloud.google.com/resource-manager/docs/cloud-platform-resource-hierarchy#projects>)
-  - [Understanding Roles](<https://cloud.google.com/iam/docs/understanding-roles>)
-  - [Understanding Custom Roles](<https://cloud.google.com/iam/docs/understanding-custom-roles>)
-  - [Role types](<https://cloud.google.com/iam/docs/understanding-roles#role_types>)
-  - [Creating Custom Roles](<https://cloud.google.com/iam/docs/creating-custom-roles>)
-- [Billing](<https://cloud.google.com/billing/docs>)
-  - [Billing accounts](<https://cloud.google.com/billing/docs/how-to/manage-billing-account>)
-  - [Budgets](<https://cloud.google.com/billing/docs/how-to/budgets>)
-  - [Pricing calculator](<https://cloud.google.com/products/calculator/>)
-- [Compute](<https://cloud.google.com/compute/docs>)
-  - [Incremental Snapshots](<https://cloud.google.com/compute/docs/disks/snapshots#incremental-snapshots>)
-  - [Instance Templates](<https://cloud.google.com/compute/docs/instance-templates>)
-  - [Choosing Compute options](<https://cloud.google.com/blog/products/compute/choosing-the-right-compute-option-in-gcp-a-decision-tree>)
-  - [Hosting options](<https://cloud.google.com/hosting-options>)
-  - [Instance groups](<https://cloud.google.com/compute/docs/instance-groups>)
-    - [Groups of managed instances](<https://cloud.google.com/compute/docs/instance-groups/creating-groups-of-managed-instances>)
-  - [GKE](<https://cloud.google.com/kubernetes-engine/docs>)
-    - [Overview](<https://cloud.google.com/kubernetes-engine/docs/concepts/kubernetes-engine-overview>)
-    - [Pods](<https://cloud.google.com/kubernetes-engine/docs/concepts/pod>)
-    - [Deployments](<https://cloud.google.com/kubernetes-engine/docs/concepts/deployment>)
-    - [Services](<https://cloud.google.com/kubernetes-engine/docs/concepts/service>)
-    - [Types of clusters](<https://cloud.google.com/kubernetes-engine/docs/concepts/types-of-clusters>)
-    - [Ingress Internal (HTTPS) Load Balancing](<https://cloud.google.com/kubernetes-engine/docs/concepts/ingress-ilb>)
-    - [Ingress External (HTTPS) Load Balancing](<https://cloud.google.com/kubernetes-engine/docs/concepts/ingress-xlb>)
-    - [Deploying Workloads](<https://cloud.google.com/kubernetes-engine/docs/how-to/deploying-workloads-overview>)
-    - [K8s Object Management](<https://kubernetes.io/docs/concepts/overview/working-with-objects/object-management/>)
-    - [Exposing Apps](<https://cloud.google.com/kubernetes-engine/docs/how-to/exposing-apps>)
-    - [Autopilot](<https://cloud.google.com/kubernetes-engine/docs/concepts/autopilot-overview>)
-  - [App Engine](<https://cloud.google.com/appengine/docs>)
-    - [App Engine Environments](<https://cloud.google.com/appengine/docs/the-appengine-environments>)
-  - [Cloud Run](<https://cloud.google.com/run/docs>)
-    - [Overview](<https://cloud.google.com/blog/topics/developers-practitioners/cloud-run-story-serverless-containers>)
-    - [Container Instance Autoscaling](<https://cloud.google.com/run/docs/about-instance-autoscaling>)
-  - [Cloud Functions](<https://cloud.google.com/functions>)
-    - [Overview](<https://cloud.google.com/blog/topics/developers-practitioners/learn-cloud-functions-snap>)
-    - [Event Triggers](<https://cloud.google.com/functions/docs/concepts/events-triggers>)
-- Storage
-  - [Cloud Storage](<https://cloud.google.com/storage/docs>)
-    - [Storage classes](<https://cloud.google.com/storage/docs/storage-classes>)
-    - [Object Lifecycle](<https://cloud.google.com/storage/docs/lifecycle>)
-  - [Cloud SQL](<https://cloud.google.com/sql/docs/mysql>)
-    - [Features](<https://cloud.google.com/sql/docs/mysql/features>)
-    - [Create instances](<https://cloud.google.com/sql/docs/mysql/create-instance>)
-  - [Bigtable](<https://cloud.google.com/bigtable/docs/overview>)
-  - [BigQuery](<https://cloud.google.com/bigquery/docs>)
-- [PubSub](<https://cloud.google.com/pubsub/docs/overview>)
-- Networking
-  - [VPN](<https://cloud.google.com/network-connectivity/docs/vpn/concepts/overview>)
-  - [VPC](<https://cloud.google.com/vpc/docs>)
-    - [Using VPC](<https://cloud.google.com/vpc/docs/using-vpc>)
-    - [Alias IP](<https://cloud.google.com/vpc/docs/alias-ip>)
-    - [Bring your own IP](<https://cloud.google.com/vpc/docs/bring-your-own-ip>)
-    - [Expand Subnet](<https://cloud.google.com/vpc/docs/using-vpc#expand-subnet>)
-- [Cloud Foundation Toolkit (CFT)](<https://cloud.google.com/foundation-toolkit>)
-- [Transfer Appliance](<https://cloud.google.com/transfer-appliance/docs/4.0>)
-
-### Other study resources
-
-- <https://googlecloudcheatsheet.withgoogle.com/>
-- <https://grumpygrace.dev/posts/gcp-flowcharts/>
-- <https://github.com/sathishvj/awesome-gcp-certifications>
-- <https://github.com/GoogleCloudPlatform/awesome-google-cloud>
-- <https://www.youtube.com/channel/UCIGDDqu5DzlaaC4XzXj_4-A>
-- <https://cloud.google.com/docs/enterprise/best-practices-for-enterprise-organizations>
-- <https://cloud.google.com/certification>
-- <https://cloud.google.com/blog/topics/developers-practitioners/your-google-cloud-database-options-explained>
-
-### Misc
-
-- [Test center](<https://www.kryteriononline.com/Locate-Test-Center>)
+- [General CLI](./notes/general.md) | [IAM](./notes/iam.md) | [Pub/Sub](./notes/pub-sub.md)
+- [Cloud Storage](./notes/cloud-storage.md) | [BigQuery](./notes/storage/big-query.md) | [Bigtable](./notes/storage/big-table.md)
+- [Compute Engine](./notes/compute/compute-engine.md) | [App Engine](./notes/compute/app-engine.md) | [Cloud Functions](./notes/compute/cloud-functions.md) | [GKE](./notes/compute/gke.md)
