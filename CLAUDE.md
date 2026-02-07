@@ -27,6 +27,7 @@ Multiple choice (~20-25 questions, ~60 minutes, 70% to pass).
 | `gcp/ace/06-key-gcloud-commands.md` | CLI cheat sheet (all services) | - |
 | `gcp/ace/07-practice-questions.md` | 60 practice questions with answers | - |
 | `gcp/ace/08-answered-questions.md` | 20 answered questions with explanations | - |
+| `gcp/ace/09-decision-trees.md` | Service selection decision trees and scenario quick reference | - |
 
 ## How to Assist
 

@@ -124,3 +124,11 @@ Covers commands for: config, compute, container, run, functions, iam, projects, 
 ### Practice Questions -- `gcp/ace/07-practice-questions.md`
 
 60 questions: D1 (Q1-12), D2 (Q13-22), D3 (Q23-37), D4 (Q38-49), D5 (Q50-60).
+
+### Answered Questions -- `gcp/ace/08-answered-questions.md`
+
+20 Google official sample questions with answers and detailed explanations.
+
+### Decision Trees -- `gcp/ace/09-decision-trees.md`
+
+Service selection decision trees for: compute, database/storage, load balancers, networking, IAM, monitoring/logging, IaC, data movement. Includes master scenario quick-reference table.

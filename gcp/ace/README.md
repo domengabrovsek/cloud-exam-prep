@@ -30,6 +30,7 @@ Study guide for the Google Cloud Associate Cloud Engineer certification renewal 
 - [06-key-gcloud-commands.md](./06-key-gcloud-commands.md) - CLI cheat sheet
 - [07-practice-questions.md](./07-practice-questions.md) - 60 practice questions with answers
 - [08-answered-questions.md](./08-answered-questions.md) - 20 answered questions with detailed explanations
+- [09-decision-trees.md](./09-decision-trees.md) - Service selection decision trees and scenario quick reference
 
 ## 1-Day Study Strategy
 
