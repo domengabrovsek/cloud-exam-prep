@@ -7,8 +7,11 @@ This repo contains study materials for cloud certification exams. The user works
 ## Repository Structure
 
 ```
-gcp/ace/          # GCP Associate Cloud Engineer (Renewal)
-aws/              # (future AWS exams)
+gcp/ace/                # GCP Associate Cloud Engineer (Renewal)
+  ├── docs/             # Study guides and reference materials
+  ├── questions/        # Practice questions organized by exam section
+  └── quizzes/          # Quiz attempt results (gitignored, local only)
+aws/                    # (future AWS exams)
 ```
 
 ## Active Exams
@@ -17,17 +20,32 @@ aws/              # (future AWS exams)
 
 Multiple choice (~20-25 questions, ~60 minutes, 70% to pass).
 
+**Study guides (`gcp/ace/docs/`):**
+
 | File | Content | Weight |
 |------|---------|--------|
-| `gcp/ace/01-cloud-environment-setup.md` | Setting up a cloud solution environment | ~20% |
-| `gcp/ace/02-planning-and-configuring.md` | Planning and configuring a cloud solution | ~17.5% |
-| `gcp/ace/03-deploying-and-implementing.md` | Deploying and implementing a cloud solution | **~25%** |
-| `gcp/ace/04-operations.md` | Ensuring successful operation | ~20% |
-| `gcp/ace/05-access-and-security.md` | Configuring access and security | ~17.5% |
-| `gcp/ace/06-key-gcloud-commands.md` | CLI cheat sheet (all services) | - |
-| `gcp/ace/07-practice-questions.md` | 60 practice questions with answers | - |
-| `gcp/ace/08-answered-questions.md` | 20 answered questions with explanations | - |
-| `gcp/ace/09-decision-trees.md` | Service selection decision trees and scenario quick reference | - |
+| `docs/01-cloud-environment-setup.md` | Setting up a cloud solution environment | ~23% |
+| `docs/02-planning-and-configuring.md` | Planning and configuring a cloud solution | **~30%** |
+| `docs/03-deploying-and-implementing.md` | Deploying and implementing a cloud solution | (part of S2) |
+| `docs/04-operations.md` | Ensuring successful operation | ~27% |
+| `docs/05-access-and-security.md` | Configuring access and security | ~20% |
+| `docs/06-key-gcloud-commands.md` | CLI cheat sheet (all services) | - |
+| `docs/09-decision-trees.md` | Service selection decision trees and scenario quick reference | - |
+
+**Practice questions (`gcp/ace/questions/`, 140 total):**
+
+| File | Questions |
+|------|-----------|
+| `questions/section-1-cloud-environment-setup.md` | 25 |
+| `questions/section-2-planning-and-implementing.md` | 58 |
+| `questions/section-3-operations.md` | 34 |
+| `questions/section-4-access-and-security.md` | 23 |
+| `questions/google-official-sample.md` | 20 |
+
+**Quiz results (`gcp/ace/quizzes/`, gitignored):**
+- Each quiz attempt is saved as `{number}-{date}.md` (e.g., `001-2026-02-07.md`)
+- Contains: score, wrong answers, weak area analysis, study recommendations
+- Used by quiz mode to weight questions toward weak areas
 
 ## How to Assist
 
@@ -40,7 +58,9 @@ The user will study by asking questions. Follow the interaction modes defined in
 3. **Include CLI commands** when relevant -- exams test CLI knowledge.
 4. **Flag exam traps** -- call out common wrong-answer patterns (e.g., "budgets don't stop spending", "Archive storage is NOT slow", "VPC peering is non-transitive").
 5. **Reference specific sections** -- point the user to the exact file and section for further reading.
-6. **Use the domain reference** in `.claude/domain-reference.md` to quickly locate which file covers a topic.
+6. **Always link to official docs** -- every time you explain a service, command, concept, or feature, include a link to the relevant official Google Cloud documentation (e.g., `https://cloud.google.com/spanner/docs`). This applies to all interaction modes (explain, compare, decision, quiz explanations, etc.).
+7. **Use the domain reference** in `.claude/domain-reference.md` to quickly locate which file covers a topic.
+8. **Save quiz results** -- after each quiz session, save results to `gcp/ace/quizzes/{number}-{date}.md`. Check existing files to determine the next number.
 
 ## Quick Commands
 

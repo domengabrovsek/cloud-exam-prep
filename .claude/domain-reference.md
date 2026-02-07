@@ -4,7 +4,7 @@ Quick lookup: which file and section covers a given topic.
 
 ## GCP Associate Cloud Engineer (`gcp/ace/`)
 
-### Domain 1 -- `gcp/ace/01-cloud-environment-setup.md`
+### Domain 1 -- `gcp/ace/docs/01-cloud-environment-setup.md`
 
 | Topic | Section |
 |-------|---------|
@@ -21,7 +21,7 @@ Quick lookup: which file and section covers a given topic.
 | Billing exports to BigQuery | 1.2 |
 | Labels for cost attribution | 1.2 |
 
-### Domain 2 -- `gcp/ace/02-planning-and-configuring.md`
+### Domain 2 -- `gcp/ace/docs/02-planning-and-configuring.md`
 
 | Topic | Section |
 |-------|---------|
@@ -36,7 +36,7 @@ Quick lookup: which file and section covers a given topic.
 | Network Service Tiers (Premium vs Standard) | 2.3 |
 | Resource location/scope (global/regional/zonal) | 2.3 |
 
-### Domain 3 -- `gcp/ace/03-deploying-and-implementing.md`
+### Domain 3 -- `gcp/ace/docs/03-deploying-and-implementing.md`
 
 | Topic | Section |
 |-------|---------|
@@ -63,7 +63,7 @@ Quick lookup: which file and section covers a given topic.
 | Config Connector | 3.6 |
 | Helm charts | 3.6 |
 
-### Domain 4 -- `gcp/ace/04-operations.md`
+### Domain 4 -- `gcp/ace/docs/04-operations.md`
 
 | Topic | Section |
 |-------|---------|
@@ -97,7 +97,7 @@ Quick lookup: which file and section covers a given topic.
 | Managed Prometheus | 4.6 |
 | Audit logs (4 types, always-on vs configurable) | 4.6 |
 
-### Domain 5 -- `gcp/ace/05-access-and-security.md`
+### Domain 5 -- `gcp/ace/docs/05-access-and-security.md`
 
 | Topic | Section |
 |-------|---------|
@@ -117,18 +117,19 @@ Quick lookup: which file and section covers a given topic.
 | Workload Identity Federation (GitHub, AWS, Azure) | 5.2 |
 | Org policy constraints for IAM | 5.2 |
 
-### CLI Cheat Sheet -- `gcp/ace/06-key-gcloud-commands.md`
+### CLI Cheat Sheet -- `gcp/ace/docs/06-key-gcloud-commands.md`
 
 Covers commands for: config, compute, container, run, functions, iam, projects, organizations, resource-manager, services, storage/gsutil, bq, kubectl, logging, monitoring, pubsub, sql, dns, billing, terraform.
 
-### Practice Questions -- `gcp/ace/07-practice-questions.md`
-
-60 questions: D1 (Q1-12), D2 (Q13-22), D3 (Q23-37), D4 (Q38-49), D5 (Q50-60).
-
-### Answered Questions -- `gcp/ace/08-answered-questions.md`
-
-20 Google official sample questions with answers and detailed explanations.
-
-### Decision Trees -- `gcp/ace/09-decision-trees.md`
+### Decision Trees -- `gcp/ace/docs/09-decision-trees.md`
 
 Service selection decision trees for: compute, database/storage, load balancers, networking, IAM, monitoring/logging, IaC, data movement. Includes master scenario quick-reference table.
+
+### Practice Questions -- `gcp/ace/questions/`
+
+140 questions organized by exam section:
+- `section-1-cloud-environment-setup.md` (25 questions)
+- `section-2-planning-and-implementing.md` (58 questions)
+- `section-3-operations.md` (34 questions)
+- `section-4-access-and-security.md` (23 questions)
+- `google-official-sample.md` (20 questions)

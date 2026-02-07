@@ -898,9 +898,167 @@ gcloud firestore import gs://BUCKET_NAME/EXPORT_PREFIX
 # Schedule exports with Cloud Scheduler + Cloud Functions for automation
 ```
 
-> **Exam tip:** Cloud SQL automated backups are retained for 7 days by default (configurable up to 365). Point-in-time recovery (PITR) allows restoring to any second within the retention window -- requires transaction logs (binary logging for MySQL, WAL for PostgreSQL). `gcloud sql backups restore` restores to the **same** instance and overwrites data. Use `clone` to restore to a new instance. Firestore exports go to Cloud Storage in a proprietary format.
+**Bigtable**
 
-Docs: [Cloud SQL backups](https://cloud.google.com/sql/docs/mysql/backup-recovery/backups) | [Cloud SQL PITR](https://cloud.google.com/sql/docs/mysql/backup-recovery/pitr) | [Firestore export/import](https://cloud.google.com/firestore/docs/manage-data/export-import)
+```bash
+# Create a backup
+cbt createbackup BACKUP_ID -instance=INSTANCE_ID -table=TABLE_NAME -ttl=7d
+
+# Or using gcloud:
+gcloud bigtable backups create BACKUP_ID \
+  --instance=INSTANCE_NAME \
+  --cluster=CLUSTER_NAME \
+  --table=TABLE_NAME \
+  --retention-period=7d
+
+# List backups
+gcloud bigtable backups list --instance=INSTANCE_NAME --cluster=CLUSTER_NAME
+
+# Restore a table from a backup
+cbt restorebackup BACKUP_ID -instance=INSTANCE_ID -table=NEW_TABLE_NAME
+
+# Or using gcloud:
+gcloud bigtable instances tables restore \
+  --source-backup=BACKUP_ID \
+  --source-instance=INSTANCE_NAME \
+  --source-cluster=CLUSTER_NAME \
+  --destination=NEW_TABLE_NAME \
+  --destination-instance=INSTANCE_NAME
+
+# Delete a backup
+gcloud bigtable backups delete BACKUP_ID \
+  --instance=INSTANCE_NAME \
+  --cluster=CLUSTER_NAME
+```
+
+**Spanner**
+
+```bash
+# Create a backup
+gcloud spanner backups create BACKUP_NAME \
+  --instance=INSTANCE_NAME \
+  --database=DATABASE_NAME \
+  --retention-period=7d \
+  --version-time="2024-01-15T10:00:00Z"  # Optional: backup as of specific time
+
+# List backups
+gcloud spanner backups list --instance=INSTANCE_NAME
+
+# Describe a backup
+gcloud spanner backups describe BACKUP_NAME --instance=INSTANCE_NAME
+
+# Restore from a backup (creates a new database)
+gcloud spanner databases restore \
+  --destination-database=NEW_DATABASE \
+  --destination-instance=INSTANCE_NAME \
+  --source-backup=BACKUP_NAME \
+  --source-instance=INSTANCE_NAME
+
+# Point-in-time recovery (PITR)
+gcloud spanner databases restore \
+  --destination-database=NEW_DATABASE \
+  --destination-instance=INSTANCE_NAME \
+  --source-database=SOURCE_DATABASE \
+  --source-instance=INSTANCE_NAME \
+  --version-time="2024-01-15T12:00:00Z"
+
+# Update backup expiration time
+gcloud spanner backups update BACKUP_NAME \
+  --instance=INSTANCE_NAME \
+  --retention-period=14d
+
+# Delete a backup
+gcloud spanner backups delete BACKUP_NAME --instance=INSTANCE_NAME
+```
+
+**AlloyDB**
+
+```bash
+# Create an on-demand backup
+gcloud alloydb backups create BACKUP_NAME \
+  --cluster=CLUSTER_NAME \
+  --region=REGION
+
+# List backups
+gcloud alloydb backups list --region=REGION
+
+# Describe a backup
+gcloud alloydb backups describe BACKUP_NAME --region=REGION
+
+# Restore from a backup (creates a new cluster)
+gcloud alloydb clusters restore CLUSTER_NAME \
+  --backup=BACKUP_NAME \
+  --region=REGION
+
+# Point-in-time recovery (restore to specific timestamp)
+gcloud alloydb clusters restore CLUSTER_NAME \
+  --region=REGION \
+  --point-in-time="2024-01-15T12:00:00Z"
+
+# Delete a backup
+gcloud alloydb backups delete BACKUP_NAME --region=REGION
+
+# Configure automated backup policy (when creating/updating a cluster)
+gcloud alloydb clusters update CLUSTER_NAME \
+  --region=REGION \
+  --automated-backup-days-of-week=MONDAY,WEDNESDAY,FRIDAY \
+  --automated-backup-start-times=01:00:00 \
+  --automated-backup-window=4h
+```
+
+> **Exam tip:** Cloud SQL automated backups are retained for 7 days by default (configurable up to 365). Point-in-time recovery (PITR) allows restoring to any second within the retention window -- requires transaction logs (binary logging for MySQL, WAL for PostgreSQL). `gcloud sql backups restore` restores to the **same** instance and overwrites data. Use `clone` to restore to a new instance. Firestore exports go to Cloud Storage in a proprietary format. **Bigtable backups** are table-level (not instance-level) with configurable retention. **Spanner backups** support PITR for up to 7 days using version retention (configure with `ALTER DATABASE SET OPTIONS (version_retention_period='7d')`). Spanner restores create a NEW database. **AlloyDB** has automated backups enabled by default with 14-day retention, supports continuous backups and PITR similar to Cloud SQL.
+
+Docs: [Cloud SQL backups](https://cloud.google.com/sql/docs/mysql/backup-recovery/backups) | [Cloud SQL PITR](https://cloud.google.com/sql/docs/mysql/backup-recovery/pitr) | [Firestore export/import](https://cloud.google.com/firestore/docs/manage-data/export-import) | [Bigtable backups](https://cloud.google.com/bigtable/docs/backups) | [Spanner backups](https://cloud.google.com/spanner/docs/backup) | [Spanner PITR](https://cloud.google.com/spanner/docs/pitr) | [AlloyDB backups](https://cloud.google.com/alloydb/docs/backup-restore/backup-overview)
+
+---
+
+### Database Center
+
+Database Center provides a centralized view to inventory, monitor, and manage all database instances across projects in your organization.
+
+```bash
+# Access Database Center via Cloud Console:
+# Cloud Console > Database Center
+
+# Or list database instances programmatically across services:
+# Cloud SQL
+gcloud sql instances list
+
+# Spanner
+gcloud spanner instances list
+
+# AlloyDB
+gcloud alloydb clusters list --region=REGION
+
+# Bigtable
+gcloud bigtable instances list
+
+# Firestore
+gcloud firestore databases list
+
+# Memorystore (Redis)
+gcloud redis instances list --region=REGION
+```
+
+**Database Center features:**
+
+- **Unified inventory**: See all databases (Cloud SQL, Spanner, AlloyDB, Bigtable, Firestore, Memorystore) in one dashboard
+- **Multi-project support**: View databases across all projects in your organization
+- **Operational insights**: Performance metrics, health status, and compliance posture
+- **Fleet management**: Compare configurations, identify non-compliant instances, track recommendations
+- **Cost analysis**: Aggregated cost view across all database resources
+- **Security & compliance**: Identify unencrypted instances, public IP exposure, audit log configurations
+
+**Use cases:**
+
+- **Compliance auditing**: Ensure all databases meet encryption, backup, and security standards
+- **Cost optimization**: Identify underutilized or oversized database instances
+- **Incident response**: Quickly locate databases experiencing performance issues
+- **Inventory management**: Track what databases exist across the organization
+
+> **Exam tip:** Database Center is a **centralized dashboard** in the Cloud Console for multi-project, multi-service database visibility. It does NOT replace individual service consoles but provides a unified view for governance, compliance, and fleet management. Particularly useful in organizations with many projects and mixed database types. Access is controlled by IAM -- users need appropriate roles for each database service to see details.
+
+Docs: [Database Center overview](https://cloud.google.com/database-center/docs/overview)
 
 ---
 
@@ -1044,6 +1202,85 @@ gcloud compute instances create VM_NAME \
 > **Exam tip:** Static external IPs persist across VM stop/start (ephemeral IPs change). You are billed for reserved static IPs that are **not in use** -- always release unused ones. Regional IPs are for VMs and regional load balancers. Global IPs are for global load balancers (HTTP(S), SSL Proxy, TCP Proxy). Internal IPs are always regional.
 
 Docs: [Reserving static IPs](https://cloud.google.com/compute/docs/ip-addresses/reserve-static-external-ip-address) | [Internal static IPs](https://cloud.google.com/compute/docs/ip-addresses/reserve-static-internal-ip-address)
+
+---
+
+### Custom Static Routes
+
+Custom static routes let you control how traffic is routed within your VPC, often used to route traffic through network appliances (firewalls, proxies, NAT gateways).
+
+```bash
+# Create a route with next hop as an instance (e.g., firewall VM)
+gcloud compute routes create ROUTE_NAME \
+  --network=VPC_NAME \
+  --destination-range=10.20.0.0/16 \
+  --next-hop-instance=FIREWALL_VM \
+  --next-hop-instance-zone=ZONE \
+  --priority=1000
+
+# Create a route with next hop as an internal IP
+gcloud compute routes create ROUTE_NAME \
+  --network=VPC_NAME \
+  --destination-range=10.30.0.0/16 \
+  --next-hop-address=10.0.1.99 \
+  --priority=1000
+
+# Create a route with next hop as a VPN tunnel
+gcloud compute routes create ROUTE_NAME \
+  --network=VPC_NAME \
+  --destination-range=192.168.0.0/16 \
+  --next-hop-vpn-tunnel=VPN_TUNNEL_NAME \
+  --next-hop-vpn-tunnel-region=REGION \
+  --priority=1000
+
+# Create a route with next hop as an internal load balancer (forwarding rule)
+gcloud compute routes create ROUTE_NAME \
+  --network=VPC_NAME \
+  --destination-range=10.40.0.0/16 \
+  --next-hop-ilb=ILB_FORWARDING_RULE \
+  --next-hop-ilb-region=REGION \
+  --priority=1000
+
+# Create a route to the default internet gateway (0.0.0.0/0)
+gcloud compute routes create ROUTE_NAME \
+  --network=VPC_NAME \
+  --destination-range=0.0.0.0/0 \
+  --next-hop-gateway=default-internet-gateway \
+  --priority=1000
+
+# List all routes
+gcloud compute routes list
+
+# List routes for a specific network
+gcloud compute routes list --filter="network:VPC_NAME"
+
+# Describe a route
+gcloud compute routes describe ROUTE_NAME
+
+# Delete a route
+gcloud compute routes delete ROUTE_NAME
+```
+
+**Next hop types:**
+
+| Next hop type | Use case |
+|--------------|----------|
+| `--next-hop-instance` | Route through a VM (firewall, proxy, NAT) |
+| `--next-hop-address` | Route to an internal IP (VM, forwarding rule) |
+| `--next-hop-vpn-tunnel` | Route to on-premises via VPN |
+| `--next-hop-ilb` | Route to internal load balancer for HA |
+| `--next-hop-gateway` | Route to internet gateway |
+
+**Route priority:**
+
+- Lower number = higher priority (default is 1000)
+- Range: 0 to 65535
+- If multiple routes match, the most specific (longest prefix match) wins
+- If specificity is equal, priority breaks the tie
+
+> **Exam tip:** Custom static routes are needed when you want to route traffic through a **network appliance VM** (firewall, IDS/IPS) instead of directly to the destination. Common use case: force all internet-bound traffic through a firewall VM by creating a route for `0.0.0.0/0` with next hop as the firewall instance, with higher priority than the default internet gateway route. The next-hop VM must have **IP forwarding enabled** (`--can-ip-forward` flag). VPC routes are global resources but next hops are regional/zonal.
+
+Docs: [VPC routes](https://cloud.google.com/vpc/docs/routes) | [Custom static routes](https://cloud.google.com/vpc/docs/using-routes#static-route-next-hops) | [Route priority](https://cloud.google.com/vpc/docs/routes#routeselection)
 
 ---
 
@@ -1473,27 +1710,236 @@ gcloud trace traces list --project=PROJECT_ID
 - Requires adding the profiler agent/library to your application
 - Available for Go, Java, Node.js, Python
 
-> **Exam tip:** Error Reporting groups errors by stack trace and tracks error frequency. Cloud Trace shows request latency across microservices (like distributed tracing). Cloud Profiler identifies CPU/memory hotspots in code. All three work together: find errors -> trace the request -> profile the bottleneck.
+**Query Insights and Index Advisor (Cloud SQL)**
 
-Docs: [Error Reporting](https://cloud.google.com/error-reporting/docs) | [Cloud Trace](https://cloud.google.com/trace/docs) | [Cloud Profiler](https://cloud.google.com/profiler/docs)
+```bash
+# Query Insights is enabled through the Cloud Console or API:
+# Console: Cloud SQL instance > Query Insights tab
+
+# Enable Query Insights on an instance
+gcloud sql instances patch INSTANCE_NAME \
+  --insights-config-query-insights-enabled \
+  --insights-config-query-string-length=1024 \
+  --insights-config-record-application-tags \
+  --insights-config-record-client-address
+
+# Disable Query Insights
+gcloud sql instances patch INSTANCE_NAME \
+  --no-insights-config-query-insights-enabled
+
+# View query insights via Console:
+# Cloud SQL instance > Query Insights > Top queries by latency/CPU/IO/rows
+```
+
+**Query Insights features:**
+
+- **Top queries**: Identifies queries by latency, execution frequency, CPU time, IO, rows scanned
+- **Query performance trends**: Historical performance data
+- **Query tags**: Tag queries with application context for easier troubleshooting
+- **Index recommendations**: Suggests missing indexes to improve performance
+- **Execution plans**: Shows query execution plans
+
+**Index Advisor:**
+
+- Automatically analyzes query patterns and workload
+- Recommends indexes to create for better performance
+- Shows estimated performance improvement
+- Available in Query Insights dashboard
+- Supports PostgreSQL and MySQL
+
+> **Exam tip:** Error Reporting groups errors by stack trace and tracks error frequency. Cloud Trace shows request latency across microservices (like distributed tracing). Cloud Profiler identifies CPU/memory hotspots in code. **Query Insights** is a Cloud SQL feature that identifies slow queries, shows query performance over time, and recommends indexes (Index Advisor). It's particularly useful for database performance troubleshooting. Enable Query Insights before performance issues occur for historical data. All these work together: find errors -> trace the request -> profile the bottleneck -> optimize slow queries.
+
+Docs: [Error Reporting](https://cloud.google.com/error-reporting/docs) | [Cloud Trace](https://cloud.google.com/trace/docs) | [Cloud Profiler](https://cloud.google.com/profiler/docs) | [Query Insights](https://cloud.google.com/sql/docs/postgres/using-query-insights) | [Index Advisor](https://cloud.google.com/sql/docs/postgres/using-query-insights#index-advisor)
 
 ---
 
 ### Viewing Google Cloud Status
 
-- **Google Cloud Status Dashboard**: [https://status.cloud.google.com/](https://status.cloud.google.com/)
-- Shows real-time and historical status of all GCP services
+**Google Cloud Status Dashboard** (public):
+
+- **URL**: [https://status.cloud.google.com/](https://status.cloud.google.com/)
+- Shows real-time and historical status of **all** GCP services (global view)
 - Subscribe to RSS feeds or JSON endpoints for specific products
-- Personalized Service Health in Console: **Navigation menu > Service Health**
+- Not personalized -- shows all incidents regardless of your resource footprint
+
+**Personalized Service Health** (console dashboard):
 
 ```bash
-# You can also check service health programmatically via the Service Health API
-# or the Personalized Service Health dashboard in the Console
+# Access Personalized Service Health:
+# Cloud Console > Navigation menu > Service Health
+
+# Or use the gcloud command:
+gcloud services health
+
+# View incidents affecting your specific resources
+gcloud services health list --project=PROJECT_ID
 ```
 
-> **Exam tip:** If you suspect a GCP outage, check the status dashboard first before debugging your own infrastructure. The Personalized Service Health dashboard shows incidents that specifically affect your project's resources.
+**Personalized Service Health features:**
 
-Docs: [Google Cloud Status Dashboard](https://cloud.google.com/support/docs/dashboard) | [Service Health](https://cloud.google.com/service-health/docs/overview)
+- **Resource-aware**: Shows only incidents affecting YOUR services and regions
+- **Proactive notifications**: Email alerts for disruptions impacting your resources
+- **Historical view**: Past incidents that affected your infrastructure
+- **Impact assessment**: See which of your resources were/are affected
+- **Root cause analysis**: Post-incident reports when available
+- **Maintenance notifications**: Planned maintenance affecting your resources
+
+**Differences between Status Dashboard and Personalized Service Health:**
+
+| Feature | Status Dashboard (Public) | Personalized Service Health |
+|---------|-------------------------|----------------------------|
+| **Audience** | Everyone (public) | Authenticated GCP users |
+| **Scope** | All GCP services globally | Only services YOU use |
+| **Regions** | All regions | Only regions YOU use |
+| **Personalization** | No | Yes (based on your footprint) |
+| **Authentication** | Not required | Requires GCP login |
+| **Notifications** | RSS/JSON only | Email, console alerts |
+
+> **Exam tip:** If you suspect a GCP outage, check the **public Status Dashboard first** for global incidents. Then check **Personalized Service Health** to see if YOUR specific resources are impacted. The Personalized Service Health dashboard is MUCH more useful operationally because it filters out noise -- you only see incidents that actually affect your workloads. For example, if you don't use us-west1, you won't see incidents there. Service Health data is also available via the Service Health API for automation and integration with incident management tools.
+
+Docs: [Google Cloud Status Dashboard](https://cloud.google.com/support/docs/dashboard) | [Personalized Service Health](https://cloud.google.com/service-health/docs/overview) | [Service Health notifications](https://cloud.google.com/service-health/docs/configuring-notifications)
+
+---
+
+### Gemini Cloud Assist for Cloud Monitoring
+
+Gemini Cloud Assist provides AI-powered assistance for Cloud Monitoring tasks, using natural language to help create queries, explain metrics, and troubleshoot performance issues.
+
+**Features:**
+
+- **Natural language queries**: Ask questions about your metrics in plain English
+  - Example: "Show me CPU usage for my VMs in us-central1 for the last hour"
+  - Example: "What caused the spike in Cloud SQL latency at 2pm?"
+- **Query generation**: Generate MQL (Monitoring Query Language) and PromQL queries from descriptions
+- **Metric explanation**: Understand what a metric measures and how to interpret it
+- **Alert policy creation**: Help create alerting policies by describing conditions
+- **Troubleshooting assistance**: Identify anomalies and suggest investigation steps
+- **Dashboard creation**: Generate custom dashboards from natural language requests
+
+**Access:**
+
+```bash
+# Access Gemini in Cloud Monitoring:
+# Cloud Console > Monitoring > Metrics Explorer
+# Click the "Gemini" icon in the query builder
+
+# Or in other Monitoring pages:
+# Console > Monitoring > Alerting (Gemini icon)
+# Console > Monitoring > Dashboards (Gemini icon)
+```
+
+**Example use cases:**
+
+1. **Writing complex queries**: "Show me the 95th percentile latency for Cloud Run services grouped by region"
+2. **Understanding metrics**: "What does `compute.googleapis.com/instance/cpu/utilization` measure?"
+3. **Creating alerts**: "Alert me when Cloud SQL CPU exceeds 80% for 5 minutes"
+4. **Investigating incidents**: "Why did my GKE pod restarts increase yesterday?"
+5. **Learning PromQL**: "Convert this MQL query to PromQL"
+
+> **Exam tip:** Gemini Cloud Assist integrates AI into Cloud Monitoring to make it easier to query metrics and create alerts without deep knowledge of MQL or PromQL. It's particularly useful for operators who don't use monitoring queries daily. Gemini is available in the Cloud Console for Monitoring, Logging, and other services. It requires appropriate IAM permissions and is subject to regional availability. Think of it as a "monitoring copilot" that helps translate intent into working queries and configurations.
+
+Docs: [Gemini Cloud Assist overview](https://cloud.google.com/gemini/docs/overview) | [Gemini for Cloud Monitoring](https://cloud.google.com/stackdriver/docs/gemini)
+
+---
+
+### Active Assist for Resource Optimization
+
+Active Assist is a portfolio of intelligent tools that provide proactive recommendations for cost optimization, security, performance, and manageability across Google Cloud.
+
+**Recommender API** (the core engine):
+
+```bash
+# List all recommenders available
+gcloud recommender recommenders list
+
+# Common recommenders:
+# - google.compute.instance.MachineTypeRecommender (VM rightsizing)
+# - google.compute.instance.IdleResourceRecommender (idle VMs)
+# - google.compute.disk.IdleResourceRecommender (idle disks)
+# - google.iam.policy.Recommender (IAM policy recommendations)
+# - google.compute.commitment.UsageCommitmentRecommender (committed use discounts)
+# - google.logging.productSuggestion.ContainerRecommender (suggest better products)
+
+# List recommendations for a specific recommender
+gcloud recommender recommendations list \
+  --recommender=google.compute.instance.MachineTypeRecommender \
+  --project=PROJECT_ID \
+  --location=us-central1
+
+# Describe a specific recommendation
+gcloud recommender recommendations describe RECOMMENDATION_ID \
+  --recommender=google.compute.instance.MachineTypeRecommender \
+  --project=PROJECT_ID \
+  --location=us-central1
+
+# Mark a recommendation as claimed (you're implementing it)
+gcloud recommender recommendations mark-claimed RECOMMENDATION_ID \
+  --recommender=google.compute.instance.MachineTypeRecommender \
+  --project=PROJECT_ID \
+  --location=us-central1
+
+# Mark a recommendation as succeeded (implemented and working)
+gcloud recommender recommendations mark-succeeded RECOMMENDATION_ID \
+  --recommender=google.compute.instance.MachineTypeRecommender \
+  --project=PROJECT_ID \
+  --location=us-central1
+
+# Mark a recommendation as failed or dismissed
+gcloud recommender recommendations mark-failed RECOMMENDATION_ID \
+  --recommender=google.compute.instance.MachineTypeRecommender \
+  --project=PROJECT_ID \
+  --location=us-central1
+```
+
+**Recommendation categories:**
+
+| Category | Recommenders | Example recommendations |
+|----------|-------------|------------------------|
+| **Cost optimization** | VM rightsizing, idle resources, committed use discounts, unattached disks | Reduce e2-standard-4 to e2-standard-2 (saves $50/mo) |
+| **Security** | IAM recommender, firewall rules, public IP exposure | Remove unused roles from service account |
+| **Performance** | Machine type, disk type, network tier | Upgrade to SSD for database disk |
+| **Manageability** | Product suggestions, quota management | Migrate from Compute Engine to Cloud Run for this workload |
+
+**IAM Recommender (important for security):**
+
+```bash
+# List IAM policy recommendations
+gcloud recommender recommendations list \
+  --recommender=google.iam.policy.Recommender \
+  --project=PROJECT_ID \
+  --location=global
+
+# Example output: "Remove roles/editor from user@example.com (unused for 90 days)"
+
+# Apply an IAM recommendation automatically
+gcloud recommender recommendations apply RECOMMENDATION_ID \
+  --recommender=google.iam.policy.Recommender \
+  --project=PROJECT_ID \
+  --location=global
+```
+
+**Viewing recommendations in Console:**
+
+- Recommendations appear on resource pages (e.g., VM instance page shows rightsizing suggestion)
+- **Recommendation Hub**: Console > Recommendations (centralized view of all recommendations)
+- Filter by category, service, project, impact (cost/security/performance)
+- Each recommendation shows estimated savings, implementation complexity, and impact
+
+**Commitment recommenders (CUD/SUDs):**
+
+```bash
+# Get committed use discount recommendations
+gcloud recommender recommendations list \
+  --recommender=google.compute.commitment.UsageCommitmentRecommender \
+  --project=PROJECT_ID \
+  --location=us-central1
+
+# Shows potential savings from 1-year or 3-year committed use discounts
+```
+
+> **Exam tip:** Active Assist / Recommender API is Google's **proactive recommendation system**. Key exam points: (1) **IAM Recommender** removes unused/excessive permissions (principle of least privilege). (2) **Idle Resource Recommender** identifies VMs and disks not in use (cost savings). (3) **Machine Type Recommender** suggests rightsizing based on actual usage (saves money). (4) Recommendations are **free** and appear in the Console automatically. (5) Use `gcloud recommender` commands to list and act on recommendations programmatically. (6) Recommendations integrate with Cloud Asset Inventory for org-wide visibility. Active Assist = "smart autopilot suggestions" for your cloud.
+
+Docs: [Active Assist overview](https://cloud.google.com/recommender/docs/overview) | [Recommender API](https://cloud.google.com/recommender/docs/reference/rest) | [IAM Recommender](https://cloud.google.com/iam/docs/recommender-overview) | [VM rightsizing](https://cloud.google.com/compute/docs/instances/apply-machine-type-recommendations)
 
 ---
 
@@ -1682,6 +2128,12 @@ Docs: [Audit logs overview](https://cloud.google.com/logging/docs/audit) | [Conf
 | **Storage lifecycle** | Only transitions "colder." Early deletion fees apply. Age counts from creation. |
 | **BigQuery** | `--dry_run` for cost estimates. Long-term storage auto-discounts after 90 days. |
 | **Cloud SQL backups** | PITR needs binary log/WAL. `restore` overwrites same instance. Use `clone` for new instance. |
+| **Bigtable backups** | Table-level, not instance-level. Configure retention period. Use cbt or gcloud commands. |
+| **Spanner backups** | Restore creates NEW database. PITR supported (up to 7 days with version retention). |
+| **AlloyDB backups** | Automated backups on by default (14-day retention). Supports continuous backup and PITR. |
+| **Database Center** | Centralized dashboard for all databases across projects. Supports Cloud SQL, Spanner, AlloyDB, Bigtable, Firestore, Memorystore. |
+| **Custom static routes** | Route traffic through network appliance VMs. Next hop VM needs IP forwarding enabled. Lower priority number = higher priority. |
+| **Query Insights** | Cloud SQL feature. Shows top queries by latency/CPU/IO. Index Advisor recommends missing indexes. |
 | **Subnet expansion** | Can expand (smaller prefix), NEVER shrink. No disruption. No undo. |
 | **Static IPs** | Billed when NOT in use. Regional for VMs, global for global LBs. |
 | **Cloud NAT** | Outbound only for private VMs. Requires Cloud Router. Regional. |
@@ -1689,6 +2141,9 @@ Docs: [Audit logs overview](https://cloud.google.com/logging/docs/audit) | [Conf
 | **Audit logs** | Admin Activity = always on, free. Data Access = must enable, costs money. BigQuery Data Access is on by default. |
 | **Log buckets** | `_Required` = 400 days, immutable. `_Default` = 30 days, configurable. |
 | **Log sinks** | Not retroactive. Sink service account needs destination permissions. Pub/Sub for on-prem export. |
+| **Service Health** | Public Status Dashboard shows all services. Personalized Service Health shows only YOUR affected resources. |
+| **Gemini Cloud Assist** | AI-powered help for Cloud Monitoring. Natural language queries. Generates MQL/PromQL. Explains metrics. |
+| **Active Assist** | Proactive recommendations: cost (rightsizing, idle VMs), security (IAM recommender), performance. Use Recommender API. |
 | **Ops Agent** | Recommended for Compute Engine. Not needed for managed services. Replaces legacy agents. |
 | **Managed Prometheus** | Enabled by default on Autopilot. Uses PodMonitoring CRD. PromQL in Cloud Monitoring. |
 
