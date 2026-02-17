@@ -133,3 +133,139 @@ Service selection decision trees for: compute, database/storage, load balancers,
 - `section-3-operations.md` (34 questions)
 - `section-4-access-and-security.md` (23 questions)
 - `google-official-sample.md` (20 questions)
+
+## GCP Professional Cloud Architect (`gcp/pca/`)
+
+### Section 1 -- `gcp/pca/docs/01-designing-planning-architecture.md`
+
+| Topic | Section |
+|-------|---------|
+| Business requirements → architecture mapping | 1.1 |
+| Functional / non-functional requirements (SLAs, latency, durability) | 1.1 |
+| Business continuity plan, BCP vs DR | 1.1 |
+| Cost optimization (CUDs, SUDs, Spot VMs, right-sizing, Active Assist) | 1.1 |
+| Microservices, 12-factor app, event-driven architecture | 1.1 |
+| Integration patterns (Pub/Sub, Cloud Tasks, Workflows, Apigee) | 1.1 |
+| Data movement (Storage Transfer, Transfer Appliance, DMS, Datastream) | 1.1 |
+| Design decision trade-offs | 1.1 |
+| Workload disposition (6 R's: rehost, replatform, refactor...) | 1.1 |
+| Success measurements (KPIs, DORA metrics, SRE) | 1.1 |
+| Observability design (four golden signals) | 1.1 |
+| WAF alignment in architecture design | 1.2 |
+| High availability / failover (regional, multi-regional) | 1.2 |
+| Scalability (HPA, VPA, MIG autoscaler, Spanner scaling, Cloud Run) | 1.2 |
+| Performance / latency (CDN, Premium Tier, Memorystore) | 1.2 |
+| Gemini Cloud Assist | 1.2 |
+| Backup and recovery (RPO/RTO, DR patterns: cold/warm/hot/active-active) | 1.2 |
+| Hybrid / multicloud networking (VPN, Interconnect, PSC, GKE Enterprise) | 1.3 |
+| AI/ML solutions (Vertex AI, Gemini, Agent Builder, Model Garden, AI Hypercomputer) | 1.3 |
+| VPC design (Shared VPC, peering, hub-and-spoke) | 1.3 |
+| Load balancer selection | 1.3 |
+| Data processing (Dataflow, Dataproc, BigQuery, Pub/Sub) | 1.3 |
+| Database selection (Cloud SQL, AlloyDB, Spanner, Firestore, Bigtable, BigQuery) | 1.3 |
+| Storage selection (GCS classes, Filestore, Persistent Disk) | 1.3 |
+| Compute selection (CE, GKE, Cloud Run, Batch, GPUs/TPUs) | 1.3 |
+| Migration planning (6 R's, Migration Center, DMS, strangler fig) | 1.4 |
+| Software licensing (BYOL, sole-tenant nodes, TCO) | 1.4 |
+| Cloud-first design, future improvements | 1.5 |
+
+### Section 2 -- `gcp/pca/docs/02-managing-provisioning-infrastructure.md`
+
+| Topic | Section |
+|-------|---------|
+| Hybrid networking (HA VPN, Dedicated/Partner Interconnect, Cross-Cloud) | 2.1 |
+| Cloud Armor, Cloud IDS, hierarchical firewalls | 2.1 |
+| VPC design, load balancing, DNS architecture | 2.1 |
+| Cloud Storage (classes, lifecycle, Autoclass, dual-region, Turbo Replication) | 2.2 |
+| Data retention, Bucket Lock, WORM compliance | 2.2 |
+| Database scaling (Spanner PUs, BigQuery slots, Bigtable nodes) | 2.2 |
+| Data protection per service (backups, PITR, replicas) | 2.2 |
+| Machine families, MIGs, sole-tenant nodes | 2.3 |
+| Spot VMs, compute volatility | 2.3 |
+| GKE Standard vs Autopilot, GKE Enterprise (fleet, Config Sync) | 2.3 |
+| Cloud Run, Cloud Run functions, Eventarc, serverless patterns | 2.3 |
+| VM Manager, patch management, MIG update policies | 2.3 |
+| Vertex AI Pipelines, Feature Store, training workflows | 2.4 |
+| AI Hypercomputer, GPUs vs TPUs | 2.4 |
+| Model serving (online, batch, serverless endpoints) | 2.4 |
+| Pre-built AI APIs (Vision, Video, NLP, Speech, Document AI) | 2.5 |
+| Gemini Enterprise, AI Agents, Agent Builder | 2.5 |
+| Model Garden (open-source models, fine-tuning) | 2.5 |
+
+### Section 3 -- `gcp/pca/docs/03-security-and-compliance.md`
+
+| Topic | Section |
+|-------|---------|
+| IAM at scale (groups, conditions, deny policies, Recommender, custom roles) | 3.1 |
+| Resource hierarchy for security (folders, environment isolation) | 3.1 |
+| Encryption (CMEK, CSEK, Cloud EKM, Cloud HSM) | 3.1 |
+| Secret Manager | 3.1 |
+| Sensitive Data Protection / DLP | 3.1 |
+| Separation of duties | 3.1 |
+| VPC Service Controls (perimeters, access levels, ingress/egress, dry-run) | 3.1 |
+| Organization policies as security guardrails | 3.1 |
+| Hierarchical firewall policies | 3.1 |
+| Security Command Center (Standard vs Premium) | 3.1 |
+| CMEK integration with services (Cloud SQL, GCS, BigQuery, GKE, etc.) | 3.1 |
+| IAP, service account impersonation, Workload Identity Federation | 3.1 |
+| Chrome Enterprise Premium / BeyondCorp | 3.1 |
+| OS Login | 3.1 |
+| Binary Authorization, Artifact Registry, SLSA, Software Delivery Shield | 3.1 |
+| Model Armor, AI security | 3.1 |
+| HIPAA compliance (BAA, Assured Workloads) | 3.2 |
+| GDPR (data residency, crypto-shredding, DPA) | 3.2 |
+| COPPA, data sovereignty | 3.2 |
+| PCI DSS | 3.2 |
+| PII handling, data classification | 3.2 |
+| SOC, ISO, FedRAMP certifications | 3.2 |
+| Cloud Audit Logs (4 types), Access Transparency, Access Approval | 3.2 |
+| Assured Workloads (compliance-bound folders) | 3.2 |
+
+### Section 4 -- `gcp/pca/docs/04-optimizing-processes.md`
+
+| Topic | Section |
+|-------|---------|
+| CI/CD (Cloud Build, Artifact Registry, Cloud Deploy) | 4.1 |
+| Deployment strategies (rolling, blue-green, canary) | 4.1 |
+| Testing (load, unit, integration, chaos engineering) | 4.1 |
+| Disaster recovery patterns and testing | 4.1 |
+| Troubleshooting / root cause analysis | 4.1 |
+| FinOps, cost optimization, CUDs/SUDs, right-sizing | 4.2 |
+| Stakeholder management, change management | 4.2 |
+| Business continuity planning | 4.2 |
+
+### Section 5 -- `gcp/pca/docs/05-managing-implementations.md`
+
+| Topic | Section |
+|-------|---------|
+| API management (Apigee, API Gateway, Cloud Endpoints) | 5.1 |
+| Migration tooling (DMS, Migrate to VMs/Containers, Migration Center) | 5.1 |
+| Gemini Cloud Assist | 5.1 |
+| Terraform (provider, state, modules, CFT, best practices) | 5.2 |
+| Cloud emulators (Pub/Sub, Spanner, Bigtable, Firestore) | 5.2 |
+| Google Cloud SDKs (gcloud, gsutil, bq, kubectl) | 5.2 |
+| Config Connector, Deployment Manager | 5.2 |
+
+### Section 6 -- `gcp/pca/docs/06-solution-operations-excellence.md`
+
+| Topic | Section |
+|-------|---------|
+| WAF operational excellence pillar | 6.1 |
+| Cloud Monitoring (metrics, dashboards, alerting, Prometheus) | 6.2 |
+| Cloud Logging (sinks, buckets, Log Analytics, log-based metrics) | 6.2 |
+| Cloud Trace, Cloud Profiler, Error Reporting | 6.2 |
+| SLO-based burn rate alerting | 6.2 |
+| Cloud Deploy, canary, traffic splitting, rollbacks | 6.3 |
+| Incident response, runbooks, post-mortems | 6.4 |
+| SLOs/SLIs/SLAs, error budgets, capacity planning | 6.5 |
+| Chaos engineering, load testing, penetration testing | 6.6 |
+| GKE upgrades, Cloud SQL maintenance, rolling updates | 6.6 |
+
+### Cross-cutting References
+
+| Topic | File |
+|-------|------|
+| Well-Architected Framework (6 pillars) | `gcp/pca/docs/07-well-architected-framework.md` |
+| Case studies (EHR Healthcare, Cymbal Retail, Altostrat Media, KnightMotives) | `gcp/pca/docs/08-case-studies.md` |
+| Service selection decision trees | `gcp/pca/docs/09-decision-trees.md` |
+| gcloud commands, Terraform, kubectl, emulators | `gcp/pca/docs/10-key-commands-and-terraform.md` |

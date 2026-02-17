@@ -11,6 +11,10 @@ gcp/ace/                # GCP Associate Cloud Engineer (Renewal)
   ├── docs/             # Study guides and reference materials
   ├── questions/        # Practice questions organized by exam section
   └── quizzes/          # Quiz attempt results (gitignored, local only)
+gcp/pca/                # GCP Professional Cloud Architect
+  ├── docs/             # Study guides and reference materials
+  ├── questions/        # Practice questions organized by exam section
+  └── quizzes/          # Quiz attempt results (gitignored, local only)
 aws/                    # (future AWS exams)
 ```
 
@@ -47,6 +51,42 @@ Multiple choice (~20-25 questions, ~60 minutes, 70% to pass).
 - Contains: score, wrong answers, weak area analysis, study recommendations
 - Used by quiz mode to weight questions toward weak areas
 
+### GCP Professional Cloud Architect (`gcp/pca/`)
+
+Multiple choice + multiple select (~50-60 questions, ~2 hours, ~70% to pass). Includes case studies.
+
+**Study guides (`gcp/pca/docs/`):**
+
+| File | Content | Weight |
+|------|---------|--------|
+| `docs/01-designing-planning-architecture.md` | Designing and planning a cloud solution architecture | **~25%** |
+| `docs/02-managing-provisioning-infrastructure.md` | Managing and provisioning cloud solution infrastructure | ~17.5% |
+| `docs/03-security-and-compliance.md` | Designing for security and compliance | ~17.5% |
+| `docs/04-optimizing-processes.md` | Analyzing and optimizing technical and business processes | ~15% |
+| `docs/05-managing-implementations.md` | Managing implementation | ~12.5% |
+| `docs/06-solution-operations-excellence.md` | Ensuring solution and operations excellence | ~12.5% |
+| `docs/07-well-architected-framework.md` | Well-Architected Framework (cross-cutting) | - |
+| `docs/08-case-studies.md` | 4 official case studies with analysis | - |
+| `docs/09-decision-trees.md` | Architect-level service selection decision trees | - |
+| `docs/10-key-commands-and-terraform.md` | gcloud at architect level, Terraform deep dive, kubectl | - |
+
+**Practice questions (`gcp/pca/questions/`, 260 total):**
+
+| File | Questions |
+|------|-----------|
+| `questions/section-1-designing-planning.md` | 65 |
+| `questions/section-2-provisioning-infrastructure.md` | 45 |
+| `questions/section-3-security-compliance.md` | 45 |
+| `questions/section-4-optimizing-processes.md` | 35 |
+| `questions/section-5-managing-implementations.md` | 25 |
+| `questions/section-6-operations-excellence.md` | 25 |
+| `questions/case-study-questions.md` | 20 |
+
+**Quiz results (`gcp/pca/quizzes/`, gitignored):**
+- Each quiz attempt is saved as `{number}-{date}.md` (e.g., `001-2026-02-16.md`)
+- Contains: score, wrong answers, weak area analysis, study recommendations
+- Used by quiz mode to weight questions toward weak areas
+
 ## How to Assist
 
 The user will study by asking questions. Follow the interaction modes defined in `.claude/study-modes.md`. Default to **explain** mode unless the user asks to be quizzed or tested.
@@ -62,7 +102,7 @@ The user will study by asking questions. Follow the interaction modes defined in
 7. **Reference specific sections** -- point the user to the exact file and section for further reading.
 8. **Always link to official docs** -- every time you explain a service, command, concept, or feature, include a link to the relevant official Google Cloud documentation (e.g., `https://cloud.google.com/spanner/docs`). This applies to all interaction modes (explain, compare, decision, quiz explanations, etc.).
 9. **Use the domain reference** in `.claude/domain-reference.md` to quickly locate which file covers a topic.
-10. **Save quiz results** -- after each quiz session, save results to `gcp/ace/quizzes/{number}-{date}.md`. Check existing files to determine the next number.
+10. **Save quiz results** -- after each quiz session, save results to the appropriate exam's quizzes directory (`gcp/ace/quizzes/` or `gcp/pca/quizzes/`) as `{number}-{date}.md`. Check existing files to determine the next number.
 
 ## Quick Commands
 
