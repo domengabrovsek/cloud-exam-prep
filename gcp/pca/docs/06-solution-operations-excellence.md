@@ -72,17 +72,16 @@ Cloud Monitoring is the central metrics, dashboards, and alerting platform in Go
 | **Log-based metrics** | Derived from Cloud Logging | Counter or distribution from log entries | 24 months |
 
 ```bash
-# List available metric descriptors for a project
-gcloud monitoring metrics-descriptors list \
-  --filter='metric.type = starts_with("compute.googleapis.com/instance/cpu")'
+# There is no `gcloud monitoring metrics-descriptors` group. The GA groups under
+# `gcloud monitoring` are exactly: dashboards, policies, snoozes, uptime.
+# Metric descriptors are managed through the Monitoring API v3 or a client library.
 
-# Create a custom metric descriptor
-gcloud monitoring metrics-descriptors create \
-  custom.googleapis.com/orders/per_minute \
-  --type=custom.googleapis.com/orders/per_minute \
-  --metric-kind=GAUGE \
-  --value-type=INT64 \
-  --description="Orders processed per minute"
+# List metric descriptors via the API
+curl -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  "https://monitoring.googleapis.com/v3/projects/PROJECT_ID/metricDescriptors?filter=metric.type=starts_with(\"compute.googleapis.com/instance/cpu\")"
+
+# Custom metric descriptors are normally created implicitly by writing the first
+# data point from a client library, or explicitly via metricDescriptors.create.
 
 # Write a custom metric data point (typically done via client library, not CLI)
 # Python example:
@@ -230,11 +229,10 @@ gcloud monitoring policies describe POLICY_ID
 gcloud monitoring policies update POLICY_ID --enabled
 gcloud monitoring policies update POLICY_ID --no-enabled
 
-# List notification channels
-gcloud monitoring channels list
+# Notification channels are on the beta track, not GA.
+gcloud beta monitoring channels list
 
-# Create a notification channel
-gcloud monitoring channels create \
+gcloud beta monitoring channels create \
   --display-name="Ops Team Email" \
   --type=email \
   --channel-labels=email_address=ops@example.com
@@ -631,7 +629,7 @@ Error Reporting aggregates and displays errors from cloud services, automaticall
 
 # View error groups (typically done in Console > Error Reporting)
 # Or via API:
-gcloud beta error-events list --service=my-service --limit=10
+gcloud beta error-reporting events list --service=my-service --limit=10
 ```
 
 **Exam tips:**
@@ -736,8 +734,9 @@ Alerting policies can combine multiple conditions:
 | **Mobile app** | Google Cloud mobile app push notifications | Seconds |
 
 ```bash
-# Create a Pub/Sub notification channel (for automated remediation)
-gcloud monitoring channels create \
+# Create a Pub/Sub notification channel (for automated remediation).
+# Notification channels are beta, not GA.
+gcloud beta monitoring channels create \
   --display-name="Auto-Remediation" \
   --type=pubsub \
   --channel-labels=topic=projects/PROJECT_ID/topics/alert-notifications
@@ -1346,21 +1345,27 @@ Error Budget (from SLO):
 # Create a service (for SLO attachment)
 # Services are auto-detected for App Engine, Cloud Run, GKE, Istio
 
-# Create an availability SLO
-gcloud monitoring slos create \
-  --service=my-service \
-  --display-name="Availability SLO" \
-  --goal=0.999 \
-  --rolling-period=30d \
-  --request-based-sli \
-  --good-total-ratio-filter='metric.type="loadbalancing.googleapis.com/https/request_count" AND metric.labels.response_code_class="200"' \
-  --total-ratio-filter='metric.type="loadbalancing.googleapis.com/https/request_count"'
+# There is no `gcloud monitoring slos` group on any track. SLOs are created
+# through the Monitoring API v3, Terraform, or the console. Terraform is the
+# form worth knowing for the exam, because SLOs belong in version control.
 
-# List SLOs for a service
-gcloud monitoring slos list --service=my-service
+resource "google_monitoring_slo" "availability" {
+  service      = google_monitoring_custom_service.api.service_id
+  display_name = "Availability SLO"
 
-# Describe an SLO (shows current compliance)
-gcloud monitoring slos describe SLO_ID --service=my-service
+  goal                = 0.999
+  rolling_period_days = 30
+
+  request_based_sli {
+    good_total_ratio {
+      good_service_filter  = "metric.type=\"loadbalancing.googleapis.com/https/request_count\" AND metric.labels.response_code_class=\"200\""
+      total_service_filter = "metric.type=\"loadbalancing.googleapis.com/https/request_count\""
+    }
+  }
+}
+
+# Read current compliance via the API
+# GET https://monitoring.googleapis.com/v3/projects/PROJECT_ID/services/SERVICE_ID/serviceLevelObjectives
 ```
 
 **Exam tips:**

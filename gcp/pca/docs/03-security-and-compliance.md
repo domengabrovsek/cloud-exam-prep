@@ -611,7 +611,7 @@ gcloud artifacts repositories create my-repo \
 # Enable vulnerability scanning
 gcloud artifacts repositories update my-repo \
   --location=us-central1 \
-  --enable-vulnerability-scanning
+  --allow-vulnerability-scanning
 
 # Scan an image
 gcloud artifacts docker images scan us-central1-docker.pkg.dev/my-project/my-repo/my-image:latest
@@ -766,15 +766,14 @@ gcloud resource-manager org-policies set-policy location-policy.yaml --organizat
 - Apply column-level security in BigQuery for PII columns
 
 ```bash
-# Inspect content for PII
-gcloud dlp inspect-content --content="My SSN is 123-45-6789" \
+# The gcloud surface is alpha and differently named. At architect level the
+# point is that inspection and de-identification are API operations you wire
+# into a pipeline, not a CLI habit.
+gcloud alpha dlp text inspect --content="My SSN is 123-45-6789" \
   --info-types=US_SOCIAL_SECURITY_NUMBER
 
-# De-identify (mask SSN)
-gcloud dlp deidentify-content \
-  --content="My SSN is 123-45-6789" \
-  --info-types=US_SOCIAL_SECURITY_NUMBER \
-  --deidentify-config=mask-config.json
+gcloud alpha dlp text redact --content="My SSN is 123-45-6789" \
+  --info-types=US_SOCIAL_SECURITY_NUMBER
 ```
 
 **Data Retention Requirements:**
