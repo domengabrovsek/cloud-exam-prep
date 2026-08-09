@@ -84,11 +84,11 @@ E) Switch all BigQuery queries to streaming inserts for faster processing
 
 - **B) is wrong** -- Moving ALL data to Coldline incurs retrieval fees for frequently accessed objects, potentially increasing costs. Coldline has a 90-day minimum storage duration and per-GB retrieval charge. Lifecycle policies (option C) are the intelligent approach.
 - **D) is wrong** -- Disabling monitoring to save costs is dangerous. Monitoring costs are typically a small fraction of total spend, and the lack of visibility leads to undetected issues that cost far more (outages, performance degradation, security incidents).
-- **E) is wrong** -- Streaming inserts are MORE expensive than batch loading ($0.01/200KB vs. free for batch). They provide real-time data availability but increase costs. This is the opposite of cost optimization.
+- **E) is wrong** -- Streaming ingestion costs money where batch loading does not. Legacy streaming inserts (`tabledata.insertAll`) are priced at $0.01 per 200 MiB in the US, with each row billed at a 1 KB minimum, while batch loading is free using the shared `default-pipeline` slot pool. Streaming buys freshness, not savings, so switching every query path to it is the opposite of cost optimization.
 
-**Exam tip:** WAF cost optimization: right-size (autoscaling), optimize storage (lifecycle policies), use committed pricing (CUDs), eliminate waste (idle resources). Never sacrifice observability for cost savings.
+**Exam tip:** WAF cost optimization: right-size (autoscaling), optimize storage (lifecycle policies), use committed pricing (CUDs), eliminate waste (idle resources). Never sacrifice observability for cost savings. On BigQuery specifically, remember that batch loading is free and streaming is not, so any option that streams data with no latency requirement behind it is a cost trap.
 
-Docs: https://cloud.google.com/architecture/framework/cost-optimization
+Docs: https://cloud.google.com/architecture/framework/cost-optimization and https://cloud.google.com/bigquery/pricing
 </details>
 
 ---
@@ -260,7 +260,7 @@ Docs: https://cloud.google.com/run/docs/configuring/min-instances
 A development team deployed a new version of their API to Cloud Run and wants to perform a canary release: 10% of traffic to the new revision, 90% to the stable revision. If the new revision's error rate exceeds 1%, all traffic should revert to the stable revision. What should they use?
 
 A) Cloud Run traffic splitting with manual monitoring and manual rollback
-B) Cloud Deploy with a Cloud Run target, canary strategy at 10%, and automated rollback based on Cloud Monitoring metrics
+B) Cloud Deploy with a Cloud Run target, canary strategy at 10%, deploy analysis against a Cloud Monitoring alerting policy, and an automated rollback rule
 C) An external load balancer with two Cloud Run backends and weighted routing
 D) Cloud Run with a custom traffic management Cloud Function that checks error rates and adjusts traffic
 
@@ -269,15 +269,15 @@ D) Cloud Run with a custom traffic management Cloud Function that checks error r
 
 **Correct: B)**
 
-Cloud Deploy supports Cloud Run targets with canary deployment strategies. It can split traffic (10% canary), verify against Cloud Monitoring metrics (error rate < 1%), and automatically rollback if verification fails. This provides a fully managed, automated canary release pipeline.
+Cloud Deploy supports Cloud Run targets with canary deployment strategies, so it can hold the release at 10% of traffic. Deploy analysis then evaluates the error rate against a Google Cloud Observability alerting policy over a set duration and fails the rollout if the threshold is breached, and a `repairRolloutRule` automation rolls back. Keep this separate from deployment verification, which runs a container you supply as a test rather than reading telemetry.
 
 - **A) is wrong** -- Cloud Run native traffic splitting can route 10% to the new revision, but it doesn't provide automated metric verification or automatic rollback. Manual monitoring and rollback introduces delay and human error.
 - **C) is wrong** -- An external load balancer with Cloud Run backends is unnecessary. Cloud Run has built-in traffic splitting. Adding a load balancer increases complexity without providing automated verification or rollback.
 - **D) is wrong** -- A custom Cloud Function for traffic management is fragile, requires custom development and maintenance, and reinvents functionality that Cloud Deploy provides natively.
 
-**Exam tip:** Cloud Run traffic splitting = manual canary (you control percentages). Cloud Deploy canary = automated canary (verify + promote/rollback). If the question mentions "automated" or "metric-based" rollback, Cloud Deploy is the answer.
+**Exam tip:** Cloud Run traffic splitting = manual canary (you control percentages). Cloud Deploy canary = automated canary (analyse or verify, then promote or roll back). If the question mentions "automated" or "metric-based" rollback, Cloud Deploy is the answer, and the metric-reading component is deploy analysis rather than Skaffold verify.
 
-Docs: https://cloud.google.com/deploy/docs/deployment-strategies/canary#cloud-run
+Docs: https://cloud.google.com/deploy/docs/deployment-strategies/canary#cloud-run and https://cloud.google.com/deploy/docs/analysis
 </details>
 
 ---
@@ -331,7 +331,7 @@ Cloud Deploy supports blue-green deployment strategy for GKE targets. It deploys
 
 **Exam tip:** Cloud Deploy deployment strategies: canary (gradual traffic shift), blue-green (all-at-once switch). Both support automated verification and rollback. Know when to use each: canary for gradual confidence, blue-green for instant full switching.
 
-Docs: https://cloud.google.com/deploy/docs/deployment-strategies/blue-green
+Docs: https://cloud.google.com/deploy/docs/deployment-strategies
 </details>
 
 ---
@@ -341,7 +341,7 @@ Docs: https://cloud.google.com/deploy/docs/deployment-strategies/blue-green
 After a production outage, your team conducts a post-incident review. The review reveals that the monitoring system detected the issue 15 minutes before users were impacted, but the on-call engineer didn't respond to the alert. What improvements should you implement? (Choose TWO)
 
 A) Create more alerts to increase the chance that someone notices
-B) Implement an escalation policy in Cloud Monitoring that pages a secondary on-call if the primary doesn't acknowledge within 5 minutes
+B) Route Cloud Monitoring alerts to an incident-management notification channel (for example PagerDuty) and implement an escalation policy there that pages a secondary on-call if the primary doesn't acknowledge within 5 minutes
 C) Review and reduce alert noise by eliminating low-value alerts, ensuring that remaining alerts are actionable and require response
 D) Replace the on-call engineer
 E) Send all alerts to a Slack channel for team visibility
@@ -351,16 +351,16 @@ E) Send all alerts to a Slack channel for team visibility
 
 **Correct: B) and C)**
 
-- **B)** Escalation policies ensure alerts are not missed. If the primary on-call doesn't acknowledge within a time window, the alert escalates to a secondary on-call, then to management. This prevents single points of failure in incident response.
+- **B)** Escalation policies ensure alerts are not missed. If the primary on-call doesn't acknowledge within a time window, the alert escalates to a secondary on-call, then to management. This prevents single points of failure in incident response. Note where the escalation actually lives: Cloud Monitoring has no native escalation tier, so it fires the alert into a notification channel (PagerDuty, Pub/Sub, webhooks, Slack, email, SMS, Google Chat, mobile app) and the incident-management tool on the other end owns acknowledgement and escalation.
 - **C)** Alert fatigue (too many non-actionable alerts) is a common reason on-call engineers ignore or miss alerts. Reducing noise ensures that when an alert fires, it's meaningful and requires action, improving response rates.
 
 - **A) is wrong** -- More alerts increase alert fatigue, making the problem worse. If the on-call is already overwhelmed with alerts, adding more makes it harder to identify critical ones.
 - **D) is wrong** -- Blaming individuals doesn't address systemic issues. The engineer might have been dealing with another alert, might have been in alert fatigue, or might not have received the notification due to technical issues.
 - **E) is wrong** -- Slack is useful for team visibility but is not a reliable alerting mechanism. People mute Slack channels, and there's no acknowledgment or escalation built in. Slack complements but doesn't replace proper incident management.
 
-**Exam tip:** Incident management best practices: escalation policies + actionable alerts + clear runbooks. Alert fatigue is a real operational risk. The exam tests SRE principles: reduce toil, improve signal-to-noise ratio.
+**Exam tip:** Incident management best practices: escalation policies + actionable alerts + clear runbooks. Alert fatigue is a real operational risk. The exam tests SRE principles: reduce toil, improve signal-to-noise ratio. Watch the product boundary too -- Cloud Monitoring detects and notifies, but acknowledgement and escalation come from the incident-management tool you route notifications to.
 
-Docs: https://cloud.google.com/monitoring/alerts/using-alerting-policies
+Docs: https://cloud.google.com/monitoring/alerts/using-alerting-ui and https://cloud.google.com/monitoring/support/notification-options
 </details>
 
 ---
@@ -479,7 +479,7 @@ Docs: https://sre.google/workbook/error-budget-policy/
 A company's SLA with customers promises 99.99% availability for their API. The underlying GCP services (Cloud Run, Cloud SQL, Cloud Load Balancing) each have their own SLAs ranging from 99.95% to 99.99%. How should the Cloud Architect assess the feasibility of the customer-facing SLA?
 
 A) Since all underlying services have at least 99.95% SLA, the 99.99% SLA is achievable
-B) Calculate the composite SLA by multiplying individual service SLAs (e.g., 0.9999 x 0.9995 x 0.9999), recognizing that the composite SLA is lower than any individual SLA, and add redundancy to close the gap
+B) Calculate the composite SLA by multiplying individual service SLAs (e.g., 0.9995 x 0.9995 x 0.9999), recognizing that the composite SLA is lower than any individual SLA, and add redundancy to close the gap
 C) GCP's SLAs guarantee the stated availability, so the customer SLA is automatically met
 D) The customer SLA is independent of infrastructure SLAs; just promise it and handle refunds if breached
 
@@ -490,7 +490,7 @@ D) The customer SLA is independent of infrastructure SLAs; just promise it and h
 
 Composite availability for serial dependencies is the product of individual availabilities. If Cloud Run (99.95%), Cloud SQL (99.95%), and Load Balancing (99.99%) are all required, the composite SLA is approximately 0.9995 x 0.9995 x 0.9999 = 99.89%, which is BELOW the 99.99% customer SLA. To achieve 99.99%, you need redundancy (multi-region, failover) to compensate.
 
-- **A) is wrong** -- Individual service SLAs do NOT addatively meet the composite requirement. Each service being 99.95%+ doesn't mean the combined system achieves 99.99%. The multiplication of probabilities reduces the composite availability.
+- **A) is wrong** -- individual service SLAs do not add up to the composite requirement. Each service being 99.95% or better does not mean the combined system reaches 99.99%, because multiplying the probabilities of serial dependencies always reduces the composite availability below the weakest link.
 - **C) is wrong** -- GCP SLAs define Google's commitment (usually as service credits for breaches), not a guarantee. They describe the expected availability, and actual availability may be higher or lower. The customer SLA is YOUR commitment, which must account for all dependencies.
 - **D) is wrong** -- Promising SLAs without engineering to meet them is irresponsible. Financial penalties don't restore customer trust or prevent business impact. The SLA should be backed by architecture that can deliver it.
 
@@ -523,7 +523,7 @@ A progressive approach to chaos engineering builds confidence and competence. St
 
 **Exam tip:** Chaos engineering progression: 1) Understand system (architecture review), 2) Test in non-prod (controlled failures), 3) Test in prod during low traffic (limited blast radius), 4) Test in prod during normal traffic (confidence). Always start small.
 
-Docs: https://cloud.google.com/architecture/framework/reliability/testing#use_chaos_engineering
+Docs: https://cloud.google.com/architecture/framework/reliability/perform-testing-for-recovery-from-failures
 </details>
 
 ---

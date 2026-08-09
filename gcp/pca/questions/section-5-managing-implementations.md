@@ -57,7 +57,7 @@ Apigee supports data residency controls and regional deployment. By deploying th
 
 **Exam tip:** Apigee data residency = control where your API data is processed and stored. Apigee hybrid = run the runtime plane in your own infrastructure. Know the difference: data residency is about compliance, hybrid is about infrastructure control.
 
-Docs: https://cloud.google.com/apigee/docs/api-platform/get-started/data-residency
+Docs: https://cloud.google.com/apigee/docs/api-platform/get-started/what-apigee
 </details>
 
 ---
@@ -111,7 +111,7 @@ Separate API proxies with versioned basepaths (/v1, /v2) is the Apigee best prac
 
 **Exam tip:** Apigee versioning: proxy revisions = minor updates to same version, separate proxies = major version differences. URL-based versioning (/v1, /v2) is the recommended pattern.
 
-Docs: https://cloud.google.com/apigee/docs/api-platform/fundamentals/best-practices-for-api-proxy-design-and-development
+Docs: https://cloud.google.com/apigee/docs/api-platform/get-started/what-apigee
 </details>
 
 ---
@@ -165,7 +165,7 @@ Oracle-to-PostgreSQL migration requires schema conversion (Oracle data types, PL
 
 **Exam tip:** Heterogeneous database migration (different engines) = schema conversion first, then data migration. Homogeneous (same engine) = DMS can handle end-to-end. Know that Oracle-to-PostgreSQL is a common PCA exam scenario.
 
-Docs: https://cloud.google.com/database-migration/docs/oracle-to-postgresql/overview
+Docs: https://cloud.google.com/database-migration/docs/oracle-to-postgresql
 </details>
 
 ---
@@ -192,7 +192,7 @@ Separating storage (Cloud Storage) from compute (ephemeral Dataproc) is the clou
 
 **Exam tip:** Hadoop to GCP: separate storage (Cloud Storage) from compute (Dataproc). Use DistCp for data migration. Ephemeral Dataproc clusters = pay per job, not 24/7. This is the standard migration pattern.
 
-Docs: https://cloud.google.com/architecture/hadoop-migration-overview
+Docs: https://cloud.google.com/architecture/hadoop/hadoop-gcp-migration-overview
 </details>
 
 ---
@@ -246,7 +246,7 @@ The Firebase Local Emulator Suite provides official emulators for Firestore, Pub
 - **C) is wrong** -- Mocking all service calls tests your application logic but not the integration with GCP services. Mocks can pass while real service interactions fail (wrong data formats, missing permissions, incorrect API usage). Emulators provide higher-fidelity testing.
 - **D) is wrong** -- Unofficial emulators may not accurately replicate GCP service behavior and aren't maintained by Google. The Firebase Local Emulator Suite is the official, supported solution.
 
-**Exam tip:** Firebase Local Emulator Suite is the official local testing tool for Firestore, Pub/Sub, Cloud Storage, Auth, and Functions. For Spanner and Bigtable, there are separate official emulators. Know which services have emulators.
+**Exam tip:** Firebase Local Emulator Suite is the official local testing tool for Firestore, Pub/Sub, Cloud Storage, Auth, and Functions. For Spanner and Bigtable, there are separate official emulators. Know which services have emulators. Naming note: the Google Cloud product is now Cloud Run functions (formerly Cloud Functions), while the Firebase side keeps the Cloud Functions for Firebase name, so both appear in current documentation.
 
 Docs: https://firebase.google.com/docs/emulator-suite
 </details>
@@ -276,7 +276,7 @@ Gemini Code Assist can generate Terraform code from natural language prompts (e.
 
 **Exam tip:** Gemini Code Assist = AI pair programmer (code generation, explanation, debugging). It doesn't replace DevOps tools (Terraform, Cloud Build, Cloud Deploy). Know the boundary between AI assistance and infrastructure automation.
 
-Docs: https://cloud.google.com/gemini/docs/discover/write-code-gemini
+Docs: https://cloud.google.com/gemini/docs/codeassist/write-code-gemini
 </details>
 
 ---
@@ -442,7 +442,7 @@ D) Use `gcloud` commands to export resource configurations and manually convert 
 
 **Exam tip:** `terraform import` = bring existing resources into Terraform state. After import, you must write the matching configuration. For bulk import, mention tools like `terraformer` or the newer `terraform import` block (Terraform 1.5+) that can generate configuration.
 
-Docs: https://cloud.google.com/docs/terraform/import
+Docs: https://cloud.google.com/docs/terraform/resource-management/import
 </details>
 
 ---
@@ -548,9 +548,9 @@ The Firebase Local Emulator Suite provides official emulators for Pub/Sub, Fires
 - **C) is wrong** -- Deploying to a test project is slow (deploy time), costs money, requires network access, and makes the test cycle longer. Local emulators provide faster feedback.
 - **D) is wrong** -- Unofficial containers may not accurately emulate GCP service behavior and aren't maintained by Google. The official Firebase emulators are purpose-built for this use case.
 
-**Exam tip:** Firebase Local Emulator Suite covers: Functions, Firestore, Pub/Sub, Cloud Storage, Auth, Hosting, Realtime Database. For integration testing of serverless GCP applications, this is the go-to tool.
+**Exam tip:** Firebase Local Emulator Suite covers: Functions, Firestore, Pub/Sub, Cloud Storage, Auth, Hosting, Realtime Database. For integration testing of serverless GCP applications, this is the go-to tool. Naming note: on the Google Cloud side the product is now Cloud Run functions (formerly Cloud Functions), so a stem or an option may use either name for the same thing.
 
-Docs: https://firebase.google.com/docs/emulator-suite
+Docs: https://firebase.google.com/docs/emulator-suite and https://cloud.google.com/run/docs/quickstarts/functions/deploy-functions-gcloud
 </details>
 
 ---
@@ -631,7 +631,7 @@ Apache Beam's DirectRunner executes pipelines locally on the developer's machine
 
 **Exam tip:** Apache Beam runners: DirectRunner (local testing), DataflowRunner (production on GCP), SparkRunner (Apache Spark), FlinkRunner (Apache Flink). The same pipeline code works across runners. Local testing always uses DirectRunner.
 
-Docs: https://cloud.google.com/dataflow/docs/guides/developing-pipelines
+Docs: https://cloud.google.com/dataflow/docs/guides/develop-and-test-pipelines
 </details>
 
 ---

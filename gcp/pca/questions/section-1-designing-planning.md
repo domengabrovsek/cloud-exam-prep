@@ -24,7 +24,15 @@ D) Use Sustained Use Discounts (SUDs) exclusively by running on-demand instances
 
 **Correct: B)**
 
-CUDs for baseline capacity provide predictable, discounted pricing for the steady-state workload (up to 57% discount for 1-year, 70% for 3-year on compute). On-demand instances handle the short burst periods without long-term commitment. Option A is wrong because sizing CUDs for peak means paying for unused capacity ~350 days/year -- massively wasteful. Option C is wrong because Spot VMs can be preempted at any time, which is unacceptable for customer-facing e-commerce traffic. Option D is wrong because SUDs only provide up to ~30% discount and do not give the predictable budgeting the CFO requires (SUDs are automatic but less cost-effective than CUDs for known baseline workloads).
+Committed use discounts on the steady-state baseline give the CFO the predictable monthly figure, and on-demand capacity absorbs the 3-5 day spike without extending the commitment. Compute Engine CUDs reach up to 55% for most machine series and up to 70% for memory-optimized, with a 3-year term discounting deeper than a 1-year term.
+
+- **A) is wrong** -- sizing a commitment for peak means paying for peak capacity for the roughly 360 days a year the peak is not happening. A commitment is a floor you must pay for, not a ceiling you may use.
+- **C) is wrong** -- Spot VMs can be reclaimed at any time. Customer-facing checkout traffic during a revenue event is the worst possible place to accept preemption.
+- **D) is wrong** -- SUDs cap at 30%, apply automatically to resources used for more than 25% of a billing month, and cannot be combined with CUDs. They are a passive rebate, not a budgeting instrument.
+
+**Exam tip:** when a stem pairs "predictable cost" with "bursty traffic", the answer is almost always commit to the baseline and burst on-demand. Never commit to peak. A CUD is a spend obligation, so anything described as short-lived, seasonal or uncertain stays on-demand.
+
+Docs: https://cloud.google.com/docs/cuds and https://cloud.google.com/compute/docs/sustained-use-discounts
 </details>
 
 ---
@@ -41,7 +49,15 @@ D) IoT devices -> Cloud Storage -> Dataflow (batch every 5 seconds) -> BigQuery 
 
 **Correct: A)**
 
-Pub/Sub provides durable, at-least-once message ingestion at any scale. Dataflow (Apache Beam) in streaming mode processes events in real-time with exactly-once semantics. BigQuery supports streaming inserts for near-real-time analytics, and Looker provides visualization. This is fully managed with minimal ops overhead. Option B is wrong because Cloud SQL is a relational OLTP database that cannot handle 500K events/sec analytics queries and is not designed for this scale of writes. Option C is wrong because running Kafka on GKE and Dataproc requires significant operational management (cluster sizing, upgrades, monitoring), violating the minimal overhead requirement. Option D is wrong because batch processing every 5 seconds is not true streaming -- micro-batching adds latency and complexity, and Cloud Storage is not designed as a streaming ingestion layer.
+Pub/Sub absorbs the 500K events/sec ingest durably, Dataflow in streaming mode does the per-event processing with exactly-once semantics, BigQuery holds the results, and Looker visualises. Every component is fully managed, which is the stated engineering constraint.
+
+- **B) is wrong** -- Cloud SQL is an OLTP relational database. It cannot sustain 500K writes/sec and is not an analytics engine.
+- **C) is wrong** -- self-managed Kafka on GKE plus Dataproc means owning cluster sizing, upgrades and failure handling, which directly contradicts "minimal operational overhead".
+- **D) is wrong** -- landing events in Cloud Storage and micro-batching every 5 seconds adds latency at exactly the point the requirement is tightest, and Cloud Storage is not a streaming ingestion layer.
+
+**Exam tip:** the streaming reference pipeline on Google Cloud is Pub/Sub then Dataflow then BigQuery or Bigtable. Learn it as one unit. Any option that swaps Pub/Sub for Cloud Storage, or Dataflow for Cloud Run functions, is trading a managed streaming primitive for something that only looks like one.
+
+Docs: https://cloud.google.com/pubsub/docs/overview and https://cloud.google.com/dataflow/docs
 </details>
 
 ---
@@ -59,7 +75,15 @@ E) Cloud Audit Logs exported to BigQuery with a 7-year table expiration
 
 **Correct: A) and D)**
 
-Cloud Spanner in a multi-region EU configuration (e.g., eur5) provides 99.999% SLA, strong consistency, and keeps all data within EU regions -- exceeding the 99.99% requirement while meeting data residency constraints. Cloud Audit Logs exported to Cloud Storage with a 7-year retention policy and bucket lock ensures immutable, cost-effective long-term retention that satisfies regulatory audit requirements. Option B is wrong because Cloud SQL regional HA provides only 99.95% SLA, falling short of the 99.99% requirement. Option C is wrong because BigQuery is an analytics warehouse, not a transactional database for core banking with complex transactions. Option E is wrong because BigQuery table expiration deletes data after the period -- you need retention, not expiration. Also, storing 7 years of audit logs in BigQuery is significantly more expensive than Cloud Storage.
+A Spanner multi-region configuration inside the EU keeps data resident, gives strong consistency for complex transactions, and carries a 99.999% availability SLA, which clears the 99.99% requirement. Audit logs exported to Cloud Storage under a locked retention policy give immutable 7-year retention at archival cost.
+
+- **B) is wrong** -- Cloud SQL regional HA is a 99.95% SLA, below the stated 99.99%.
+- **C) is wrong** -- BigQuery is an analytics warehouse, not a transactional store for core banking.
+- **E) is wrong** -- table expiration deletes data at the end of the window. The requirement is retention, which is the opposite, and BigQuery storage for 7 years of audit logs costs far more than Cloud Storage.
+
+**Exam tip:** read availability numbers as elimination criteria. Cloud SQL HA is 99.95%, Spanner regional is 99.99%, Spanner multi-region is 99.999%. Also learn the retention-versus-expiration trap: expiration deletes, a locked retention policy prevents deletion. Compliance stems always want the second one.
+
+Docs: https://cloud.google.com/spanner/docs/instance-configurations and https://cloud.google.com/storage/docs/bucket-lock
 </details>
 
 ---
@@ -76,7 +100,15 @@ D) Deploy Compute Engine instances in each region running Nginx as a caching rev
 
 **Correct: C)**
 
-Premium Tier networking uses Google's global backbone for lowest latency routing. Cloud CDN caches the frequently accessed content (the 20% that drives 80% of views) at edge locations globally, dramatically reducing latency. Regional Storage buckets are cheaper than multi-regional, and since CDN handles caching, multi-regional redundancy for storage is unnecessary. Option A is wrong because deploying full stacks in every region is extremely expensive and operationally complex -- especially replicating 500 TB everywhere when only 20% is frequently accessed. Option B is wrong because multi-regional buckets add cost without benefit when CDN is already caching popular content at the edge; it also does not specify the network tier. Option D is wrong because managing custom Nginx caching proxies in each region creates significant operational burden compared to the fully managed Cloud CDN, and lacks the global edge network coverage.
+Premium Tier routes over Google's backbone for the lowest latency, and Cloud CDN caches the 20% of the catalogue that drives 80% of views at the edge, so the origin only serves misses. Regional buckets are cheaper than multi-region and the redundancy multi-region buys is not needed once CDN is doing the fan-out.
+
+- **A) is wrong** -- full stacks plus a 500 TB content replica in every region is the most expensive way to solve a caching problem.
+- **B) is wrong** -- multi-region storage adds cost that CDN already makes unnecessary, and the option says nothing about the network tier, which is the other half of the latency answer.
+- **D) is wrong** -- self-managed Nginx caches in each region mean running and patching cache fleets, with far less edge coverage than Google's CDN footprint.
+
+**Exam tip:** a stated 80/20 access skew is the exam signalling "cache it, do not replicate it". Pair that with the network tier question: Premium Tier is Google's backbone and is required for global load balancing, Standard Tier hands traffic to the public internet near the source region and is regional.
+
+Docs: https://cloud.google.com/cdn/docs/overview and https://cloud.google.com/network-tiers/docs/overview
 </details>
 
 ---
@@ -93,7 +125,15 @@ D) Transfer Appliance to replicate ERP data to Cloud Storage nightly
 
 **Correct: B)**
 
-Dedicated Interconnect provides 10 Gbps or 100 Gbps connections between on-premises and GCP with low latency, high bandwidth, and private connectivity. Private Google Access ensures traffic stays on Google's network. This meets all requirements: secure (private, not over public internet), low-latency, and supports 10 Gbps. Option A is wrong because Cloud VPN maxes out at 3 Gbps per tunnel (can aggregate up to 8 tunnels for HA VPN), adding complexity to reach 10 Gbps, and traffic traverses the public internet with higher latency. Option C is wrong because Partner Interconnect maxes at 50 Gbps total but individual attachments are typically 50 Mbps to 10 Gbps depending on the partner -- and since the company needs 10 Gbps consistently, Dedicated Interconnect is the direct, simpler solution without a third-party dependency. Option D is wrong because Transfer Appliance is for one-time bulk data migration, not real-time integration, and nightly replication does not meet the real-time requirement.
+Dedicated Interconnect is a physical connection into Google's network at 10, 100 or 400 Gbps link speeds, with private, low-latency, predictable performance. Private Google Access keeps the API traffic off the public internet.
+
+- **A) is wrong** -- HA VPN runs over the public internet with variable latency, and its documented throughput limit is expressed in packets per second, so reaching a reliable 10 Gbps means aggregating tunnels and accepting jitter.
+- **C) is wrong** -- Partner Interconnect is the answer when you cannot meet Google's colocation requirement. Here the requirement is a clean 10 Gbps, so the direct product with no third party in the path is simpler.
+- **D) is wrong** -- Transfer Appliance is offline bulk migration. Nightly replication cannot serve a real-time integration.
+
+**Exam tip:** the connectivity ladder is Cloud VPN, then Partner Interconnect, then Dedicated Interconnect. Pick by two facts in the stem: required bandwidth, and whether the customer has colocation presence. "No colocation" forces Partner. "Real-time" or "consistent multi-gigabit" rules out VPN.
+
+Docs: https://cloud.google.com/network-connectivity/docs/interconnect/concepts/dedicated-overview and https://cloud.google.com/vpc/docs/private-google-access
 </details>
 
 ---
@@ -110,7 +150,15 @@ D) Enabling Data Access audit logs for all services handling patient data
 
 **Correct: C)**
 
-Choosing multi-region Spanner for lowest global read latency is a performance optimization, not a compliance requirement. MedTrack is a startup -- there is no stated need for global distribution. HIPAA compliance focuses on data protection, access controls, and audit trails, not global latency optimization. Option A is relevant because CMEK gives the organization control over encryption keys, which is often required for HIPAA compliance. Option B is relevant because VPC Service Controls prevent data exfiltration and restrict which networks can access sensitive services. Option D is relevant because Data Access audit logs track who accessed what data, which is essential for HIPAA audit trail requirements.
+Choosing multi-region Spanner for the lowest global read latency is a performance optimisation. Nothing in the stem says the startup has global users, so this is the option least connected to the stated compliance requirements.
+
+- **A) is relevant** -- CMEK puts key control in the customer's hands, which is routinely part of a healthcare control set.
+- **B) is relevant** -- VPC Service Controls draw a perimeter around the managed services holding patient data and block exfiltration paths.
+- **D) is relevant** -- Data Access audit logs are the record of who read which record, which is the audit trail the stem asks for.
+
+**Exam tip:** "LEAST relevant" questions are read backwards. Find the three options that map to a stated requirement and the leftover one is the answer. Watch for a technically excellent choice that answers a requirement the stem never made, which is usually global latency or global scale.
+
+Docs: https://cloud.google.com/vpc-service-controls/docs/overview and https://cloud.google.com/logging/docs/audit
 </details>
 
 ---
@@ -128,7 +176,14 @@ E) BigQuery flat-rate (editions) pricing for predictable workloads
 
 **Correct: A), C), and E)**
 
-A complete TCO analysis should include the primary ongoing costs (BigQuery pricing model -- either on-demand or editions), and the savings from eliminating on-premises infrastructure costs (hardware, data center, cooling, staff). Both BigQuery pricing models (A and E) should be evaluated to determine the most cost-effective approach for TechRetail's workload pattern. Option B is wrong because Interconnect is a one-time migration cost, not a recurring TCO factor over 3 years -- it would appear in a migration cost analysis but is not a primary driver of the 3-year TCO comparison. Option D is wrong because BigQuery uses standard SQL, so there is no new programming language to learn -- Teradata SQL migration to BigQuery SQL requires query adjustments, not full language retraining.
+A 3-year TCO comparison needs the recurring platform cost under both BigQuery pricing models, on-demand and editions, plus the avoided on-premises costs (hardware refresh, floor space, power, cooling, operations staff) that make up most of the saving against a $2M annual Teradata licence.
+
+- **B) is wrong** -- Interconnect for the migration window is a one-off project cost. It belongs in the migration business case, not in the 3-year run-rate comparison.
+- **D) is wrong** -- BigQuery uses GoogleSQL. Moving Teradata SQL means dialect work, not retraining developers in a new programming language.
+
+**Exam tip:** TCO questions separate recurring run cost and avoided cost from one-time migration cost. If an option describes something you pay once, it is usually the distractor. Watch also for invented retraining or rewrite costs attached to a service that speaks the same language the team already uses.
+
+Docs: https://cloud.google.com/bigquery/pricing and https://cloud.google.com/bigquery/docs/editions-intro
 </details>
 
 ---
@@ -145,7 +200,15 @@ D) Pub/Sub -> Dataflow -> Cloud SQL for both real-time and analytics workloads
 
 **Correct: B)**
 
-This architecture uses the right tool for each job. Bigtable excels at high-throughput, low-latency reads by key (vehicle ID) -- perfect for a real-time dashboard. BigQuery is ideal for historical analytics and route optimization queries over large datasets. Dataflow handles the fan-out with exactly-once processing. At 25,000 events/second (50K vehicles x 0.5 Hz), this pipeline scales well. Option A is wrong because BigQuery streaming inserts work but BigQuery is not optimized for point-lookup real-time serving (it is an analytics engine with higher query latency). Option C is wrong because Firestore has a limit of 10,000 writes/sec per database (can be increased but is not designed for this sustained write throughput), and Cloud Functions would struggle at this scale. Option D is wrong because Cloud SQL cannot handle 25,000 writes/sec and is not suitable for large-scale analytics.
+One Dataflow pipeline fanning out to two sinks uses each store for what it is good at. Bigtable serves the live dashboard with single-digit millisecond lookups by row key (vehicle ID plus timestamp); BigQuery holds history for route-optimisation analytics. At 50,000 vehicles every 2 seconds this is 25,000 events/sec, comfortably inside both services.
+
+- **A) is wrong** -- BigQuery can ingest the stream, but it is an analytical engine. Point lookups for a live map are the wrong access pattern for it.
+- **C) is wrong** -- Firestore is a document database tuned for application data, not for sustained high-rate time-series writes at this volume.
+- **D) is wrong** -- Cloud SQL cannot take 25,000 writes/sec and is not an analytics warehouse.
+
+**Exam tip:** when a stem asks for both a live view and historical analysis, expect a fan-out answer rather than one database. The pairing to memorise is Bigtable for key-and-time-range serving, BigQuery for ad-hoc SQL over history. A single store claiming to do both is usually the trap.
+
+Docs: https://cloud.google.com/bigtable/docs/overview and https://cloud.google.com/bigquery/docs/introduction
 </details>
 
 ---
@@ -162,7 +225,15 @@ D) Folders per environment (dev, staging, prod), with org policies on the prod f
 
 **Correct: D)**
 
-Organizing folders by environment allows applying stricter org policies (e.g., disable external IPs, enforce CMEK) to the entire prod folder, which automatically inherits to all production projects. Projects per product line within each environment folder enable clear resource isolation. Labels on projects enable cost tracking per product line via billing exports. Option A is wrong because a single project per environment provides no isolation between product lines and makes cost attribution difficult. Option B is wrong because putting environment folders under product line folders means you cannot apply a single org policy to all production environments -- you would need to apply it separately to the prod sub-folder under each product line. Option C is wrong because shared projects across product lines break the principle of least privilege and make cost attribution imprecise.
+Folders by environment let one org policy on the prod folder inherit to every production project at once. Projects per product line inside each environment folder give resource isolation, and project labels feed per-product-line cost attribution through the billing export.
+
+- **A) is wrong** -- one project per environment means all three product lines share a blast radius and an IAM surface.
+- **B) is wrong** -- putting environment folders under product-line folders inverts the inheritance. You would have to apply the production policy separately under each product line and keep the copies in sync.
+- **C) is wrong** -- shared projects across product lines break least privilege and blur cost attribution.
+
+**Exam tip:** decide the folder axis by asking what you need to apply policy to as a single unit. Org policy inherits down the hierarchy, so the thing you govern (usually environment) goes high and the thing you only need to report on (usually team or product) goes low, because labels handle reporting.
+
+Docs: https://cloud.google.com/resource-manager/docs/cloud-platform-resource-hierarchy and https://cloud.google.com/resource-manager/docs/organization-policy/overview
 </details>
 
 ---
@@ -179,7 +250,15 @@ D) Compute Engine with custom machine types running permanently
 
 **Correct: C)**
 
-Dataproc with Spot VMs provides 60-91% discount on worker nodes, and since the workload is highly parallelizable and can handle worker preemption (Spark/Hadoop handle task redistribution), this is the most cost-effective option. Cloud Composer orchestrates the daily pipeline, and results in Cloud Storage are directly accessible for ML training. Option A is wrong because a persistent GKE GPU cluster running 24/7 is extremely expensive when processing only needs to happen once daily for a few hours. Option B is wrong because Dataflow is excellent for streaming and well-suited for batch, but its autoscaling workers use standard pricing -- no Spot VM option for Dataflow workers, making it more expensive than Dataproc with Spot VMs. Option D is wrong because permanently running VMs waste money during the ~20 hours/day when no processing occurs.
+Dataproc secondary workers can be Spot VMs at up to 91% off on-demand, and Spark redistributes tasks from reclaimed workers automatically, so a highly parallel, restartable job absorbs preemption cheaply. Cloud Composer schedules the daily run, and results land in Cloud Storage where the ML training jobs can read them directly.
+
+- **A) is wrong** -- a GPU node pool running around the clock is billed around the clock for a job that occupies a few hours a day.
+- **B) is wrong**, but not for the reason usually given. Dataflow does have a discounted batch mode: FlexRS runs the batch pool at roughly 90% preemptible VMs. The catch is what you pay for it -- FlexRS queues the job and submits it for execution within six hours of creation, which cannot honour a 4-hour deadline. Regular Dataflow batch starts immediately but pays full worker rates.
+- **D) is wrong** -- permanently running custom VMs waste the roughly 20 hours a day with no work to do.
+
+**Exam tip:** "highly parallelizable" plus "tolerates retries" is the exam telling you preemptible capacity is allowed. But check the deadline before reaching for the cheapest option: FlexRS trades a start-time guarantee for its discount, so any stem with a hard processing window rules it out.
+
+Docs: https://cloud.google.com/dataproc/docs/concepts/compute/secondary-vms and https://cloud.google.com/dataflow/docs/guides/flexrs
 </details>
 
 ---
@@ -196,7 +275,15 @@ D) Serve predictions from BigQuery ML using SQL queries at request time
 
 **Correct: A)**
 
-Vertex AI Endpoints provide managed model serving with autoscaling, low-latency prediction, and built-in traffic splitting for A/B testing between model versions. This is purpose-built for production ML serving at scale. Option B is wrong because Cloud Functions have cold start latency that can exceed 100ms, and they are not optimized for ML model serving (model loading on each cold start is slow). Option C is wrong because a single instance is a single point of failure and cannot scale to handle 10M daily users during peak traffic. Option D is wrong because BigQuery ML is designed for batch predictions and analytics, not real-time sub-100ms serving -- query overhead alone typically exceeds 100ms.
+Vertex AI Endpoints (the platform is now marketed as Gemini Enterprise Agent Platform, but the exam guide still says Vertex AI) provide managed online serving with autoscaling and native traffic splitting across deployed model versions, which is exactly the A/B testing mechanism the business team asked for.
+
+- **B) is wrong** -- function cold starts alone can breach a 100ms budget, and reloading a model per cold start makes it worse.
+- **C) is wrong** -- a single instance is a single point of failure and cannot scale to 10 million daily users.
+- **D) is wrong** -- BigQuery ML is built for batch scoring and analytics. Its per-query overhead sits above the 100ms target before the model even runs.
+
+**Exam tip:** "A/B test between model versions" maps to traffic splitting on a Vertex AI endpoint, not to a load balancer or a custom router. And treat "sub-100ms" as an elimination rule: anything that scales from zero or reloads a model per request is out.
+
+Docs: https://cloud.google.com/vertex-ai/docs/general/deployment and https://cloud.google.com/vertex-ai/docs/predictions/configure-compute
 </details>
 
 ---
@@ -213,7 +300,15 @@ D) Measure success based on the number of services migrated per quarter
 
 **Correct: B)**
 
-A comprehensive success framework should align with the Google Cloud Architecture Framework (WAF) pillars and business objectives. For a government agency, this means tracking cost optimization (TCO reduction vs. on-premises), operational excellence (deployment frequency, incident response time), security/compliance (audit findings, compliance certification maintenance), and citizen experience (page load times, availability, user satisfaction). Option A is wrong because focusing solely on cost ignores critical dimensions like security compliance and user experience, which are paramount for a government agency. Option C is wrong because Google's SLAs are minimum guarantees, not success metrics -- the agency needs custom KPIs aligned with their mission. Option D is wrong because migration velocity is an output metric, not an outcome metric -- migrating fast means nothing if the services are unreliable or insecure.
+Success criteria should span the pillars the Architecture Framework names rather than a single dimension: cost, operational excellence, security and compliance posture, and the citizen-facing experience. For a public agency, compliance and user experience carry as much weight as spend.
+
+- **A) is wrong** -- cost-only KPIs leave the compliance and citizen-experience objectives unmeasured, which for a government portal are the ones that decide whether the migration succeeded.
+- **C) is wrong** -- a Google SLA is a floor Google commits to, not a target the agency chose. Success metrics have to come from the agency's own objectives.
+- **D) is wrong** -- services migrated per quarter is an output measure. It says nothing about whether the migrated services are reliable, secure or usable.
+
+**Exam tip:** distinguish output metrics (things done) from outcome metrics (effects achieved). The exam consistently rewards outcome measures tied to business objectives, and consistently punishes velocity counters and vendor SLAs presented as success criteria.
+
+Docs: https://cloud.google.com/architecture/framework and https://cloud.google.com/architecture/framework/reliability
 </details>
 
 ---
@@ -234,7 +329,15 @@ D) Cloud Spanner multi-region instance with application in a single region and C
 
 **Correct: A)**
 
-Cloud Spanner multi-region instances (e.g., nam6, eur5) replicate data synchronously across regions with RPO = 0 by design. A global external Application Load Balancer with health checks automatically routes traffic to healthy backends, achieving RTO well under 30 seconds. This is the only option that achieves both RPO = 0 and RTO < 30s. Option B is wrong because Cloud Spanner does not have "read replicas" in the traditional sense -- it uses multi-region configurations for this purpose. A single-region instance with manual failover cannot achieve RPO = 0 or RTO < 30s. Option C is wrong because application-level replication between Cloud SQL instances introduces replication lag (RPO > 0) and DNS failover typically takes minutes (RTO >> 30s). Option D is wrong because deploying the application in a single region means a regional outage takes down the application even though Spanner data is available -- Cloud DNS failover also takes minutes due to TTL propagation.
+A Spanner multi-region configuration replicates synchronously across regions, so RPO is 0 by design. Running the application in both regions behind a global external Application Load Balancer with health checks means a regional failure is absorbed by the load balancer redirecting to healthy backends, well inside 30 seconds.
+
+- **B) is wrong** -- Spanner does not have traditional promotable read replicas, and a single-region instance with manual failover meets neither RPO 0 nor RTO under 30 seconds.
+- **C) is wrong** -- application-level replication between two Cloud SQL instances is asynchronous, so RPO is above 0, and DNS failover takes minutes because of TTL propagation.
+- **D) is wrong** -- the data survives the region loss but the application does not, and DNS failover is again too slow.
+
+**Exam tip:** an RTO measured in seconds rules out anything that fails over through DNS, because clients cache records for the TTL. Seconds-level failover comes from an anycast global load balancer with health checks. Read RPO and RTO as two separate filters: the database answers RPO, the traffic layer answers RTO.
+
+Docs: https://cloud.google.com/spanner/docs/instance-configurations and https://cloud.google.com/load-balancing/docs/application-load-balancer
 </details>
 
 ---
@@ -251,7 +354,15 @@ D) Fixed node pool sized for peak traffic with HPA for pod scaling
 
 **Correct: C)**
 
-For 100x traffic spikes with little warning, you need aggressive scaling. HPA on custom metrics (like queue depth) reacts faster than CPU-based scaling since it detects demand before CPU saturates. Cluster Autoscaler with NAP automatically provisions the right node types and sizes. Provisioning profiles allow pre-configured surge capacity. This combination provides the fastest scaling response. Option A is wrong because CPU-based HPA is reactive (CPU must rise before scaling triggers) and can be too slow for sudden 100x spikes -- the application may become unresponsive before scaling catches up. Option B is wrong because VPA adjusts resource requests per pod but does not scale the number of pods or nodes -- it is for right-sizing, not handling traffic spikes. Option D is wrong because sizing a fixed node pool for 500K users wastes significant resources during off-peak (5K users), directly violating the "without over-provisioning" requirement.
+A 100x spike arriving with little warning needs a leading signal, not a lagging one. HPA on a queue-depth custom metric reacts as demand appears rather than after CPU saturates, cluster autoscaler adds nodes, and node auto-provisioning creates suitably shaped node pools without someone predefining them.
+
+- **A) is wrong** -- CPU-based HPA is inherently reactive. CPU must climb before the signal exists, by which time a 100x spike has already degraded the service.
+- **B) is wrong** -- VPA right-sizes the resource requests of individual pods. It does not add pods or nodes, so it does not answer a traffic-spike question at all.
+- **D) is wrong** -- a fixed node pool sized for 500,000 users is paid for at 5,000 users too, which is the over-provisioning the stem explicitly forbids.
+
+**Exam tip:** learn the two autoscaler axes. HPA and VPA scale pods (count versus size); cluster autoscaler and node auto-provisioning scale nodes (count versus shape). A traffic-spike stem needs HPA plus node capacity. If a stem stresses sudden onset, prefer a demand-side custom metric such as queue depth over CPU.
+
+Docs: https://cloud.google.com/kubernetes-engine/docs/concepts/horizontalpodautoscaler and https://cloud.google.com/kubernetes-engine/docs/how-to/node-auto-provisioning
 </details>
 
 ---
@@ -268,14 +379,22 @@ D) Cloud SQL with daily export to Cloud Storage in another region
 
 **Correct: A)**
 
-Cloud SQL HA with automated backups and point-in-time recovery meets RPO of 1 hour (backups + transaction logs allow recovery to any point) and RTO of 4 hours (restore from backup takes minutes to hours depending on size, well within 4 hours). This is the most cost-effective option for these relaxed RPO/RTO requirements. Option B is wrong because cross-region read replicas provide faster failover but cost significantly more (running a full replica 24/7), which is unnecessary given the relaxed 4-hour RTO. Option C is wrong because Cloud Spanner multi-region is designed for RPO = 0 and near-zero RTO -- massively over-engineered and expensive for RPO of 1 hour / RTO of 4 hours. Option D is wrong because daily exports give you RPO of up to 24 hours, which exceeds the 1-hour RPO requirement.
+Automated backups plus point-in-time recovery let you restore to any moment inside the log retention window, which satisfies a 1-hour RPO, and a restore of a single-country database completes inside a 4-hour RTO. It is the cheapest configuration that clears both numbers.
+
+- **B) is wrong** -- a cross-region read replica runs, and is billed, continuously. It buys a faster failover than a 4-hour RTO requires.
+- **C) is wrong** -- Spanner multi-region is engineered for RPO 0 and near-zero RTO. Against RPO 1 hour and RTO 4 hours it is large over-engineering at a much higher price.
+- **D) is wrong** -- daily exports leave up to 24 hours of data at risk, which breaches the 1-hour RPO outright.
+
+**Exam tip:** the phrase "most cost-effective while meeting the requirements" means find the cheapest option that clears the bar, not the most robust one. Work it as arithmetic: daily backup means RPO 24h, PITR means RPO minutes, synchronous replication means RPO 0. Pick the first one that fits and stop.
+
+Docs: https://cloud.google.com/sql/docs/postgres/backup-recovery/pitr and https://cloud.google.com/architecture/dr-scenarios-planning-guide
 </details>
 
 ---
 
 ### Q16. A company is deploying a microservices architecture on GKE with 30 services. They need to implement mutual TLS between services, circuit breaking, traffic management (canary deployments), and distributed tracing -- all without modifying application code. What should they implement?
 
-A) Anthos Service Mesh (managed Istio) with sidecar proxies
+A) Cloud Service Mesh (managed Istio, formerly Anthos Service Mesh) with sidecar proxies
 B) Custom Envoy proxy configurations deployed as DaemonSets
 C) Network Policies with GKE Dataplane V2 and manual mTLS certificate management
 D) Cloud Load Balancing with NEGs for each service
@@ -285,7 +404,15 @@ D) Cloud Load Balancing with NEGs for each service
 
 **Correct: A)**
 
-Anthos Service Mesh (ASM), based on Istio, provides all required features (mTLS, circuit breaking, traffic management, distributed tracing) via sidecar proxy injection -- without any application code changes. It is fully managed on GCP and integrates with Cloud Trace and Cloud Monitoring. Option B is wrong because manually configuring Envoy proxies as DaemonSets requires significant operational effort and custom configuration for each feature -- ASM automates all of this. Option C is wrong because Network Policies only handle L3/L4 network segmentation, not L7 features like circuit breaking, canary deployments, or distributed tracing. Manual mTLS certificate management is error-prone and does not meet the "without modifying application code" requirement. Option D is wrong because Cloud Load Balancing handles north-south traffic (external to cluster), not east-west service-to-service communication within the cluster. It also does not provide mTLS, circuit breaking, or distributed tracing.
+Cloud Service Mesh (this is the current name for what shipped as Anthos Service Mesh, Google's managed Istio) delivers mTLS between services, circuit breaking, canary traffic splitting and distributed tracing through injected sidecar proxies, with no application code changes.
+
+- **B) is wrong** -- hand-configuring Envoy as DaemonSets means building and maintaining each of those features yourself; the managed mesh exists precisely to avoid that.
+- **C) is wrong** -- network policy is L3/L4 segmentation. It cannot express circuit breaking, canary routing or tracing, and hand-rolled mTLS certificate management is both error-prone and outside the "no code changes" constraint.
+- **D) is wrong** -- Cloud Load Balancing handles north-south traffic into the cluster. The requirements are all east-west, service to service.
+
+**Exam tip:** the combination "mTLS plus traffic management plus tracing, without touching application code" is the service mesh fingerprint. Note the naming: Anthos Service Mesh and Traffic Director are both now Cloud Service Mesh, and Anthos itself is GKE Enterprise, so older material and the current console disagree.
+
+Docs: https://cloud.google.com/service-mesh/docs/overview
 </details>
 
 ---
@@ -302,7 +429,15 @@ D) Follow the WAF performance pillar to determine region placement based on user
 
 **Correct: B)**
 
-The WAF Reliability pillar emphasizes defining SLOs (Service Level Objectives) based on business needs before choosing an architecture. Multi-region active-active may be unnecessary if the business SLO can be met with regional HA. The architecture should be driven by measurable targets, not assumptions. Option A is wrong because WAF explicitly warns against over-engineering -- multi-region active-active adds complexity and cost that may not be justified by business requirements. Option C is wrong because it is reactive rather than proactive -- WAF advocates designing for reliability upfront based on defined targets, not waiting for failures. Option D is wrong because this question is about reliability architecture, not performance optimization. While latency may influence region selection, the reliability decision should be driven by SLOs, not latency alone.
+The Architecture Framework's reliability pillar asks you to derive reliability targets from business need first and then choose the cheapest architecture that meets them. Multi-region active-active is a means, not a goal, and may be unnecessary if regional HA satisfies the SLO.
+
+- **A) is wrong** -- the framework explicitly warns against building past the requirement. Unjustified multi-region adds cost and operational complexity.
+- **C) is wrong** -- waiting for outages to reveal your reliability needs is the opposite of designing to a target.
+- **D) is wrong** -- latency belongs to the performance pillar. It can inform region choice, but it is not what decides an active-active reliability question.
+
+**Exam tip:** any Architecture Framework question that offers "always do the most redundant thing" is offering the wrong answer. The framework's stance is target first, architecture second. Watch for options that quietly answer a different pillar than the one the stem is about.
+
+Docs: https://cloud.google.com/architecture/framework/reliability and https://cloud.google.com/architecture/framework
 </details>
 
 ---
@@ -319,9 +454,15 @@ D) GKE pods with a global external proxy Network Load Balancer with session affi
 
 **Correct: A)**
 
-The external Application Load Balancer has native WebSocket support: the protocol upgrade is handled automatically and no special configuration is required. Because a WebSocket connection begins as an HTTP request, cookie-based session affinity is set during that handshake and then holds for the life of the connection. GKE provides the horizontal pod scaling. Option B is wrong because the regional external TCP/UDP Network Load Balancer is a passthrough (non-proxy) load balancer and is regional only, so it cannot distribute globally. Option C is wrong because Cloud Run is designed for request-response patterns and does not guarantee session affinity across instances, which the 45-minute connections require. Option D is wrong because the global external proxy Network Load Balancer is not a documented WebSocket product; WebSocket support is a documented feature of the Application Load Balancer, and choosing a TCP proxy here gives up the HTTP-layer affinity the scenario asks for.
+The external Application Load Balancer has native WebSocket support: the protocol upgrade is handled automatically and no special configuration is required. Because a WebSocket connection begins as an HTTP request, cookie-based session affinity is set during that handshake and then holds for the life of the connection. GKE supplies the horizontal pod scaling.
 
-**Exam tip:** WebSocket plus session affinity means Application Load Balancer, not a Network Load Balancer. The trap is reasoning "WebSocket is TCP, so pick the TCP load balancer" -- Google documents WebSocket as an Application Load Balancer capability that needs zero configuration. See [WebSocket proxy support](https://cloud.google.com/load-balancing/docs/https#websocket_proxy_support).
+- **B) is wrong** -- the regional external TCP/UDP Network Load Balancer is a passthrough (non-proxy) load balancer and is regional only, so it cannot distribute globally.
+- **C) is wrong** -- Cloud Run targets request-response workloads and does not guarantee affinity across instances for 45-minute connections.
+- **D) is wrong** -- WebSocket support is documented as an Application Load Balancer capability. Choosing a TCP proxy here gives up the HTTP-layer affinity the scenario asks for.
+
+**Exam tip:** WebSocket plus session affinity means Application Load Balancer, not a Network Load Balancer. The trap is reasoning "WebSocket is TCP, so pick the TCP load balancer" -- Google documents WebSocket as an Application Load Balancer capability that needs zero configuration.
+
+Docs: https://cloud.google.com/load-balancing/docs/https and https://cloud.google.com/load-balancing/docs/application-load-balancer
 </details>
 
 ---
@@ -338,7 +479,15 @@ D) Cloud Run jobs triggered by Cloud Scheduler
 
 **Correct: A)**
 
-Cloud Composer (managed Airflow) provides reliable orchestration with retry logic, scheduling, and alerting. Dataproc with standard primary workers ensures cluster stability, while preemptible (Spot) secondary workers reduce cost for the parallelizable, failure-tolerant tasks. Spark/Hadoop automatically retries tasks on preempted workers. Option B is wrong because a single VM is a single point of failure (does not meet 99.5% reliability), cannot leverage parallelism, and vertical scaling has limits. Option C is wrong because Dataflow batch jobs use standard workers at full price -- Dataproc with preemptible secondary workers is more cost-effective for known batch workloads that can tolerate task-level retries. Option D is wrong because Cloud Run jobs have a maximum execution time of 24 hours and are designed for containerized tasks, not complex multi-stage data processing pipelines that benefit from distributed computing frameworks like Spark.
+Cloud Composer gives managed Airflow orchestration with retries, scheduling and alerting. Dataproc with on-demand primary workers keeps the cluster stable while preemptible secondary workers carry the parallel, retry-tolerant work cheaply, and Spark redistributes tasks off reclaimed workers automatically.
+
+- **B) is wrong** -- one large VM is a single point of failure against a 99.5% target, cannot use parallelism, and runs into a hard vertical ceiling.
+- **C) is wrong** -- Dataflow batch runs its workers at standard rates unless you accept the FlexRS scheduling delay, so for a known nightly Spark-shaped job Dataproc with preemptible secondaries is cheaper.
+- **D) is wrong** -- Cloud Run jobs run containerised tasks; a multi-stage distributed aggregation is what Spark on Dataproc is for.
+
+**Exam tip:** on Dataproc, primary workers must be standard and only secondary workers can be preemptible. That split is itself an exam answer: keep enough on-demand capacity to hold HDFS and the driver, and buy the elastic tail cheap.
+
+Docs: https://cloud.google.com/dataproc/docs/concepts/compute/secondary-vms and https://cloud.google.com/composer/docs/concepts/overview
 </details>
 
 ---
@@ -355,7 +504,15 @@ D) Cloud Spanner multi-region with application on MIGs in two regions
 
 **Correct: C)**
 
-For RPO < 5 minutes, Cloud SQL cross-region replication (async, typically seconds of lag) meets the requirement. Automated promotion via Cloud Functions (triggered by health check failures or monitoring alerts) achieves RTO < 10 minutes. The global Application Load Balancer with health checks automatically redirects traffic to the healthy region's application instances. Option A is wrong because manual promotion requires human intervention, which typically takes longer than 10 minutes (pager, assessment, execution), likely exceeding the RTO. Option B is wrong because a single-region deployment cannot survive a regional outage -- HA only protects against zonal failures. Option D is wrong because Cloud Spanner multi-region is over-engineered for RPO < 5 minutes. It provides RPO = 0 but at significantly higher cost. The question asks for the minimum architecture.
+Cloud SQL cross-region replication is asynchronous but typically lags by seconds, which fits RPO under 5 minutes. Automating the promotion (triggered from a health check or monitoring alert) is what brings RTO under 10 minutes, and the global Application Load Balancer moves traffic to the surviving region's MIG.
+
+- **A) is wrong** -- the only difference from C is that a human has to notice, decide and act. Pager plus assessment plus execution rarely fits inside 10 minutes.
+- **B) is wrong** -- HA is a zonal protection. A single-region deployment does not survive a regional outage at all.
+- **D) is wrong** -- Spanner multi-region gives RPO 0, which is better than asked, at a much higher price. The stem says minimum architecture.
+
+**Exam tip:** when two options differ only by "manual" versus "automated" promotion, the RTO number decides. Anything under about 15 minutes needs automation. And "minimum architecture required" is an instruction to reject the stronger, pricier option even though it also works.
+
+Docs: https://cloud.google.com/sql/docs/postgres/replication/cross-region-replicas and https://cloud.google.com/architecture/dr-scenarios-planning-guide
 </details>
 
 ---
@@ -372,7 +529,15 @@ D) Cloud Functions with the model loaded from Cloud Storage on each invocation
 
 **Correct: B)**
 
-Vertex AI Endpoints with GPUs provide the managed infrastructure for model serving. A 15 GB model requires GPU memory for fast inference. Scheduled scaling (minimum replicas during business hours, scaled down outside) matches the predictable traffic pattern. Minimum 1 replica avoids cold-start latency during business hours. Option A is wrong because scale-to-zero means the first request after idle would face cold-start latency (loading a 15 GB model onto a GPU takes minutes), violating the sub-200ms latency requirement. Option C is wrong because managing GKE GPU nodes manually with cron jobs adds significant operational overhead compared to managed Vertex AI Endpoints. Option D is wrong because Cloud Functions cannot load a 15 GB model into memory (memory limit is 32 GB, but model loading time far exceeds function timeout limits), and each cold start would re-load the model.
+Vertex AI Endpoints with GPU-backed machines give managed serving for a 15 GB model, and keeping at least one replica warm during business hours removes cold-start latency from the sub-200ms path. Traffic is predictable, so a schedule matches capacity to the pattern.
+
+- **A) is wrong** -- if the endpoint is idle at zero replicas, the first request after idle pays the cost of bringing up a GPU replica and loading 15 GB of weights, which is orders of magnitude beyond 200ms.
+- **C) is wrong** -- self-managing GKE GPU node pools with cron-driven resizes is significant operational work for something the managed endpoint does natively.
+- **D) is wrong** -- a function is the wrong runtime for a 15 GB model: loading it per instance start dominates the request, and the whole design fights the latency target.
+
+**Exam tip:** separate two different latency claims. Steady-state inference latency is about the accelerator; first-request latency is about cold start and model load size. A stem that gives a large model size plus a tight latency target is testing whether you keep a warm replica.
+
+Docs: https://cloud.google.com/vertex-ai/docs/predictions/configure-compute and https://cloud.google.com/vertex-ai/docs/general/deployment
 </details>
 
 ---
@@ -389,7 +554,15 @@ D) Custom auth service in a single region with Cloud CDN caching auth tokens
 
 **Correct: B)**
 
-Cloud Spanner provides strongly consistent reads globally with multi-region deployment, ensuring session data is always up-to-date regardless of which region serves the request. Deploying the auth service in each region ensures < 50ms response times by processing requests locally. Option A is wrong, but not for the reason people usually give: Firestore reads are strongly consistent by default, including in multi-region. The real problem is write latency. Firestore's leader replicas live in the primary region, so a write originating far from that region pays a cross-region round trip, which eats the 50ms budget. Spanner lets you place the leader per configuration and is the better fit when writes are globally distributed. Option C is wrong because Memorystore for Redis is regional only -- there is no cross-region replication, so a user who authenticates in North America and is then routed to Europe would not have their session. Option D is wrong because caching auth tokens at CDN is a security risk (tokens could be served from cache after revocation), and a single-region auth service means users in distant regions exceed the 50ms requirement.
+Spanner gives strongly consistent reads with a leader placement you choose per configuration, so an auth service deployed in each region can serve session reads locally inside the 50ms budget while writes stay globally consistent.
+
+- **A) is wrong**, but not for the reason people usually give. Firestore reads are strongly consistent by default, including in multi-region. The real problem is write latency: leader replicas sit in the primary region, so a write originating far from it pays a cross-region round trip that eats the 50ms budget.
+- **C) is wrong** -- Memorystore for Redis is regional with no cross-region replication, so a user who authenticates in North America and is then routed to Europe has no session there.
+- **D) is wrong** -- caching auth tokens at the CDN means a revoked token can still be served from cache, and a single-region auth service cannot hold 50ms for distant users.
+
+**Exam tip:** "Firestore is eventually consistent" is a widespread and wrong shortcut. Firestore reads are strongly consistent; what varies is write latency relative to the leader region. When a stem sets a global latency budget, ask where writes are ordered, not whether reads are consistent.
+
+Docs: https://cloud.google.com/spanner/docs/replication and https://cloud.google.com/firestore/docs
 </details>
 
 ---
@@ -407,7 +580,15 @@ E) Migrate from GKE to Cloud Run for automatic scaling
 
 **Correct: A) and D)**
 
-Load testing identifies bottlenecks, validates scaling limits, and determines required capacity before the event. Configuring HPA with aggressive scale-up policies ensures pods scale rapidly to meet sudden demand, while slow scale-down prevents premature scaling during traffic fluctuations. Option B is wrong because pre-setting minimum nodes to peak capacity wastes resources during non-peak portions of the sale and is expensive. You should rely on autoscaling with appropriate headroom instead. Option C is wrong because Spot VMs can be preempted at any time, which is unacceptable during a critical flash sale event when availability is paramount. Option E is wrong because migrating the entire platform 2 weeks before a major event introduces enormous risk. Architecture changes of this scale require thorough testing, not rushed migrations.
+Load testing before the event is what tells you where the system breaks and how much capacity the surge actually needs; running it as a distributed test on GKE with Locust or k6 generates enough load to be meaningful. Asymmetric HPA policies (fast scale-up, slow scale-down) then let pods track the surge without flapping.
+
+- **B) is wrong** -- pinning minimum nodes at peak for the whole sale pays for peak capacity across the troughs too. Autoscaling with headroom is the cheaper way to get the same protection.
+- **C) is wrong** -- Spot VMs can be reclaimed at any moment, which is unacceptable during the single most revenue-critical window of the year.
+- **E) is wrong** -- re-platforming two weeks before a major event is the riskiest possible time to change architecture.
+
+**Exam tip:** there is no Google product called "Cloud Load Testing". Load testing on Google Cloud means running an open-source generator (Locust, k6, JMeter) distributed on GKE or Compute Engine. An option naming a Google load-testing service is fabricated, and that pattern shows up in third-party question banks.
+
+Docs: https://cloud.google.com/architecture/distributed-load-testing-using-gke and https://cloud.google.com/kubernetes-engine/docs/concepts/horizontalpodautoscaler
 </details>
 
 ---
@@ -424,7 +605,15 @@ D) Backup and restore: daily backups to multi-regional Cloud Storage, manual res
 
 **Correct: B)**
 
-Warm standby provides a scaled-down (minimal) environment in the DR region with continuous database replication (RPO close to 0, well within 15 minutes). On failover, autoscaling brings the environment to full capacity within the 1-hour RTO. This balances cost (scaled-down resources) with recovery time. Option A is wrong because hot standby meets the requirements but at maximum cost -- the question explicitly asks to minimize standby costs, and running a full duplicate environment is the most expensive option. Option C is wrong because cold standby requires provisioning infrastructure from scratch, which for a multi-tier application typically takes 2-4+ hours, exceeding the 1-hour RTO. Option D is wrong because daily backups give RPO of up to 24 hours (far exceeding 15 minutes), and manual restore procedures are slow and error-prone, likely exceeding the 1-hour RTO.
+Warm standby keeps a scaled-down copy of the stack in the DR region with continuous database replication, so RPO stays well inside 15 minutes, and autoscaling brings it to full size on failover inside the 1-hour RTO. It is the pattern that balances standby cost against recovery speed.
+
+- **A) is wrong** -- hot standby meets the targets but at maximum cost, and the stem explicitly asks to minimise standby spend.
+- **C) is wrong** -- cold standby rebuilds infrastructure from templates on the day, which for a multi-tier application typically overshoots a 1-hour RTO.
+- **D) is wrong** -- daily backups give an RPO of up to 24 hours, and manual restore procedures are slow and error-prone.
+
+**Exam tip:** memorise the DR ladder against its RTO band: backup and restore (hours to days), cold standby (hours), warm standby (minutes to an hour), hot or active-active (near zero). Map the stem's RTO onto the ladder and pick the cheapest rung that clears it.
+
+Docs: https://cloud.google.com/architecture/dr-scenarios-planning-guide and https://cloud.google.com/architecture/dr-scenarios-building-blocks
 </details>
 
 ---
@@ -445,7 +634,15 @@ D) Three Dedicated Interconnect connections (2x10 Gbps each) with Cloud Routers 
 
 **Correct: D)**
 
-Each data center needs 20 Gbps, which requires Dedicated Interconnect (2x10 Gbps LACP bundle or more). Cloud Routers in each GCP region handle BGP route exchange. Cloud VPN backup provides redundancy if an Interconnect circuit fails. Once connected to GCP, data centers can communicate via Google's backbone network through VPC peering or Shared VPC. Option A is wrong because HA VPN provides a maximum of 3 Gbps per tunnel, and even with 8 tunnels per gateway (max), achieving reliable 20 Gbps is impractical and complex. Option B is wrong because it lacks redundancy -- if the Interconnect connection to one data center fails, there is no backup connectivity. The question asks for an architecture design, and production architectures should include redundancy. Option C is wrong because a single Cloud Router is a single point of failure, and Partner Interconnect bandwidth depends on the partner's capabilities -- it may or may not support 20 Gbps per location.
+Each site needs 20 Gbps, which is Dedicated Interconnect territory (a bundle of 10 Gbps links, or a single higher-speed link), with a Cloud Router per region for BGP. Adding a Cloud VPN backup per site is what makes it a production design rather than a single-path one, and once all three sites terminate on Google, inter-site traffic can ride Google's backbone.
+
+- **A) is wrong** -- HA VPN runs over the public internet and its throughput ceiling is documented in packets per second, so building a dependable 20 Gbps per site out of tunnels is impractical.
+- **B) is wrong** -- it has the right bandwidth but no backup path. Losing one circuit disconnects a whole data centre.
+- **C) is wrong** -- one Cloud Router for three sites is a single point of failure, and per-site Partner Interconnect bandwidth depends on what the partner offers.
+
+**Exam tip:** on Interconnect questions, redundancy is graded separately from bandwidth. A single link carries no availability SLA; 99.9% needs two connections in different edge availability domains, and 99.99% needs four across two metros. If two options have the same bandwidth, the redundant one wins.
+
+Docs: https://cloud.google.com/network-connectivity/docs/interconnect/concepts/dedicated-overview and https://cloud.google.com/network-connectivity/docs/interconnect/tutorials/dedicated-creating-9999-availability
 </details>
 
 ---
@@ -462,7 +659,15 @@ D) Two regional passthrough Network Load Balancers with Cloud Armor
 
 **Correct: B)**
 
-The global external Application Load Balancer provides HTTPS termination, URL-based routing via URL maps (directing api/* to one backend service and static/* to another), automatic failover via health checks, and global anycast IP for low-latency routing. Network Endpoint Groups (NEGs) connect to GKE pods in both regions. Option A is wrong because regional Application Load Balancers do not provide automatic cross-region failover. Cloud DNS geographic routing can direct users to regions but does not handle failover as seamlessly (DNS TTL delays). Option C is wrong because the proxy Network Load Balancer operates at L4 (TCP/SSL) and does not support URL-based routing (L7 feature). Option D is wrong because passthrough Network Load Balancers do not perform HTTPS termination or URL-based routing -- they pass traffic through to backends without L7 inspection.
+The global external Application Load Balancer terminates HTTPS, routes by path through URL maps, fails over between regions on health-check state, and presents one anycast IP so users land on the nearest healthy backend. Network endpoint groups connect it to the GKE pods in both regions.
+
+- **A) is wrong** -- regional load balancers plus DNS geo-routing shifts failover into DNS, where TTL caching makes recovery slow and uneven.
+- **C) is wrong** -- a proxy Network Load Balancer works at L4. URL-based routing is an L7 feature it does not have.
+- **D) is wrong** -- passthrough Network Load Balancers do not terminate HTTPS or inspect paths at all.
+
+**Exam tip:** three words in a stem decide the load balancer. "URL path" or "host-based" forces Application Load Balancer (L7). "Single anycast IP across regions" forces global. "Preserve client IP" or "non-HTTP protocol" forces passthrough Network Load Balancer.
+
+Docs: https://cloud.google.com/load-balancing/docs/application-load-balancer
 </details>
 
 ---
@@ -479,7 +684,15 @@ D) Dataproc cluster with GPU-accelerated workers
 
 **Correct: C)**
 
-TPU v3 pod slices are optimized for TensorFlow training workloads and provide exceptional throughput for image classification (data-parallel training). They are more cost-effective than GPU clusters for large-scale TensorFlow training. Vertex AI Training manages the infrastructure lifecycle, so you pay only for training time. Option A is wrong because a single A100 GPU, while powerful, may not complete training on 2 million images within 8 hours depending on model complexity -- and it does not leverage parallelism. Option B is wrong because T4 GPUs are inference-optimized (lower cost, lower performance per unit). A cluster of T4s costs more and trains slower than TPU v3 for TensorFlow workloads. Option D is wrong because Dataproc is designed for Spark/Hadoop big data processing, not deep learning training. While Dataproc supports GPUs, it lacks the ML training optimizations of Vertex AI.
+A TPU pod slice on Vertex AI Training is built for large-scale data-parallel training of this shape, and the high-bandwidth inter-chip interconnect is what makes the scale-out efficient. Vertex AI manages the cluster lifecycle so you pay for training time only.
+
+- **A) is wrong** -- a single accelerator does not use the parallelism the model benefits from, and may not finish 2 million images inside 8 hours.
+- **B) is wrong** -- T4 is an inference-oriented GPU. A cluster of them costs more and trains slower than a TPU slice for this workload.
+- **D) is wrong** -- Dataproc is a Spark and Hadoop service. It can attach GPUs, but it has none of the managed training lifecycle Vertex AI provides.
+
+**Exam tip:** accelerator selection questions turn on the framework and the scale. TPUs suit large TensorFlow or JAX training that fits the XLA path; GPUs suit PyTorch, custom CUDA kernels and mixed workloads. Note that the TPU generation named in older question banks moves, so reason about the family rather than memorising a version.
+
+Docs: https://cloud.google.com/tpu/docs/intro-to-tpu and https://cloud.google.com/vertex-ai/docs/training/overview
 </details>
 
 ---
@@ -496,7 +709,15 @@ D) Memorystore for Redis with persistence, periodic snapshots to Cloud Storage
 
 **Correct: A)**
 
-Bigtable handles the write throughput (100K messages/sec = 100 MB/sec) and provides single-digit millisecond reads by row key (device ID + timestamp). Its column family-based storage is ideal for time-series data. A scheduled Dataflow job can export data older than 90 days to BigQuery for cost-effective analytics. Option B is wrong because Cloud SQL cannot handle 100,000 writes per second -- it maxes out at thousands of writes/sec even with the largest instance, and single-row read latency exceeds 10ms under this load. Option C is wrong because Firestore has a limit of 10,000 writes/sec per database and is designed for document data, not high-throughput time-series. Option D is wrong because Memorystore for Redis is an in-memory store -- storing 90 days of data from 1M devices (1KB x 8,640 messages/day x 1M devices x 90 days = ~777 TB) in memory is not feasible or cost-effective.
+At 1 million devices reporting every 10 seconds this is 100,000 writes/sec, which is Bigtable's shape: high sustained write throughput with single-digit millisecond reads by row key. A row key of device ID plus reversed timestamp serves the "by device and time range" query directly, and a scheduled export moves data past 90 days into BigQuery for cheap analytics.
+
+- **B) is wrong** -- Cloud SQL cannot take 100,000 writes/sec, and single-row latency degrades well past 10ms under that load.
+- **C) is wrong** -- Firestore is a document store for application data, not a high-rate time-series sink.
+- **D) is wrong** -- holding 90 days of this stream in memory is neither feasible nor affordable; Memorystore is a cache, not a time-series store.
+
+**Exam tip:** do the write-rate arithmetic before choosing. Devices multiplied by frequency gives writes per second, and that number alone eliminates most options. Bigtable is the answer whenever the stem combines very high write throughput, key-and-range lookups, and a millisecond latency target.
+
+Docs: https://cloud.google.com/bigtable/docs/schema-design-time-series and https://cloud.google.com/bigtable/docs/overview
 </details>
 
 ---
@@ -513,7 +734,15 @@ D) Separate VPCs per team with full mesh VPC peering between all VPCs
 
 **Correct: C)**
 
-Separate VPCs per application team with VPC peering to a shared services VPC provides strong network isolation between teams. VPC peering is non-transitive, so Team A cannot reach Team B through the shared services VPC. Each team gets their own VPC for autonomy, while the shared services VPC is accessible from all teams. Option A is wrong because a single VPC means all teams share the same network, and relying solely on firewall rules for isolation is error-prone. A misconfigured rule could expose one team's resources to another. Option B is wrong because Shared VPC connects service projects to a host project's network, meaning all service projects share the same VPC network. While firewall rules can restrict traffic, this does not provide the same level of isolation as separate VPCs. Option D is wrong because full mesh peering allows all teams to communicate with each other, violating the requirement that application teams cannot communicate directly.
+Separate VPCs per application team peered to a shared-services VPC gives each team its own network boundary. VPC peering is non-transitive, so Team A cannot reach Team B through the hub, which is precisely the isolation requirement, while all teams reach shared services directly.
+
+- **A) is wrong** -- one flat VPC makes isolation depend entirely on firewall rules being right, forever. One bad rule joins the teams together.
+- **B) is wrong** -- Shared VPC puts every service project on the host project's network, so isolation again reduces to firewall configuration rather than a network boundary.
+- **D) is wrong** -- full mesh peering deliberately connects every team to every other team, which is the opposite of the requirement.
+
+**Exam tip:** non-transitivity of VPC peering is tested constantly, and it cuts both ways. It is the flaw when you want spoke-to-spoke traffic through a hub, and it is the feature when you want spokes isolated from each other. Read the stem to see which side it is asking for.
+
+Docs: https://cloud.google.com/vpc/docs/vpc-peering and https://cloud.google.com/vpc/docs/shared-vpc
 </details>
 
 ---
@@ -530,7 +759,15 @@ D) AlloyDB with columnar engine for analytical queries
 
 **Correct: B)**
 
-BigQuery is a serverless, petabyte-scale analytics warehouse that supports standard SQL, complex joins, and requires zero infrastructure management. Using external tables for raw data on Cloud Storage avoids data duplication, while native tables for frequently queried data provide optimal performance. This gives data scientists self-service ad-hoc query capability. Option A is wrong because Dataproc requires cluster management (sizing, scaling, upgrades), violating the "without managing infrastructure" requirement. Hive is also slower than BigQuery for ad-hoc SQL queries. Option C is wrong because Cloud Spanner is an OLTP database optimized for transactional workloads, not analytical queries with complex joins across petabyte-scale datasets. Option D is wrong because AlloyDB is a regional PostgreSQL-compatible database with a maximum storage of 128 TB per instance -- it cannot handle petabyte-scale data. While its columnar engine is good for analytics, it requires instance management.
+BigQuery is serverless and petabyte-scale with full GoogleSQL joins, so data scientists get self-service ad-hoc querying with no infrastructure to run. External tables keep raw genomic files in Cloud Storage without duplicating them, while native tables hold the frequently queried datasets for best performance.
+
+- **A) is wrong** -- Dataproc means sizing, scaling and upgrading a cluster, which the stem rules out, and Hive is slower than BigQuery for ad-hoc SQL.
+- **C) is wrong** -- Spanner is an OLTP database. Petabyte-scale analytical joins are not its workload.
+- **D) is wrong** -- AlloyDB is a regional PostgreSQL-compatible database with a per-cluster storage ceiling far below petabyte scale, and it is an instance you size rather than a serverless service.
+
+**Exam tip:** "ad-hoc SQL" plus "no infrastructure management" plus "petabyte" is BigQuery every time. The native-versus-external table split is the follow-on decision: native for hot, frequently joined data, external to query cold data in place without a load step.
+
+Docs: https://cloud.google.com/bigquery/docs/external-tables and https://cloud.google.com/bigquery/docs/introduction
 </details>
 
 ---
@@ -547,7 +784,15 @@ D) A Cloud NAT gateway in the VPC for on-premises traffic
 
 **Correct: C)**
 
-Private Google Access for on-premises hosts allows traffic from on-premises to reach Google APIs via Dedicated Interconnect without traversing the public internet. The restricted.googleapis.com VIP (199.36.153.4/30) routes API traffic through the Interconnect. Custom DNS on-premises resolves *.googleapis.com to this VIP. Cloud DNS inbound forwarding handles the DNS resolution chain. Option A is wrong because Private Google Access (standard) applies to VM instances within a VPC subnet that lack external IPs -- it does not enable on-premises hosts to access Google APIs. Option B is wrong because Private Service Connect creates endpoints within a VPC for accessing Google APIs, which works for VMs in the VPC but does not directly solve the on-premises access pattern without additional routing. Option D is wrong because Cloud NAT provides outbound internet access for VMs without external IPs -- it does not route on-premises traffic to Google APIs, and it specifically does not work with Interconnect traffic.
+Reaching Google APIs from on-premises over Interconnect uses the restricted VIP range 199.36.153.4/30 for restricted.googleapis.com. On-premises DNS forwards googleapis.com to that VIP, routes send it over the Interconnect, and the traffic never touches the public internet.
+
+- **A) is wrong** -- plain Private Google Access covers VM instances inside a subnet that have no external IP. It says nothing about on-premises hosts.
+- **B) is wrong** -- Private Service Connect endpoints do provide private API access, but the option omits the routing and DNS work that actually makes the on-premises path resolve and route.
+- **D) is wrong** -- Cloud NAT gives VMs without external IPs outbound internet access. It does not carry on-premises traffic to Google APIs.
+
+**Exam tip:** the give-away here is the phrase "on-premises hosts". Private Google Access has two distinct forms, and the hybrid one is defined by the restricted or private VIP plus DNS forwarding. Memorise 199.36.153.4/30 as restricted.googleapis.com, which excludes services not supported by VPC Service Controls.
+
+Docs: https://cloud.google.com/vpc/docs/private-google-access-hybrid and https://cloud.google.com/vpc/docs/private-google-access
 </details>
 
 ---
@@ -564,7 +809,15 @@ D) Bare metal solution with Windows Server installed
 
 **Correct: A)**
 
-Sole-tenant nodes provide physical server isolation required for BYOL of Windows Server licenses (Microsoft licensing requires dedicated hardware or specific license mobility agreements). Local SSDs provide the highest IOPS and lowest latency storage. Using existing licenses avoids paying Google's Windows Server per-core premium, significantly reducing cost. Option B is wrong because it includes Google's Windows Server license fee (which is per-core and adds substantial cost), even though the company already owns licenses. Persistent Disk SSD also has lower performance than local SSDs. Option C is wrong because GKE Windows containers do not support running traditional Windows Server applications that require full OS features, and local SSDs on GKE nodes are ephemeral node storage, not directly available as persistent application storage. Option D is wrong because Bare Metal Solution is designed for specialized workloads like SAP HANA or Oracle databases, not general Windows application hosting. It is significantly more expensive than sole-tenant nodes.
+Sole-tenant nodes give dedicated physical hardware, which is what Microsoft's Outsourcing Software Management Rights require for bringing your own Windows Server OS licence. Local SSDs supply the highest IOPS and lowest latency, and reusing owned licences avoids Google's per-core Windows premium.
+
+- **B) is wrong** -- it pays Google's bundled Windows licence on top of licences the company already owns, and Persistent Disk SSD is slower than Local SSD.
+- **C) is wrong** -- GKE Windows node pools run Windows containers, not a full stateful Windows Server application, and local SSD on a node is ephemeral node storage.
+- **D) is wrong** -- Bare Metal Solution exists for specialised licensed workloads such as Oracle; it is a far more expensive way to run a Windows application.
+
+**Exam tip:** Windows Server OS licences and application-server licences such as SQL Server behave differently. The OS route generally needs sole-tenant nodes; SQL Server with active Software Assurance qualifies for License Mobility and can run on ordinary multi-tenant VMs. Check which product and whether Software Assurance is mentioned.
+
+Docs: https://cloud.google.com/compute/docs/nodes/sole-tenant-nodes and https://cloud.google.com/compute/docs/instances/windows/ms-licensing
 </details>
 
 ---
@@ -581,7 +834,15 @@ D) Vertex AI Custom Training jobs triggered per file upload
 
 **Correct: B)**
 
-Google Cloud Batch is designed for batch processing jobs. It automatically provisions GPU-enabled VMs when jobs are submitted and decommissions them when complete, so you pay only for processing time. Eventarc triggers batch jobs when files land in Cloud Storage. 100 files x 30 min = 50 GPU-hours/day, which Batch handles efficiently by parallelizing. Option A is wrong because GKE GPU node pools have a minimum scale of 0 but scaling GPU nodes takes several minutes, and the GKE overhead (control plane, monitoring) adds cost for what is essentially a batch workload. Option C is wrong because running GPU instances 24/7 wastes money -- at 50 GPU-hours/day, you are paying for 24 hours but using only ~50/24 = ~2 GPUs worth of compute. Option D is wrong because Vertex AI Custom Training is designed for ML training, not video transcoding. It adds unnecessary ML infrastructure overhead and is not cost-optimized for non-ML batch workloads.
+Google Cloud Batch provisions GPU-enabled VMs when a job is submitted and releases them when it finishes, so the bill tracks the roughly 50 GPU-hours a day of real work. Eventarc turns each Cloud Storage object finalisation into a job submission, and Batch runs the files in parallel inside the 2-hour window.
+
+- **A) is wrong** -- a GKE cluster carries control-plane and platform overhead for what is a plain batch queue, and GPU node scale-up is slow.
+- **C) is wrong** -- 24/7 GPU instances are billed for 24 hours to do about two GPUs' worth of work.
+- **D) is wrong** -- Vertex AI Custom Training is ML training infrastructure. Video transcoding is not an ML job and gains nothing from it.
+
+**Exam tip:** "jobs arrive, run for a while, then stop" is Batch. Reach for GKE only when the stem needs long-running services, service discovery or a mesh. An event-driven trigger from Cloud Storage is Eventarc, and pairing Eventarc with Batch is a pattern worth recognising on sight.
+
+Docs: https://cloud.google.com/batch/docs/get-started and https://cloud.google.com/eventarc/docs/overview
 </details>
 
 ---
@@ -598,7 +859,15 @@ D) (1) Cloud SQL, (2) Firestore, (3) Memorystore, (4) BigQuery
 
 **Correct: A)**
 
-(1) Cloud SQL is appropriate for a transactional e-commerce system -- it provides ACID compliance, relational data model for orders/inventory, and managed PostgreSQL/MySQL. (2) Memorystore (Redis) is ideal for session stores -- microsecond latency, key-value access pattern, and TTL support. (3) Firestore supports hierarchical data natively with collections and subcollections, perfect for product categories. (4) BigQuery is the standard for clickstream analytics -- serverless, petabyte-scale, SQL-based analytics. Option B is wrong because Cloud Spanner is over-engineered for most e-commerce systems (designed for global scale), and Bigtable is not ideal for session data (higher latency than Redis). Option C is wrong because Bigtable is not appropriate for session stores (no TTL natively, higher latency than Redis for small key-value lookups). Option D is wrong because Memorystore is an in-memory cache, not suitable for storing a product catalog (volatile, limited storage) -- Firestore is the right fit for hierarchical data.
+Each workload lands on the service designed for its access pattern: Cloud SQL for ACID transactions over a relational order model, Memorystore for a low-latency key-value session store with TTLs, Firestore for hierarchical catalogue documents, and BigQuery for clickstream analytics.
+
+- **B) is wrong** -- Spanner is more than an ordinary e-commerce system needs, and Bigtable is a poor session store next to Redis.
+- **C) is wrong** -- Bigtable again fails the session-store role, where the requirement is microsecond key lookups with expiry.
+- **D) is wrong** -- Memorystore is a cache, so it is the wrong home for a durable product catalogue, and Firestore is the wrong home for session data here.
+
+**Exam tip:** matching questions are fastest solved by finding the one obviously wrong pairing and eliminating every option that contains it. The session store is usually that pairing: sessions mean Memorystore unless the stem demands durability, in which case Firestore.
+
+Docs: https://cloud.google.com/memorystore/docs/redis and https://cloud.google.com/firestore/docs
 </details>
 
 ---
@@ -615,7 +884,15 @@ D) Use VPC peering to connect to Google's API network
 
 **Correct: B)**
 
-Private Google Access allows pods (which lack external IPs) to reach Google APIs like Artifact Registry and BigQuery over Google's internal network. Cloud NAT is not needed because there is no stated requirement for external (non-Google) internet access. Connect Gateway or IAP TCP tunneling provides secure cluster management access without exposing a public endpoint. Option A is wrong because Cloud NAT is unnecessary if the only external access needed is to Google APIs (handled by Private Google Access). Adding Cloud NAT adds cost and complexity without benefit for this scenario. Option C is wrong because a proxy server adds operational overhead and a single point of failure. It is also unnecessary when Private Google Access provides direct access to Google services. Option D is wrong because you cannot create VPC peering to Google's API network -- Private Google Access and Private Service Connect are the supported mechanisms for accessing Google APIs privately.
+Private Google Access on the subnet lets nodes and pods without external IPs reach Artifact Registry and BigQuery over Google's network. Cloud NAT is not needed because nothing in the stem requires non-Google internet egress, and Connect gateway or IAP gives operators a management path without a public control-plane endpoint.
+
+- **A) is wrong** -- Cloud NAT here is cost and attack surface added for a requirement that was never stated.
+- **C) is wrong** -- a self-run proxy is operational overhead and a new failure point for something Private Google Access already does.
+- **D) is wrong** -- you cannot peer a VPC to Google's API network. Private Google Access and Private Service Connect are the supported mechanisms.
+
+**Exam tip:** distinguish "reach Google APIs" from "reach the internet". The first is Private Google Access or Private Service Connect; only the second needs Cloud NAT. Adding Cloud NAT when the stem lists only Google services is the classic over-answer.
+
+Docs: https://cloud.google.com/kubernetes-engine/docs/concepts/private-cluster-concept and https://cloud.google.com/vpc/docs/private-google-access
 </details>
 
 ---
@@ -632,7 +909,15 @@ D) Pub/Sub -> Dataflow -> BigQuery streaming inserts -> application queries BigQ
 
 **Correct: A)**
 
-Pub/Sub handles 1M events/sec ingestion reliably. Dataflow streaming mode supports windowed aggregations (5-minute sliding/tumbling windows) with exactly-once semantics using Apache Beam's windowing API. Bigtable provides single-digit millisecond reads by key, perfect for serving computed aggregations to trading applications. Option B is wrong because Cloud Functions have concurrency and scaling limits that make handling 1M events/sec unreliable, and Cloud SQL cannot handle the write throughput or serve reads with sub-second latency at this scale. Option C is wrong because managing Kafka on GKE and Spark on Dataproc requires significant operational overhead. While technically capable, it introduces unnecessary complexity compared to the fully managed Pub/Sub + Dataflow pipeline. Option D is wrong because BigQuery is not designed for sub-second point-lookup queries from trading applications. BigQuery's strength is analytical queries, not low-latency key-value serving. Minimum query latency in BigQuery is typically 1-2 seconds.
+Pub/Sub takes the 1M events/sec ingest, Dataflow computes the 5-minute windowed aggregations with Beam's windowing model and exactly-once semantics, and Bigtable serves the computed values back to trading applications with single-digit millisecond key lookups.
+
+- **B) is wrong** -- functions plus Cloud SQL fails on both throughput and read latency at this rate.
+- **C) is wrong** -- self-managed Kafka and Spark can do it, but the operational load is large next to a managed Pub/Sub and Dataflow pipeline.
+- **D) is wrong** -- BigQuery is an analytical engine. Its floor for query latency sits above the sub-second point-lookup requirement.
+
+**Exam tip:** separate the compute layer from the serving layer. Windowed aggregation is Dataflow; who reads the result decides the sink. Dashboards and analysts mean BigQuery, applications needing millisecond key lookups mean Bigtable. A stem mentioning both a window and a latency budget is testing exactly that split.
+
+Docs: https://cloud.google.com/dataflow/docs and https://cloud.google.com/bigtable/docs/overview
 </details>
 
 ---
@@ -640,7 +925,7 @@ Pub/Sub handles 1M events/sec ingestion reliably. Dataflow streaming mode suppor
 ### Q37. An architect is designing a multi-cloud strategy where the company runs workloads on both GCP and AWS. They need a consistent container orchestration platform across both clouds with centralized policy management and service mesh. What should they use?
 
 A) GKE on GCP and EKS on AWS, managed independently with separate CI/CD pipelines
-B) Anthos with GKE on GCP and Anthos attached clusters on AWS (EKS), with Anthos Config Management and Anthos Service Mesh
+B) GKE Enterprise with GKE on Google Cloud and attached clusters on AWS (EKS), managed as a fleet with Config Sync and Cloud Service Mesh
 C) Cloud Run on GCP and AWS Lambda, with Terraform managing both
 D) GKE Autopilot on GCP and self-managed Kubernetes on AWS EC2 instances
 
@@ -649,7 +934,15 @@ D) GKE Autopilot on GCP and self-managed Kubernetes on AWS EC2 instances
 
 **Correct: B)**
 
-Anthos provides a consistent Kubernetes platform across clouds. Anthos attached clusters can manage EKS clusters on AWS. Anthos Config Management (ACM) provides centralized GitOps-based policy management, and Anthos Service Mesh extends service mesh capabilities across both environments. This is Google's purpose-built multi-cloud solution. Option A is wrong because managing GKE and EKS independently does not provide centralized policy management or a consistent service mesh, which are explicit requirements. Option C is wrong because Cloud Run and Lambda are different serverless platforms with different APIs, capabilities, and constraints. Terraform manages infrastructure but does not provide runtime consistency or service mesh. Option D is wrong because self-managed Kubernetes on EC2 requires significant operational effort and does not provide centralized policy management. GKE Autopilot and self-managed K8s have very different management models.
+GKE Enterprise (the product formerly sold as Anthos) manages clusters across clouds as a fleet, including attached EKS clusters on AWS. Config Sync applies GitOps-based configuration and policy consistently across the fleet, and Cloud Service Mesh (formerly Anthos Service Mesh) extends the mesh across both environments.
+
+- **A) is wrong** -- independently managed GKE and EKS gives neither centralised policy nor a shared mesh, which are the two explicit requirements.
+- **C) is wrong** -- Cloud Run and Lambda are different platforms with different contracts. Terraform provisions infrastructure but does not create runtime consistency or a mesh.
+- **D) is wrong** -- self-managed Kubernetes on EC2 adds operational burden and still has no fleet-wide policy layer.
+
+**Exam tip:** know the renames, because the exam guide and the console disagree with older material. Anthos is GKE Enterprise, Anthos Config Management is Config Sync and Policy Controller, and Anthos Service Mesh plus Traffic Director are Cloud Service Mesh. The multi-cloud requirement pattern is fleet plus GitOps plus mesh.
+
+Docs: https://cloud.google.com/kubernetes-engine/enterprise/docs and https://cloud.google.com/kubernetes-engine/fleet-management/docs
 </details>
 
 ---
@@ -667,7 +960,15 @@ E) Use Cloud Functions to call the OpenAI API directly
 
 **Correct: A) and C)**
 
-Vertex AI Model Garden provides access to foundation models (Google's Gemini, PaLM, and third-party models) that can be deployed with minimal ML expertise. Vertex AI Agent Builder enables grounding the model with proprietary data through managed RAG (Retrieval-Augmented Generation) pipelines, search capabilities, and conversational AI -- all without requiring deep ML knowledge. Option B is wrong because training a custom transformer from scratch requires extensive ML expertise, massive datasets, and significant compute resources -- the opposite of "minimal ML expertise." Option D is wrong because deploying on GKE with custom serving infrastructure requires Kubernetes expertise and ML operations knowledge, violating the minimal expertise requirement. Option E is wrong because calling OpenAI directly bypasses GCP's managed AI services, loses integration with proprietary data grounding, and introduces a third-party dependency without the benefits of Vertex AI's enterprise features (governance, monitoring, security).
+Model Garden gives a curated catalogue of Google, open-weight and third-party foundation models that can be deployed without ML engineering. Agent Builder grounds the chosen model in the company's own data through managed retrieval-augmented generation, which is the grounding requirement, again without deep ML work. (Both now sit under the Gemini Enterprise Agent Platform branding; the exam guide still names them Vertex AI.)
+
+- **B) is wrong** -- training a transformer from scratch is the maximum-ML-expertise answer to a minimum-ML-expertise requirement.
+- **D) is wrong** -- self-hosting an open model on GKE means owning serving infrastructure and Kubernetes operations.
+- **E) is wrong** -- calling a third-party API from a function abandons the managed grounding, governance and monitoring the stem is implicitly asking for.
+
+**Exam tip:** in generative AI scenarios, map the verb to the product. "Pick or deploy a model" is Model Garden. "Ground answers in our documents" is Agent Builder with a data store, which is managed RAG. "Match our house style from many examples" is fine-tuning. Only the last one justifies training.
+
+Docs: https://cloud.google.com/vertex-ai/generative-ai/docs/model-garden/explore-models and https://cloud.google.com/generative-ai-app-builder/docs/introduction
 </details>
 
 ---
@@ -684,7 +985,15 @@ D) Bigtable as the central database with edge caching at each store
 
 **Correct: B)**
 
-Firestore has built-in offline support -- it caches data locally and automatically syncs when connectivity is restored. Each store can continue reading and writing locally during a 4-hour outage. Firestore's real-time listeners provide instant updates when online. Eventual consistency for cross-store queries is inherent in this architecture. Option A is wrong because Cloud Spanner requires continuous connectivity to the cloud and has no offline mode. If a store loses internet, it cannot read or write to Spanner. Option C is wrong because Cloud SQL has no built-in offline/sync capability. Custom replication logic between 200 stores and a central database is extremely complex to build and maintain (conflict resolution, sync ordering, etc.). Option D is wrong because Bigtable has no offline mode and edge caching is not a standard Bigtable feature. Custom edge caching would not support writes during connectivity loss.
+Firestore's client SDKs cache data locally and reconcile automatically when connectivity returns, so a store keeps reading and writing through a 4-hour outage. Real-time listeners push updates when online, and eventual consistency across stores is inherent to the sync model.
+
+- **A) is wrong** -- Spanner requires connectivity to the service. There is no offline mode, so a disconnected store cannot read or write.
+- **C) is wrong** -- Cloud SQL has no offline or sync capability. Hand-building conflict resolution and ordering across 200 sites is a large custom system.
+- **D) is wrong** -- Bigtable has no offline mode, and "edge caching" is not a Bigtable feature, let alone one that accepts writes while disconnected.
+
+**Exam tip:** "works while disconnected and syncs later" is Firestore's offline persistence and almost nothing else on Google Cloud. When a stem names an intermittent-connectivity constraint, that phrase alone selects the answer, and the acceptance of eventual consistency in the stem is the confirmation.
+
+Docs: https://cloud.google.com/firestore/docs/manage-data/enable-offline and https://cloud.google.com/firestore/docs
 </details>
 
 ---
@@ -701,7 +1010,15 @@ D) Separate Cloud SQL databases for structured data, Cloud Storage for everythin
 
 **Correct: C)**
 
-This uses each service optimally. BigQuery native tables for structured data provide the best query performance and support partitioning/clustering for cost optimization. Semi-structured JSON on Cloud Storage with BigQuery external tables allows SQL analysis without data duplication. Cloud Storage handles unstructured data (images/videos) cost-effectively. This is the canonical data lake pattern on GCP. Option A is wrong because loading 200 TB of images and videos into BigQuery native tables is not possible (BigQuery is not designed for unstructured binary data) and storing 50 TB of JSON as native tables increases BigQuery storage costs unnecessarily. Option B is wrong because storing structured relational data as CSV in Cloud Storage and querying via external tables sacrifices query performance. BigQuery native tables are significantly faster for frequently queried structured data. Option D is wrong because Cloud SQL is not designed for 10 TB analytical workloads (it is OLTP), and Dataproc requires cluster management, adding operational overhead compared to serverless BigQuery.
+Each data class goes where it belongs. Structured data in BigQuery native tables gets the best query performance plus partitioning and clustering. Semi-structured JSON stays on Cloud Storage and is queried through external tables, avoiding a duplicate copy. Images and video sit in Cloud Storage, which is the only sensible home for 200 TB of binary objects.
+
+- **A) is wrong** -- BigQuery native tables are not a store for video files, and loading 50 TB of JSON natively adds storage cost for no query benefit here.
+- **B) is wrong** -- pushing the frequently queried structured data out to CSV on Cloud Storage trades away exactly the query performance native tables provide.
+- **D) is wrong** -- Cloud SQL is OLTP and not sized for 10 TB of analytics, and Dataproc reintroduces cluster management next to serverless BigQuery.
+
+**Exam tip:** the native-versus-external decision is about query frequency, not data type. Hot and frequently joined goes native; cold, large or already-landed data is queried in place. Unstructured binary never goes into BigQuery, whatever the option says.
+
+Docs: https://cloud.google.com/bigquery/docs/external-data-cloud-storage and https://cloud.google.com/bigquery/docs/external-tables
 </details>
 
 ---
@@ -718,7 +1035,15 @@ D) GKE cluster with a dedicated non-spot GPU node pool running 24/7
 
 **Correct: C)**
 
-Compute Engine MIG with scheduled scaling provides the best cost optimization: full capacity during business hours (10 AM - 6 PM) and scaled down to minimum (0 or 1) overnight. A100 GPUs are expensive, so scaling down 14 hours/day yields significant savings. Autoscaling handles intra-day traffic variations. Option A is wrong because Spot VMs can be preempted at any time, which is unacceptable for serving user-facing predictions. GPU Spot VMs are particularly likely to be preempted due to high demand. Option B is wrong because Vertex AI Endpoints do not currently support scaling to zero with GPU instances (minimum 1 replica), so you pay for at least 4 A100 GPUs 24/7. While convenient, it is more expensive than scheduled scaling. Option D is wrong because running GPU nodes 24/7 means paying for expensive A100 GPUs during the 14 hours of minimal overnight traffic -- a significant waste.
+A managed instance group with scheduled scaling matches capacity to a known business-hours pattern: full capacity from 10 AM to 6 PM, scaled down for the other 14 hours, with autoscaling handling variation inside the day. Against A100 pricing, those 14 hours are where the saving lives.
+
+- **A) is wrong** -- Spot capacity can be reclaimed at any time, and GPU Spot capacity is among the most contended. That is not a basis for serving user-facing predictions.
+- **B) is wrong** -- the option pins a minimum of one replica, so four A100s are billed around the clock including the quiet overnight window. Scheduled scaling on a MIG tracks the stated pattern more closely.
+- **D) is wrong** -- a non-Spot GPU node pool running 24/7 pays for the expensive accelerators through 14 hours of minimal traffic.
+
+**Exam tip:** predictable, clock-driven demand is a scheduled-scaling signal; unpredictable demand is a metric-driven autoscaling signal. Check what the option actually configures rather than what the service could do -- an option that sets a minimum replica count has told you its own floor cost.
+
+Docs: https://cloud.google.com/compute/docs/autoscaler and https://cloud.google.com/vertex-ai/docs/predictions/configure-compute
 </details>
 
 ---
@@ -735,7 +1060,15 @@ D) Each project with its own VPC and independent Cloud NAT gateways
 
 **Correct: A)**
 
-Shared VPC with a centralized host project is the simplest and most scalable approach. All service projects share the host project's VPC network, so custom routes in the host project direct all egress traffic through the firewall appliance. The security team manages the host project and firewall centrally. This avoids the complexity of hub-and-spoke for only 10 projects. Option B is wrong because VPC peering does not support transitive routing. If all egress must go through a central firewall, peered VPCs cannot use custom routes pointing to the hub's firewall because peering does not exchange custom routes pointing to other peering connections. Option C is wrong because VPN tunnels add latency, bandwidth limitations, and operational complexity. While hub-and-spoke with VPN works, it is over-engineered for 10 projects when Shared VPC provides a simpler solution. Option D is wrong because independent Cloud NAT gateways allow direct internet egress from each project, bypassing the centralized firewall inspection requirement entirely.
+Shared VPC puts all ten projects on one network owned by the security team's host project, so a custom route in the host project sends egress through the inspection appliance for every service project at once. There is nothing per-project to keep in sync.
+
+- **B) is wrong** -- VPC peering is non-transitive and does not propagate custom routes between peerings, so spokes cannot forward egress to an appliance in the hub this way.
+- **C) is wrong** -- hub-and-spoke over VPN adds tunnels, bandwidth limits and operational complexity that ten projects do not justify when Shared VPC solves it.
+- **D) is wrong** -- per-project Cloud NAT gives each project its own direct internet exit, which bypasses the inspection requirement entirely.
+
+**Exam tip:** centralised egress inspection has two shapes. Inside one organisation with a modest project count, Shared VPC plus custom routes is the simple answer. Hub-and-spoke with an appliance or Network Connectivity Center is for scale or for connecting networks you do not own. Both are defeated by per-project Cloud NAT, which is always the distractor.
+
+Docs: https://cloud.google.com/vpc/docs/shared-vpc and https://cloud.google.com/vpc/docs/routes
 </details>
 
 ---
@@ -752,7 +1085,15 @@ D) Send video to Cloud Storage, process with Vertex AI batch prediction pipeline
 
 **Correct: B)**
 
-At 10 cameras x 30 fps = 300 frames/sec per factory, streaming raw video to the cloud would require far more than 50 Mbps bandwidth. Google Distributed Cloud Edge deploys Kubernetes and AI models at the edge (factory), processing frames locally with < 100ms latency. Only alerts and summaries (minimal bandwidth) are sent to GCP for aggregation and dashboarding. Option A is wrong because streaming raw video from 20 factories exceeds the 50 Mbps bandwidth constraint per factory. Additionally, round-trip latency to the cloud would likely exceed the 100ms requirement. Option C is wrong because Cloud Vision API requires sending each image to the cloud (bandwidth issue), introduces network latency, and is a general-purpose vision API, not optimized for specific manufacturing defect detection. Option D is wrong because batch prediction is not real-time -- it processes stored data, not live video frames, and cannot meet the 100ms latency requirement.
+Ten cameras at 30 fps is 300 frames per second per factory, far beyond what a 50 Mbps uplink can carry as raw video, and a cloud round trip would not hold 100ms anyway. Google Distributed Cloud Edge runs the vision model inside the factory and sends only alerts and summaries to Google Cloud.
+
+- **A) is wrong** -- streaming raw video breaks the stated bandwidth constraint before latency is even considered.
+- **C) is wrong** -- Cloud Vision API means sending every frame to the cloud, which hits the same bandwidth and latency walls, and it is a general-purpose API rather than a defect model.
+- **D) is wrong** -- batch prediction processes stored data after the fact and cannot meet a 100ms per-frame requirement.
+
+**Exam tip:** two clues force an edge answer: a bandwidth ceiling that the raw data exceeds, and a latency budget shorter than a cloud round trip. When both appear, the answer processes locally and ships only results. Compute the data rate from the stem rather than trusting the option's adjectives.
+
+Docs: https://cloud.google.com/distributed-cloud/edge/latest/docs
 </details>
 
 ---
@@ -769,7 +1110,15 @@ D) Bigtable with multi-cluster replication
 
 **Correct: A)**
 
-Cloud Spanner multi-region provides strong external consistency with automatic synchronous replication across regions. With proper schema design (stale reads with bounded staleness for sub-10ms local reads, or leader-aware routing), it meets the latency requirements. It handles the stated throughput easily. It is the only GCP database that supports multi-region strong consistency with writes from any region. Option B is wrong because Firestore multi-region stores data in one primary region with replicas. Writes must go through the primary, and strong consistency reads are only guaranteed from the primary region, not globally. Cross-region reads may see stale data. Option C is wrong because Cloud SQL read replicas provide eventual consistency only -- the replicas may lag behind the primary. There is no multi-primary write capability, so writes must go to a single primary region. Option D is wrong because Bigtable multi-cluster replication provides eventual consistency, not strong consistency. Writes in one cluster may take seconds to replicate to other clusters.
+Spanner multi-region is the one Google Cloud database offering external consistency with synchronous replication and writes accepted from any region. With appropriate read staleness settings it serves the local sub-10ms reads, and the stated 10,000 reads/sec per region and 1,000 writes/sec globally are well inside its range.
+
+- **B) is wrong** -- Firestore reads are strongly consistent, but writes are ordered through leader replicas in the primary region, so globally distributed writes pay a cross-region round trip.
+- **C) is wrong** -- Cloud SQL read replicas are asynchronous and there is no multi-primary write path, so writes go to one region.
+- **D) is wrong** -- Bigtable multi-cluster replication is eventually consistent, which the stem rules out.
+
+**Exam tip:** "strong consistency plus writes in any region" is Spanner and only Spanner. Do not eliminate Firestore for being eventually consistent, because it is not; eliminate it for write locality. Bigtable and Cloud SQL replicas are the genuinely eventually consistent options in this family of questions.
+
+Docs: https://cloud.google.com/spanner/docs/replication and https://cloud.google.com/spanner/docs/instance-configurations
 </details>
 
 ---
@@ -790,7 +1139,15 @@ D) Set up Dedicated Interconnect and begin lifting and shifting all workloads si
 
 **Correct: B)**
 
-Migration Center (formerly StratoZone and mFit) provides automated discovery, assessment, and planning for large-scale migrations. It identifies workload dependencies, performance profiles, and recommends right-sized GCP targets. For 500 workloads, this assessment phase is essential to categorize workloads, identify dependencies, and plan migration waves. Option A is wrong because migrating without assessment risks breaking dependent systems and missing critical dependencies. Quick wins are part of the strategy but should come after assessment. Option C is wrong because refactoring all applications before migrating is the "big bang" anti-pattern -- it delays migration indefinitely and provides no business value until everything is refactored. The 6 R's framework recommends different strategies per workload. Option D is wrong because lifting and shifting everything simultaneously without assessment is reckless for 500 workloads. Dependencies, compliance requirements, and application characteristics must be understood first.
+Migration Center is Google Cloud's discovery and assessment product. It inventories the estate, maps dependencies, captures performance profiles and produces right-sized target recommendations and a TCO view. With 500 mixed workloads, that assessment is what makes wave planning possible at all.
+
+- **A) is wrong** -- moving before discovery risks cutting a dependency nobody documented. Quick wins are a sequencing choice made after assessment, not instead of it.
+- **C) is wrong** -- refactoring everything first delays any business value until the whole portfolio is rewritten, and the 6 R's exist precisely because different workloads warrant different treatment.
+- **D) is wrong** -- lifting 500 workloads simultaneously with no assessment ignores dependencies, compliance scope and sizing.
+
+**Exam tip:** in migration questions, assess before you move, always. The order is assess, plan waves, deploy the landing zone, migrate, then optimise. Any option that starts with migrating or refactoring is wrong at step one, however sensible the rest of it sounds.
+
+Docs: https://cloud.google.com/migration-center/docs/migration-center-overview and https://cloud.google.com/architecture/migration-to-gcp-getting-started
 </details>
 
 ---
@@ -807,7 +1164,15 @@ D) Retire: Decommission the Oracle database and rebuild on Firestore
 
 **Correct: A)**
 
-A phased approach is best for mission-critical Oracle databases. First, rehost Oracle on Bare Metal Solution to get off on-premises hardware quickly while maintaining full Oracle compatibility. Then, gradually replatform to AlloyDB (PostgreSQL-compatible, high performance) which can handle most Oracle features with moderate code changes. This minimizes risk and business disruption. Option B is wrong because Database Migration Service supports MySQL, PostgreSQL, SQL Server, and Oracle-to-PostgreSQL migrations, but a direct migration of 30 TB with complex PL/SQL packages requires significant code refactoring that cannot happen in a single step. It is high-risk for a mission-critical workload. Option C is wrong because rewriting all database code for Cloud Spanner is the most expensive and time-consuming option. Spanner's data model (interleaved tables, no stored procedures) requires a fundamentally different application architecture. Option D is wrong because Firestore is a document database completely unsuitable for relational workloads with complex SQL, joins, and PL/SQL packages. Retiring and rebuilding would be a complete system rewrite.
+A phased path suits a mission-critical Oracle estate. Rehosting onto Bare Metal Solution gets the workload off owned hardware while keeping full Oracle compatibility including PL/SQL packages, and the replatform to AlloyDB then happens incrementally with the business still running.
+
+- **B) is wrong** -- Database Migration Service does support Oracle to PostgreSQL, but moving 30 TB with heavy PL/SQL in one step is a large refactor disguised as a migration, and high risk for a mission-critical system.
+- **C) is wrong** -- rewriting for Spanner is the most expensive path. Spanner's data model and lack of stored procedures force an application rewrite, not a database migration.
+- **D) is wrong** -- Firestore is a document database and cannot host a relational workload with complex SQL and PL/SQL.
+
+**Exam tip:** two-step migrations are usually right when the stem says mission-critical and names vendor-specific database features. Bare Metal Solution is the Google answer for Oracle workloads that must stay Oracle; AlloyDB is the answer for PostgreSQL-compatible modernisation with Oracle-like performance expectations.
+
+Docs: https://cloud.google.com/bare-metal/docs and https://cloud.google.com/alloydb/docs
 </details>
 
 ---
@@ -824,7 +1189,15 @@ D) Build all 12 microservices on GCP first, then cut over from the monolith in a
 
 **Correct: B)**
 
-The strangler fig pattern incrementally replaces a monolith by extracting one module at a time. Starting with a low-risk, loosely coupled module reduces risk. An API gateway or reverse proxy routes requests to either the old monolith or the new microservice. Over time, more modules are extracted until the monolith can be decommissioned. Option A is wrong because migrating all 12 modules simultaneously is a big-bang migration, not the strangler fig pattern. It carries maximum risk and disruption. Option C is wrong because replicating the entire monolith on Compute Engine is a rehost (lift-and-shift), not the strangler fig pattern. Refactoring after rehosting is valid but is a different strategy (rehost-then-refactor). Option D is wrong because building all microservices before switching is essentially a parallel build with a big-bang cutover. The strangler fig specifically avoids this by incrementally routing traffic module by module.
+The strangler fig pattern extracts one module at a time behind a routing layer. Starting with a low-risk, loosely coupled module such as product reviews proves the pattern cheaply; a gateway or reverse proxy then decides per request whether it goes to the monolith or the new service, and the monolith shrinks until it can be retired.
+
+- **A) is wrong** -- moving all twelve modules at once is a big-bang migration by definition, which is what the pattern exists to avoid.
+- **C) is wrong** -- replicating the monolith onto Compute Engine is a rehost. Refactoring afterwards is a valid strategy, but it is not this pattern.
+- **D) is wrong** -- building everything then switching once is a parallel build with a big-bang cutover, again the opposite of incremental traffic migration.
+
+**Exam tip:** the defining feature of the strangler fig is that production traffic is split between old and new during the transition. If an option has a single cutover moment, it is not the strangler fig regardless of how gradual the build was.
+
+Docs: https://cloud.google.com/architecture/microservices-architecture-refactoring-monoliths and https://cloud.google.com/architecture/migration-to-gcp-getting-started
 </details>
 
 ---
@@ -841,7 +1214,15 @@ D) Use Transfer Appliance to physically ship server images to Google
 
 **Correct: A)**
 
-Migrate to Virtual Machines (M2VM, formerly Migrate for Compute Engine/Velostrata) provides continuous block-level replication from VMware to GCP. It enables testing migrated VMs in GCP before cutover, and final cutover requires only minutes of downtime. No application modification is needed. Option B is wrong because manually exporting VMDKs and creating images is slow, error-prone, and requires extended downtime for each VM. There is no continuous replication, so data changes during migration are lost. Option C is wrong because the question explicitly states applications cannot be significantly modified. Containerizing 200 applications is a major refactoring effort. Option D is wrong because Transfer Appliance is for bulk data transfer (petabytes of data), not VM migration. It does not preserve VM configurations, networking, or OS state.
+Migrate to Virtual Machines performs continuous block-level replication from VMware into Google Cloud, lets you boot and test the migrated VM before committing, and keeps the final cutover down to minutes. No application changes are needed, which the stem requires.
+
+- **B) is wrong** -- exporting VMDKs and building images by hand is slow, manual and needs a long downtime window per VM, with no way to catch up changes made during the copy.
+- **C) is wrong** -- the stem says applications cannot be significantly modified, and containerising 200 of them is exactly that.
+- **D) is wrong** -- Transfer Appliance moves bulk data. It does not capture VM configuration, networking or running OS state.
+
+**Exam tip:** "minimise downtime" plus "no application changes" is the lift-and-shift signature, and the tool is Migrate to Virtual Machines. Note the lineage, since older material uses old names: Migrate for Compute Engine and Velostrata became Migrate to Virtual Machines, which is a different product from Migration Center.
+
+Docs: https://cloud.google.com/migrate/virtual-machines/docs
 </details>
 
 ---
@@ -859,9 +1240,15 @@ E) Run SQL Server on standard (multi-tenant) Compute Engine instances with BYOL
 
 **Correct: C) and E)**
 
-The stem specifies Software Assurance, which is what makes this answerable. SQL Server is an application server product eligible for **License Mobility through Software Assurance**, so the licenses can move to standard multi-tenant Compute Engine with no dedicated hardware requirement. That is the cheapest way to reuse the licenses they already own. Migrating to AlloyDB (PostgreSQL-compatible) is the other lever, eliminating SQL Server licensing entirely if the application can be adapted. Option A is wrong because Google-provided SQL Server Enterprise licensing is charged per vCPU and is expensive when you already own licenses. Option B is wrong because sole-tenant nodes are not required here: sole-tenancy is what you need under **Outsourcing Software Management Rights** (the route for customers *without* License Mobility), and using it anyway adds a sole-tenancy premium for no licensing benefit. Option D is wrong because Cloud SQL bundles licensing into its price, so paying separately means paying twice.
+The stem specifies Software Assurance, which is what makes this answerable. SQL Server is an application server product eligible for **License Mobility through Software Assurance**, so the licences can move to standard multi-tenant Compute Engine with no dedicated hardware requirement. That is the cheapest way to reuse licences they already own. Migrating to AlloyDB is the other lever, eliminating SQL Server licensing entirely if the application can be adapted.
 
-**Exam tip:** on Microsoft licensing questions, find out whether the stem mentions Software Assurance. With SA you get License Mobility and multi-tenant is fine; without it you are into Outsourcing Software Management Rights and sole-tenant nodes. Windows Server OS licenses behave differently from application server licenses like SQL Server. See [Microsoft licensing on Compute Engine](https://cloud.google.com/compute/docs/instances/windows/ms-licensing).
+- **A) is wrong** -- Google-provided SQL Server Enterprise licensing is charged per vCPU and is expensive when you already own licences.
+- **B) is wrong** -- sole-tenant nodes are not required here. Sole-tenancy is what you need under **Outsourcing Software Management Rights**, the route for customers without License Mobility, and using it anyway adds a sole-tenancy premium for no licensing benefit.
+- **D) is wrong** -- Cloud SQL bundles licensing into its price, so paying separately means paying twice.
+
+**Exam tip:** on Microsoft licensing questions, find out whether the stem mentions Software Assurance. With SA you get License Mobility and multi-tenant is fine; without it you are into Outsourcing Software Management Rights and sole-tenant nodes. Windows Server OS licences behave differently from application server licences like SQL Server.
+
+Docs: https://cloud.google.com/compute/docs/instances/windows/ms-licensing and https://cloud.google.com/compute/docs/nodes/sole-tenant-nodes
 </details>
 
 ---
@@ -878,7 +1265,15 @@ D) Use Database Migration Service to migrate the mainframe database directly to 
 
 **Correct: B)**
 
-Mainframe modernization for a bank requires a conservative, phased approach. The strangler fig pattern incrementally migrates functionality from the mainframe to cloud services. Starting with read-only services (e.g., balance inquiries, statement viewing) is lowest risk. Dual Writes (writing to both mainframe and cloud systems during transition) maintain data consistency. A 2-3 year timeline is realistic for core banking. Option A is wrong because big-bang migration of a mainframe core banking system carries enormous risk -- mainframe applications often have undocumented dependencies, and a weekend cutover does not allow adequate testing. Any failure could impact banking operations. Option C is wrong because completely refactoring COBOL to Java before migrating would take years and provides no value until complete. This is the riskiest approach for a regulated bank. Option D is wrong because Database Migration Service does not support mainframe databases. Mainframe data structures (VSAM, IMS, DB2 on z/OS) require specialized migration tools and significant data model transformation.
+Core banking on a mainframe calls for incremental migration. The strangler fig pattern moves functionality piece by piece, starting with read-only services such as balance enquiry where a mistake is recoverable, while dual writes keep mainframe and cloud data consistent through the transition. A 2-3 year horizon is realistic for a regulated bank.
+
+- **A) is wrong** -- a weekend big-bang cutover of a core banking mainframe gives no room to discover undocumented dependencies, and failure is a banking outage.
+- **C) is wrong** -- rewriting all the COBOL before migrating delivers nothing until it is finished and carries years of risk.
+- **D) is wrong** -- Database Migration Service does not cover mainframe data stores. VSAM, IMS and DB2 for z/OS need specialised tooling and data-model transformation.
+
+**Exam tip:** regulated plus mission-critical plus legacy means the exam wants the slowest, most reversible option. Read-only first, then dual writes, then writes. Any answer promising a single cutover weekend for a core system is there to be eliminated.
+
+Docs: https://cloud.google.com/architecture/migration-to-gcp-getting-started and https://cloud.google.com/architecture/microservices-architecture-refactoring-monoliths
 </details>
 
 ---
@@ -895,7 +1290,15 @@ D) Replicate the entire Hadoop cluster on Compute Engine instances with HDFS
 
 **Correct: A)**
 
-Dataproc is Google's managed Hadoop/Spark service that is API-compatible with Apache Spark. Migrating HDFS data to Cloud Storage allows Spark jobs to run with minimal code changes (change hdfs:// to gs:// paths). Cloud Storage as the persistent data layer enables ephemeral Dataproc clusters (pay only when processing), decoupling compute from storage. Option B is wrong because rewriting Spark jobs as SQL queries is a significant refactoring effort, violating the "minimal changes" requirement. Many Spark jobs use complex UDFs, ML pipelines, and graph processing that cannot be expressed as SQL. Option C is wrong because running Spark on GKE requires Spark operator setup, custom container images, and manual cluster management -- more operational overhead than managed Dataproc, and not "minimal changes." Option D is wrong because replicating a self-managed Hadoop cluster on Compute Engine provides no cloud benefits -- you still manage HDFS, cluster scaling, patches, and failures. It is a lift-and-shift that misses the primary value of cloud migration.
+Dataproc runs the same Spark APIs the team already uses, so moving HDFS data to Cloud Storage and changing hdfs:// paths to gs:// is close to the whole code change. Keeping data in Cloud Storage also separates storage from compute, which is what lets clusters be ephemeral and billed only while jobs run.
+
+- **B) is wrong** -- rewriting Spark jobs as SQL is a major refactor, and UDFs, ML pipelines and graph work often have no SQL equivalent.
+- **C) is wrong** -- Spark on GKE means operator setup, custom images and cluster operations, which is more work than managed Dataproc and not "minimal changes".
+- **D) is wrong** -- rebuilding the Hadoop cluster on VMs keeps every operational burden and gains almost nothing.
+
+**Exam tip:** the Hadoop migration answer is nearly always "data to Cloud Storage, compute on ephemeral Dataproc". The Cloud Storage connector is what makes it a path change rather than a rewrite. Watch for options that quietly demand a rewrite while claiming to be a migration.
+
+Docs: https://cloud.google.com/dataproc/docs/concepts/connectors/cloud-storage and https://cloud.google.com/dataproc/docs/concepts/overview
 </details>
 
 ---
@@ -912,7 +1315,15 @@ D) Rehost: Export VMs as images and import to Compute Engine, manual MySQL dump 
 
 **Correct: A)**
 
-This is a clean rehost (lift-and-shift) that achieves the 2-week timeline. M2VM handles continuous VM replication with minimal downtime cutover. DMS provides continuous MySQL replication to Cloud SQL, allowing validation before cutover. No application changes are required. Option B is wrong because refactoring to Cloud Run, GKE, and Cloud Spanner requires significant application changes (containerization, database schema redesign) and cannot be done in 2 weeks. Option C is wrong because containerizing a traditional 3-tier application requires creating Dockerfiles, Kubernetes manifests, and testing containerized behavior -- this is not "minimal changes" and is unlikely to be completed in 2 weeks. Running MySQL as a StatefulSet also adds operational complexity. Option D is wrong because manual VM export/import and MySQL dump/restore require extended downtime (the dump/restore of a large database can take hours or days) and do not provide the continuous replication that enables minimal-downtime cutover.
+This is a straight rehost that fits two weeks. Migrate to Virtual Machines replicates the web and application VMs continuously and cuts over in minutes; Database Migration Service replicates MySQL into Cloud SQL continuously so you can validate before switching. No application changes are required.
+
+- **B) is wrong** -- Cloud Run, GKE and Spanner mean containerisation and a schema redesign, which is not a two-week piece of work.
+- **C) is wrong** -- containerising a traditional three-tier application means new Dockerfiles, manifests and testing, and MySQL as a StatefulSet adds database operations you were trying to hand to a managed service.
+- **D) is wrong** -- manual export and import plus a dump and restore needs a long downtime window and has no continuous replication.
+
+**Exam tip:** a tight deadline plus "optimise later" is the exam saying rehost. The tool pair to remember is Migrate to Virtual Machines for the VMs and Database Migration Service for the database, both with continuous replication so the cutover is short.
+
+Docs: https://cloud.google.com/database-migration/docs and https://cloud.google.com/migrate/virtual-machines/docs
 </details>
 
 ---
@@ -929,7 +1340,15 @@ D) Replace them with SaaS alternatives
 
 **Correct: B)**
 
-Retain (also called "revisit") means keeping workloads on-premises, typically connected via hybrid networking (Interconnect/VPN). This is appropriate for workloads with hard dependencies on specialized hardware that has no cloud equivalent. These workloads can be revisited in the future as cloud capabilities evolve. Option A is wrong because custom machine types on Compute Engine offer custom CPU/memory ratios but do not support FPGA accelerators or specialized NICs. The question explicitly states these cannot run on standard cloud infrastructure. Option C is wrong because Retire means decommissioning workloads that are no longer needed. These workloads are still running and serving a purpose -- they just cannot be migrated. Option D is wrong because Replace means substituting with a SaaS product. Workloads requiring custom FPGA accelerators are highly specialized and unlikely to have SaaS equivalents.
+Retain (sometimes called revisit) means leaving the workload on-premises and connecting it over Interconnect or VPN. That is the right call for workloads with hard dependencies on hardware that has no cloud equivalent, and they can be reconsidered later.
+
+- **A) is wrong** -- custom machine types vary CPU and memory ratios. They do not provide FPGAs or specialised NICs, which the stem says are required.
+- **C) is wrong** -- Retire means decommissioning something no longer needed. These workloads are still in use; they simply cannot move.
+- **D) is wrong** -- Replace means substituting a SaaS product, which is unlikely to exist for a bespoke FPGA-accelerated workload.
+
+**Exam tip:** learn the 6 R's by their trigger words. Rehost is lift and shift; replatform is minor changes; refactor is rewrite; repurchase or replace is move to SaaS; retire is switch off; retain is leave it where it is. "Cannot run on cloud infrastructure" always maps to retain, never to retire.
+
+Docs: https://cloud.google.com/architecture/migration-to-gcp-getting-started
 </details>
 
 ---
@@ -946,7 +1365,15 @@ D) Use Transfer Appliance to move the database files physically
 
 **Correct: B)**
 
-Database Migration Service supports migrations from AWS RDS PostgreSQL to Cloud SQL for PostgreSQL. DMS sets up continuous replication, keeping the Cloud SQL instance in sync with the source. When ready, the cutover takes only seconds to minutes, well within the 5-minute downtime tolerance. Option A is wrong because pg_dump/restore of a 500 GB database would take several hours (dump time + transfer time + restore time), far exceeding the 5-minute downtime window. Option C is wrong because while logical replication is technically possible, it requires manual configuration of publication/subscription, careful schema management, and sequence/index synchronization. DMS automates all of this and is the recommended tool. Option D is wrong because Transfer Appliance is for petabyte-scale offline data transfer, not 500 GB database migration. It also takes days/weeks for the physical shipping process.
+Database Migration Service migrates PostgreSQL from AWS RDS to Cloud SQL with continuous replication, so the target stays in sync while the source keeps serving. The cutover is then seconds to minutes, inside the 5-minute tolerance.
+
+- **A) is wrong** -- dump, transfer and restore of 500 GB runs for hours, and the whole of it lands inside the downtime window.
+- **C) is wrong** -- hand-built logical replication works in principle but means managing publications, subscriptions, schema drift and sequences yourself. DMS automates it and is the recommended path.
+- **D) is wrong** -- Transfer Appliance is offline bulk data movement measured in weeks, wildly disproportionate to 500 GB.
+
+**Exam tip:** downtime tolerance decides the database migration tool. Minutes or less means continuous replication, which means DMS. Hours of tolerance allows dump and restore. Anything involving physical shipping is for hundreds of terabytes and up, never for a live database cutover.
+
+Docs: https://cloud.google.com/database-migration/docs/postgres and https://cloud.google.com/database-migration/docs
 </details>
 
 ---
@@ -963,7 +1390,15 @@ D) (1) Replace, (2) Replace, (3) Retain, (4) Retire
 
 **Correct: A)**
 
-(1) The legacy CRM can be rehosted (lift-and-shift) initially to quickly move to the cloud, with refactoring planned later. (2) On-premises email servers should be replaced with a SaaS solution (Google Workspace). (3) The analytics platform with hardware dependencies should be retained on-premises with hybrid connectivity. (4) The unused HR system should be retired (decommissioned). Option B is wrong because rehosting email servers makes no sense when Google Workspace (SaaS) is available, and refactoring the CRM as the first step is slower than rehosting. Option C is wrong because retiring email servers means eliminating email, not migrating it, and rehosting hardware-dependent workloads is explicitly stated as impossible. Option D is wrong because the CRM is custom-built, so there may not be a direct SaaS replacement. Rehosting is a safer first step.
+The in-house CRM is rehosted first to get out of the data centre quickly, with refactoring deferred. Email servers are replaced by SaaS, which is what Google Workspace is for. The hardware-dependent analytics platform is retained on-premises behind hybrid connectivity. The unused HR system is retired.
+
+- **B) is wrong** -- rehosting email servers ignores the SaaS option, and refactoring the CRM first is the slowest possible starting move.
+- **C) is wrong** -- retiring email means switching off email, and rehosting a hardware-dependent workload is exactly what the stem says cannot be done.
+- **D) is wrong** -- a bespoke in-house CRM has no obvious SaaS equivalent, so replace is a poor fit where rehost is safe.
+
+**Exam tip:** two mappings resolve most 6 R's matching questions. Commodity function with a mature SaaS market (email, HR, CRM suites) means replace. Unused means retire. Once those two are placed, the remaining options usually collapse to one.
+
+Docs: https://cloud.google.com/architecture/migration-to-gcp-getting-started
 </details>
 
 ---
@@ -980,7 +1415,15 @@ D) Implement automated performance benchmarking: capture baseline metrics on-pre
 
 **Correct: D)**
 
-Automated benchmarking provides consistent, repeatable, and efficient validation for 200 workloads. Capturing baselines before migration and running identical tests after allows objective comparison. Automated acceptance criteria (latency, throughput, error rates) flag workloads that need attention without manual review of each one. Option A is wrong because traffic mirroring to both environments requires running production workloads on both systems simultaneously, which doubles cost and is complex to set up for 200 workloads. It is also risky for workloads with side effects (writes, transactions). Option B is wrong because SLAs guarantee infrastructure availability, not application performance. A VM with the same specs may perform differently due to database tuning, network configuration, or application-level factors. Option C is wrong because manual testing of 200 workloads is too slow, inconsistent (different testers may use different methods), and does not scale. Automation is essential at this scale.
+Automated benchmarking scales to 200 workloads: capture baselines on-premises, run the identical suite after migration, and compare against acceptance criteria for latency, throughput and error rate so only the failures need human attention.
+
+- **A) is wrong** -- mirroring production traffic to both environments doubles the running cost, is complex to set up 200 times, and is unsafe for anything with side effects such as writes or payments.
+- **B) is wrong** -- an SLA covers infrastructure availability, not application performance. Identical VM specs can still perform differently once tuning and configuration change.
+- **C) is wrong** -- manual QA across 200 workloads is slow and inconsistent between testers.
+
+**Exam tip:** scale in the stem is a filter. Anything manual or per-workload becomes wrong once the count reaches the hundreds. Also watch for SLAs being offered as a substitute for testing, which the exam treats as a category error.
+
+Docs: https://cloud.google.com/architecture/migration-to-gcp-getting-started
 </details>
 
 ---
@@ -1001,7 +1444,15 @@ D) Migrate the entire application to App Engine Standard for automatic scaling
 
 **Correct: B)**
 
-Containerization is a natural next step after lift-and-shift. GKE Autopilot manages infrastructure while providing the flexibility to incrementally extract microservices from the monolith (strangler fig pattern). This is lower risk than a complete refactor and delivers incremental value. Option A is wrong because a complete serverless refactor is a massive undertaking that provides no value until complete. It is high-risk for a production e-commerce platform. Option C is wrong because while CUDs reduce cost, this approach misses the opportunity to improve scalability, deployment velocity, and resilience through modernization. It leaves technical debt unaddressed. Option D is wrong because App Engine Standard has significant limitations (supported runtimes, request timeouts, limited VPC connectivity) that may not accommodate an existing monolithic application. It is also not an incremental modernization path.
+Containerising and moving to GKE Autopilot is the natural step after a lift and shift: Google runs the nodes, and the platform then supports pulling microservices out of the monolith one at a time. Value arrives incrementally instead of at the end of a rewrite.
+
+- **A) is wrong** -- a full serverless refactor delivers nothing until it is complete and is high risk for a live e-commerce platform.
+- **C) is wrong** -- commitments reduce the bill but leave the scalability, deployment velocity and resilience problems untouched.
+- **D) is wrong** -- App Engine Standard constrains runtimes, request duration and connectivity, which an existing monolith is unlikely to fit, and it is not an incremental path.
+
+**Exam tip:** modernisation questions reward the smallest next step that unlocks the following one. Containerise before decomposing, decompose before going serverless. An option that jumps straight to the end state is usually the distractor, and one that only optimises cost is usually incomplete.
+
+Docs: https://cloud.google.com/kubernetes-engine/docs/concepts/autopilot-overview and https://cloud.google.com/architecture/microservices-architecture-refactoring-monoliths
 </details>
 
 ---
@@ -1019,7 +1470,15 @@ E) Move all data processing to Cloud Functions
 
 **Correct: A) and B)**
 
-Dataflow provides fully serverless, autoscaling data processing that eliminates cluster management entirely. For workloads that must remain Spark-based (due to code, libraries, or team expertise), Dataproc Serverless runs Spark workloads without managing clusters. Together, these modernize the pipeline while accommodating different workload needs. Option C is wrong because over-provisioning a fixed cluster is the opposite of modernization -- it increases cost and does not address operational overhead. Option D is wrong because replacing ETL with manual SQL scripts in Cloud SQL is a step backward in automation and does not support the data volumes typically processed by Dataproc. Option E is wrong because Cloud Functions have execution time limits (up to 60 minutes for 2nd gen), memory limits, and are not designed for large-scale data processing that ETL typically requires.
+Dataflow removes cluster management entirely for pipelines that can be expressed in Beam, and Dataproc Serverless runs Spark workloads without a cluster for the jobs that must stay Spark. Together they cover the estate while eliminating the sizing and patching work.
+
+- **C) is wrong** -- growing a fixed cluster to cover peak is the opposite of modernisation: more cost, same operational burden.
+- **D) is wrong** -- hand-run SQL scripts in Cloud SQL removes automation and cannot handle Dataproc-scale volumes.
+- **E) is wrong** -- Cloud Run functions have execution time and memory limits and are not a large-scale data processing engine.
+
+**Exam tip:** when the stem says "must remain Spark", the answer is Dataproc Serverless, not Dataflow. Dataflow is the answer when the pipeline can be rewritten in Beam or is new. Note also the naming: Cloud Functions is now Cloud Run functions, so both names appear in current material.
+
+Docs: https://cloud.google.com/dataproc-serverless/docs and https://cloud.google.com/dataflow/docs
 </details>
 
 ---
@@ -1036,7 +1495,15 @@ D) Use only pre-trained models from Vertex AI Model Garden and eliminate custom 
 
 **Correct: B)**
 
-Vertex AI provides a unified, managed platform for the entire ML lifecycle. Feature Store eliminates feature engineering duplication, Training provides managed compute with hyperparameter tuning, Pipelines automate and version the ML workflow, and Endpoints handle model serving with autoscaling. This dramatically reduces time-to-production. Option A is wrong because adding GPUs to Compute Engine does not address the broader problems: pipeline orchestration, feature management, model versioning, A/B testing, and monitoring. It only speeds up one step. Option C is wrong because Dataproc MLlib is limited compared to TensorFlow/PyTorch capabilities and does not provide the full ML lifecycle management (serving, monitoring, feature store) that Vertex AI offers. Option D is wrong because eliminating custom training removes the ability to build models specific to the company's data and use cases. Pre-trained models are a complement, not a replacement, for custom training.
+Vertex AI covers the whole lifecycle in one managed platform: Feature Store for shared feature definitions, Training for managed compute and tuning, Pipelines for orchestration and lineage, Endpoints for serving. That is what shortens time to production, not any single faster step. (The platform is now marketed as Gemini Enterprise Agent Platform; the exam guide still says Vertex AI.)
+
+- **A) is wrong** -- faster training addresses one stage. Orchestration, feature management, versioning and monitoring are untouched.
+- **C) is wrong** -- Dataproc MLlib is narrower than modern frameworks and offers none of the serving, monitoring or feature-store layers.
+- **D) is wrong** -- dropping custom training removes the ability to model the company's own data. Pre-trained models complement custom ones rather than replacing them.
+
+**Exam tip:** MLOps questions are usually won by the option naming the most complete lifecycle, because the pain in the stem is process pain rather than compute pain. Learn the Vertex AI component names and what stage each one owns.
+
+Docs: https://cloud.google.com/vertex-ai/docs/start/introduction-unified-platform and https://cloud.google.com/vertex-ai/docs/pipelines/introduction
 </details>
 
 ---
@@ -1044,7 +1511,7 @@ Vertex AI provides a unified, managed platform for the entire ML lifecycle. Feat
 ### Q60. An organization is running a monolithic application on GKE. They want to adopt a cloud-native architecture that improves deployment velocity, fault isolation, and independent scaling of components. They also want to implement GitOps practices. Which combination of improvements should they prioritize?
 
 A) Keep the monolith on GKE and add more replicas for scaling
-B) Decompose into microservices on GKE, implement Anthos Config Management for GitOps, and use Anthos Service Mesh for inter-service communication
+B) Decompose into microservices on GKE, implement Config Sync for GitOps, and use Cloud Service Mesh for inter-service communication
 C) Move the monolith from GKE to Cloud Run for simpler deployments
 D) Decompose into microservices and deploy each on separate Compute Engine instances
 
@@ -1053,7 +1520,15 @@ D) Decompose into microservices and deploy each on separate Compute Engine insta
 
 **Correct: B)**
 
-Microservices decomposition provides fault isolation and independent scaling. Anthos Config Management implements GitOps by syncing cluster configuration from Git repos. Anthos Service Mesh provides observability, traffic management, and security for inter-service communication. This is the cloud-native architecture pattern for GKE. Option A is wrong because adding replicas of a monolith does not improve deployment velocity (all components deploy together), fault isolation (a bug in one module crashes the entire app), or independent scaling (all modules scale together). Option C is wrong because moving a monolith to Cloud Run does not address the fundamental issues of monolithic architecture. Cloud Run has request timeout limits and is designed for microservices, not monoliths. Option D is wrong because deploying microservices on separate Compute Engine instances requires managing individual VMs, losing the benefits of container orchestration (scheduling, self-healing, rolling updates) that GKE provides.
+Decomposition gives fault isolation and independent scaling. Config Sync (the GitOps engine that shipped as Anthos Config Management) reconciles cluster configuration from Git, and Cloud Service Mesh (formerly Anthos Service Mesh) handles inter-service traffic, security and observability. That covers all three stated goals plus the GitOps requirement.
+
+- **A) is wrong** -- more replicas of a monolith improves neither deployment velocity, nor fault isolation, nor per-component scaling, since everything still ships and scales as one unit.
+- **C) is wrong** -- moving the monolith to Cloud Run changes the runtime, not the architecture, and brings request-duration limits with it.
+- **D) is wrong** -- microservices on individual VMs gives up scheduling, self-healing and rolling updates, which is most of why the cluster is there.
+
+**Exam tip:** "GitOps" in a stem points at Config Sync, and "inter-service mTLS, traffic management or tracing" points at Cloud Service Mesh. Both were sold under Anthos names until recently, so recognise the old and new names as the same products.
+
+Docs: https://cloud.google.com/kubernetes-engine/enterprise/config-sync/docs/overview and https://cloud.google.com/service-mesh/docs/overview
 </details>
 
 ---
@@ -1070,7 +1545,15 @@ D) Move all workloads to the cheapest region
 
 **Correct: B)**
 
-A comprehensive FinOps approach addresses cost optimization holistically. Active Assist provides AI-driven recommendations for idle resources, right-sizing, and CUD purchases. Billing exports to BigQuery enable custom cost analysis and anomaly detection. Cost accountability per team drives responsible spending through chargebacks/showbacks. Option A is wrong because purchasing CUDs for all current resources locks in commitment for potentially oversized or unnecessary resources. You should right-size first, then commit. Option C is wrong because deleting non-production environments eliminates development and testing capability, which impacts velocity and quality. Instead, use scheduling (stop non-prod outside business hours) and right-sizing. Option D is wrong because moving to the cheapest region may increase latency for users, violate data residency requirements, or reduce availability. Region selection should consider multiple factors, not just cost.
+A FinOps practice attacks the whole problem: Active Assist recommenders surface idle and oversized resources, commitment coverage is reviewed against actual usage, billing export to BigQuery supports custom analysis and anomaly detection, and per-team accountability changes the behaviour that produced the waste.
+
+- **A) is wrong** -- committing to the current shape locks in whatever oversizing already exists. Right-size first, then commit.
+- **C) is wrong** -- deleting non-production removes development and test capability. Scheduling it off outside working hours gets most of the saving without the damage.
+- **D) is wrong** -- the cheapest region may break latency targets, data residency rules or availability requirements. Region choice is not a cost-only decision.
+
+**Exam tip:** the sequence the exam rewards is measure, then right-size, then commit, then govern. Committing before right-sizing is the classic wrong answer, and so is any option that saves money by removing visibility or capability rather than waste.
+
+Docs: https://cloud.google.com/recommender/docs and https://cloud.google.com/billing/docs/how-to/export-data-bigquery
 </details>
 
 ---
@@ -1087,7 +1570,15 @@ D) Move all services to a single monolithic application to eliminate network cal
 
 **Correct: B)**
 
-This is the cloud-native pattern for resilience. Pub/Sub decouples services for non-real-time operations, eliminating cascading failures for those flows. Circuit breakers (e.g., via service mesh) prevent cascading failures by failing fast when a downstream service is unhealthy. Exponential backoff prevents retry storms. Option A is wrong because increasing timeouts makes the problem worse -- upstream services hold connections longer, exhausting thread pools and memory, accelerating the cascade. Option C is wrong because more replicas handle increased load but do not prevent cascading failures. If a downstream service is slow, more upstream replicas just create more blocked connections to the slow service. Option D is wrong because reverting to a monolith eliminates the benefits of microservices (independent deployment, scaling, fault isolation) and does not solve the fundamental issue -- a slow component in a monolith still blocks other components.
+Moving non-real-time work onto Pub/Sub decouples the caller from the callee, so a slow downstream service no longer blocks upstream request threads. For the calls that must stay synchronous, circuit breakers fail fast instead of queueing, and exponential backoff with jitter prevents a retry storm from finishing off a recovering service.
+
+- **A) is wrong** -- longer timeouts make the cascade worse. Upstream services hold connections and threads for longer, so they exhaust their own resources sooner.
+- **C) is wrong** -- more replicas add more clients hammering the same slow dependency. Capacity is not the failure mode here.
+- **D) is wrong** -- collapsing to a monolith discards independent deployment and scaling, and a slow component inside a process still blocks callers.
+
+**Exam tip:** cascading failure questions are about isolation, not capacity. The winning answer combines asynchrony where possible with circuit breaking, timeouts, bulkheads and backoff where it is not. Any option that raises timeouts or adds instances is the trap.
+
+Docs: https://cloud.google.com/architecture/framework/reliability and https://cloud.google.com/pubsub/docs/overview
 </details>
 
 ---
@@ -1104,7 +1595,15 @@ D) Use BigQuery ML to train a text classification model on support tickets
 
 **Correct: B)**
 
-Vertex AI Agent Builder (formerly Gen AI App Builder) provides a managed platform for building AI agents grounded in enterprise data. It combines Gemini models with RAG (Retrieval-Augmented Generation) to generate contextual responses from the company's knowledge articles and support history. No custom model training is needed. Option A is wrong because training a custom LLM from scratch requires enormous compute resources, ML expertise, and data. Gemini models already have strong language understanding -- grounding them with proprietary data via RAG is far more efficient. Option C is wrong because BERT is a classification/embedding model, not a generative model. It cannot generate helpful responses -- it can only classify tickets into categories. Option D is wrong because BigQuery ML supports simple text classification but cannot build a conversational AI agent that understands context, retrieves knowledge, and generates natural language responses.
+Agent Builder creates an agent grounded in the company's own knowledge base using managed retrieval-augmented generation over Gemini models, so answers cite the source documents and no model training is needed. Five years of tickets become a data store, not a training set.
+
+- **A) is wrong** -- training a large language model from scratch needs compute, data and expertise on a completely different scale, and the base model already has the language ability.
+- **C) is wrong** -- BERT is a classification and embedding model. It can label a ticket but cannot generate a helpful answer.
+- **D) is wrong** -- BigQuery ML can classify text but cannot hold a grounded conversation with retrieval and citations.
+
+**Exam tip:** grounding in company data means RAG, and RAG on Google Cloud means Agent Builder with a data store. Fine-tuning is for style and format; RAG is for facts. If the stem asks for citations or up-to-date knowledge, the answer is retrieval, never training.
+
+Docs: https://cloud.google.com/generative-ai-app-builder/docs/introduction and https://cloud.google.com/vertex-ai/generative-ai/docs/agent-builder/overview
 </details>
 
 ---
@@ -1121,7 +1620,15 @@ D) Switch from Cloud SQL to Bigtable for multi-region support
 
 **Correct: B)**
 
-Going from 99.9% to 99.95% requires cross-region redundancy but not the complexity of active-active. A warm standby in a second region with a cross-region read replica (promotable to primary on failure) and global load balancing provides the reliability increase. Automated failover (via Cloud Functions or monitoring alerts) ensures rapid recovery. Option A is wrong because active-active across three regions with Cloud Spanner targets 99.999% availability, which is massive over-engineering for a 99.95% SLO. The cost and complexity are disproportionate to the 0.05% improvement needed. Option C is wrong because CDN and larger instances improve performance and handle regional load spikes but do not protect against regional outages, which is the primary risk at 99.9%+. Option D is wrong because Bigtable is a NoSQL wide-column store, not a relational database replacement for Cloud SQL. This would require a complete data model rewrite.
+Moving from 99.9% to 99.95% requires surviving a regional event, but not active-active. A cross-region read replica that can be promoted, the web and API tiers running in a second region, a global Application Load Balancer in front, and automated failover gets there at warm-standby cost.
+
+- **A) is wrong** -- three-region active-active on Spanner is aimed at five nines. It is a large cost and complexity increase for a 0.05 percentage point target.
+- **C) is wrong** -- CDN and larger instances improve performance and absorb load, but neither survives a regional outage, which is the risk at this availability level.
+- **D) is wrong** -- Bigtable is a wide-column NoSQL store, not a drop-in replacement for a relational database; this would be a data-model rewrite.
+
+**Exam tip:** treat the availability target as a budget. Each extra nine costs an order of magnitude more, so pick the smallest architectural change that clears the number in the stem. Explicit target numbers exist to rule out the most redundant option, not to justify it.
+
+Docs: https://cloud.google.com/architecture/dr-scenarios-planning-guide and https://cloud.google.com/sql/docs/postgres/replication/cross-region-replicas
 </details>
 
 ---
@@ -1138,7 +1645,15 @@ D) Hire a third-party consultant to fix everything without involving internal te
 
 **Correct: B)**
 
-WAF recommends iterative improvement across all pillars, prioritized by risk. Security Command Center provides centralized security posture management (vulnerability scanning, compliance monitoring). Cloud Monitoring with SLOs provides measurable reliability targets. Billing alerts and Active Assist provide cost visibility and optimization recommendations. This approach improves all three areas systematically. Option A is wrong because addressing all gaps simultaneously is resource-intensive and risks overwhelming teams. WAF recommends iterative, prioritized improvements that build on each other. Option C is wrong because WAF has multiple pillars (operational excellence, security, reliability, cost optimization, performance). Focusing exclusively on one pillar leaves the organization vulnerable in others. Security gaps, for example, could result in breaches far more costly than any billing optimization. Option D is wrong because WAF emphasizes building internal capabilities and organizational knowledge. External consultants can accelerate progress, but relying entirely on them without involving internal teams creates a dependency and does not build sustainable practices.
+The framework asks for iterative improvement prioritised by risk. Security Command Center covers posture and vulnerability findings, Cloud Monitoring with SLOs makes reliability measurable, and budget alerts with Active Assist recommendations give cost visibility and specific actions. Each area then improves on its own cadence.
+
+- **A) is wrong** -- one large simultaneous programme across all gaps overloads teams and delays every outcome.
+- **C) is wrong** -- concentrating on one pillar leaves the others exposed, and a security gap can cost far more than any billing optimisation saves.
+- **D) is wrong** -- outsourcing the whole thing builds no internal capability, which the framework treats as part of the outcome rather than an optional extra.
+
+**Exam tip:** Architecture Framework questions reward iterative, risk-prioritised improvement and a named tool per pillar. Memorise the mapping: Security Command Center for security posture, SLOs in Cloud Monitoring for reliability, Active Assist and budgets for cost.
+
+Docs: https://cloud.google.com/architecture/framework and https://cloud.google.com/security-command-center/docs
 </details>
 
 ---
