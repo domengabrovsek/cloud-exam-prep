@@ -317,9 +317,11 @@ D) GKE pods with a global external proxy Network Load Balancer with session affi
 <details>
 <summary>Answer</summary>
 
-**Correct: D)**
+**Correct: A)**
 
-WebSocket connections are long-lived TCP connections that need a proxy-based load balancer supporting WebSocket protocol upgrade and session affinity. The global external proxy Network Load Balancer (Envoy-based) supports TCP connections with session affinity and distributes traffic globally. GKE provides horizontal scaling of pods. Option A is wrong because the external Application Load Balancer works for WebSocket but is optimized for HTTP(S) traffic. While it can handle WebSocket via upgrade, cookie-based affinity requires the initial HTTP request to set a cookie, which adds complexity for WebSocket-first connections. The proxy Network Load Balancer is more appropriate for TCP-level affinity. Option B is wrong because the regional external TCP/UDP Network Load Balancer is a passthrough (non-proxy) load balancer -- it supports connection tracking but is regional only, limiting global distribution. Option C is wrong because Cloud Run has a maximum request timeout of 60 minutes (adjustable) but is designed for request-response patterns, not long-lived WebSocket connections at scale. Cloud Run also does not guarantee session affinity.
+The external Application Load Balancer has native WebSocket support: the protocol upgrade is handled automatically and no special configuration is required. Because a WebSocket connection begins as an HTTP request, cookie-based session affinity is set during that handshake and then holds for the life of the connection. GKE provides the horizontal pod scaling. Option B is wrong because the regional external TCP/UDP Network Load Balancer is a passthrough (non-proxy) load balancer and is regional only, so it cannot distribute globally. Option C is wrong because Cloud Run is designed for request-response patterns and does not guarantee session affinity across instances, which the 45-minute connections require. Option D is wrong because the global external proxy Network Load Balancer is not a documented WebSocket product; WebSocket support is a documented feature of the Application Load Balancer, and choosing a TCP proxy here gives up the HTTP-layer affinity the scenario asks for.
+
+**Exam tip:** WebSocket plus session affinity means Application Load Balancer, not a Network Load Balancer. The trap is reasoning "WebSocket is TCP, so pick the TCP load balancer" -- Google documents WebSocket as an Application Load Balancer capability that needs zero configuration. See [WebSocket proxy support](https://cloud.google.com/load-balancing/docs/https#websocket_proxy_support).
 </details>
 
 ---
@@ -387,14 +389,14 @@ D) Custom auth service in a single region with Cloud CDN caching auth tokens
 
 **Correct: B)**
 
-Cloud Spanner provides strongly consistent reads globally with multi-region deployment, ensuring session data is always up-to-date regardless of which region serves the request. Deploying the auth service in each region ensures < 50ms response times by processing requests locally. Option A is wrong because Firestore multi-region provides strong consistency within a region but eventual consistency for cross-region reads -- a session created in one region might not be immediately visible in another. Option C is wrong because Memorystore for Redis is regional only -- there is no cross-region replication, so a user who authenticates in North America and is then routed to Europe would not have their session. Option D is wrong because caching auth tokens at CDN is a security risk (tokens could be served from cache after revocation), and a single-region auth service means users in distant regions exceed the 50ms requirement.
+Cloud Spanner provides strongly consistent reads globally with multi-region deployment, ensuring session data is always up-to-date regardless of which region serves the request. Deploying the auth service in each region ensures < 50ms response times by processing requests locally. Option A is wrong, but not for the reason people usually give: Firestore reads are strongly consistent by default, including in multi-region. The real problem is write latency. Firestore's leader replicas live in the primary region, so a write originating far from that region pays a cross-region round trip, which eats the 50ms budget. Spanner lets you place the leader per configuration and is the better fit when writes are globally distributed. Option C is wrong because Memorystore for Redis is regional only -- there is no cross-region replication, so a user who authenticates in North America and is then routed to Europe would not have their session. Option D is wrong because caching auth tokens at CDN is a security risk (tokens could be served from cache after revocation), and a single-region auth service means users in distant regions exceed the 50ms requirement.
 </details>
 
 ---
 
 ### Q23. An e-commerce platform expects a 20x traffic increase during a flash sale event in 2 weeks. Their current GKE-based architecture handles normal traffic well. The architect needs to ensure the system can handle the surge without service degradation. Which combination of actions should they take? (Choose TWO)
 
-A) Perform load testing with Cloud Load Test to identify bottlenecks and determine required capacity
+A) Run distributed load testing on GKE with an open-source tool such as Locust or k6 to identify bottlenecks and determine required capacity
 B) Pre-warm the Cluster Autoscaler by setting minimum node count to expected peak capacity for the sale duration
 C) Switch all workloads to Spot VMs to reduce cost during the sale
 D) Configure Horizontal Pod Autoscaler with aggressive scaling policies (rapid scale-up, slow scale-down)
@@ -855,9 +857,11 @@ E) Run SQL Server on standard (multi-tenant) Compute Engine instances with BYOL
 <details>
 <summary>Answer</summary>
 
-**Correct: B) and C)**
+**Correct: C) and E)**
 
-Software Assurance includes License Mobility, but Microsoft SQL Server requires dedicated hardware for BYOL in the cloud. Sole-tenant nodes provide the physical isolation needed for BYOL compliance, allowing the company to use existing licenses without additional cost. Alternatively, migrating to AlloyDB (PostgreSQL-compatible) eliminates SQL Server licensing entirely, providing the most cost savings long-term if the application can be adapted. Option A is wrong because Google-provided SQL Server Enterprise licenses are very expensive (per-vCPU pricing). When the company already owns licenses through Software Assurance, using BYOL is significantly cheaper. Option D is wrong because Cloud SQL includes licensing in its pricing -- you cannot bring your own license to Cloud SQL. You would be double-paying. Option E is wrong because Microsoft licensing requires dedicated hosts (sole-tenant) for BYOL in the cloud; running SQL Server BYOL on standard multi-tenant Compute Engine instances violates Microsoft licensing terms.
+The stem specifies Software Assurance, which is what makes this answerable. SQL Server is an application server product eligible for **License Mobility through Software Assurance**, so the licenses can move to standard multi-tenant Compute Engine with no dedicated hardware requirement. That is the cheapest way to reuse the licenses they already own. Migrating to AlloyDB (PostgreSQL-compatible) is the other lever, eliminating SQL Server licensing entirely if the application can be adapted. Option A is wrong because Google-provided SQL Server Enterprise licensing is charged per vCPU and is expensive when you already own licenses. Option B is wrong because sole-tenant nodes are not required here: sole-tenancy is what you need under **Outsourcing Software Management Rights** (the route for customers *without* License Mobility), and using it anyway adds a sole-tenancy premium for no licensing benefit. Option D is wrong because Cloud SQL bundles licensing into its price, so paying separately means paying twice.
+
+**Exam tip:** on Microsoft licensing questions, find out whether the stem mentions Software Assurance. With SA you get License Mobility and multi-tenant is fine; without it you are into Outsourcing Software Management Rights and sole-tenant nodes. Windows Server OS licenses behave differently from application server licenses like SQL Server. See [Microsoft licensing on Compute Engine](https://cloud.google.com/compute/docs/instances/windows/ms-licensing).
 </details>
 
 ---

@@ -209,13 +209,15 @@ D) Set up a VPN and use `gcloud storage cp` for the transfer
 <details>
 <summary>Answer</summary>
 
-**Correct: A)**
+**Correct: B)**
 
-At 100 Mbps, transferring 5 TB takes approximately 4.6 days -- acceptable for critical data. `gsutil -m rsync` (or `gcloud storage rsync`) provides multi-threaded, resumable transfer with incremental sync capability. If any files change during transfer, re-running rsync only transfers the differences. This gets critical data to GCP quickly.
+Storage Transfer Service supports on-premises and private file systems through **agent-based transfers**: you run a fleet of transfer agents inside your network, and Google manages the parallelism, retries, checkpointing, and integrity verification. It is the documented choice for on-premises transfers above roughly 1 TiB, which 5 TB clearly exceeds. At 100 Mbps the move takes around 4.6 days, so it will run unattended across several days and survive interruptions without a human restarting it.
 
-- **B) is wrong** -- Storage Transfer Service is designed for large-scale, scheduled transfers from other cloud providers (AWS S3, Azure) or HTTP/HTTPS sources, not for on-premises data sources. For on-premises to Cloud Storage, `gsutil`/`gcloud storage` or Transfer Appliance are the tools.
-- **C) is wrong** -- Waiting delays the migration of critical data unnecessarily. Transfer Appliances can take weeks for shipping and processing. The 5 TB can be transferred in under a week over the existing connection.
-- **D) is wrong** -- A VPN provides secure network connectivity but doesn't speed up the transfer. `gcloud storage cp` works but `gsutil -m rsync` is better because it's incremental and handles restarts gracefully. Also, VPN setup adds time.
+- **A) is workable but is not the recommended tool at this size** -- `gsutil -m rsync` is multi-threaded and resumable, but it runs from one machine, needs someone to restart it after a failure, and gsutil is being retired from the gcloud CLI bundle in March 2027. For a multi-day, multi-terabyte transfer the managed agent fleet is the better answer, and `gcloud storage rsync` is the successor for the ad-hoc case.
+- **C) is wrong** -- Waiting delays critical data for no reason. The appliance round trip takes weeks; 5 TB moves over the existing link in under a week, and the whole point of the question is that the two can run in parallel.
+- **D) is wrong** -- A VPN adds encryption and setup time but no throughput. The 100 Mbps link is the constraint, and a VPN does not widen it.
+
+**Exam tip:** Storage Transfer Service is not cloud-to-cloud only. It has three modes: agent-based (on-premises and private file systems), agentless (S3, Azure Blob, HTTP/HTTPS sources), and Cloud Storage to Cloud Storage. "On-premises means STS is wrong" is a common misconception and the exam tests it. See [Storage Transfer Service overview](https://cloud.google.com/storage-transfer/docs/overview).
 
 **Exam tip:** Data migration tool selection: <10 TB + decent bandwidth = gsutil/gcloud storage. 10-200 TB = Storage Transfer Service (cloud-to-cloud) or Transfer Appliance. 200+ TB = Transfer Appliance. Know the bandwidth calculation: 1 TB at 100 Mbps ~ 22 hours.
 
