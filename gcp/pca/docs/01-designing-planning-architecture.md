@@ -2,6 +2,8 @@
 
 > **Quick context:** This is the highest-weighted section on the PCA exam. It tests your ability to translate business and technical requirements into cloud architectures, design for reliability and performance, plan migrations, and envision future improvements. Expect 12-15 questions.
 
+> Last updated: August 2026. Product names follow the v6.1 exam guide (effective 2025-10-30). Where Google has since renamed a product, the current name is noted at first use.
+
 ---
 
 ## 1.1 Designing a Cloud Solution Infrastructure That Meets Business Requirements
@@ -181,7 +183,7 @@ gcloud recommender recommendations mark-claimed RECOMMENDATION_ID \
 | GCP mapping | Compute Engine, App Engine | GKE, Cloud Run |
 
 **12-Factor App Principles (exam-relevant ones):**
-1. **Codebase**: One repo per service → Cloud Source Repositories, GitHub
+1. **Codebase**: One repo per service → Secure Source Manager, GitHub (Cloud Source Repositories has been closed to new customers since 2024-06-17)
 2. **Dependencies**: Explicitly declare → Artifact Registry
 3. **Config**: Store in environment → Secret Manager, ConfigMaps
 4. **Backing services**: Treat as attached resources → Cloud SQL, Pub/Sub, Memorystore
@@ -206,7 +208,7 @@ gcloud recommender recommendations mark-claimed RECOMMENDATION_ID \
 - "Independent deployment" = microservices on Cloud Run or GKE
 - The exam expects you to choose event-driven patterns for async processing
 
-**Docs:** [Microservices Architecture](https://cloud.google.com/architecture/microservices-architecture-introduction), [Event-Driven Architecture](https://cloud.google.com/eventarc/docs/overview)
+**Docs:** [Microservices Architecture](https://cloud.google.com/architecture/microservices-architecture-introduction), [Event-Driven Architecture](https://cloud.google.com/eventarc/docs/overview), [Secure Source Manager](https://cloud.google.com/secure-source-manager/docs/overview)
 
 ---
 
@@ -238,7 +240,7 @@ gcloud recommender recommendations mark-claimed RECOMMENDATION_ID \
 | Tool | Data Type | Direction | Size |
 |------|-----------|-----------|------|
 | Storage Transfer Service | Objects | Cloud-to-cloud, on-prem-to-cloud | Any |
-| Transfer Appliance | Any | On-prem to cloud | 100 TB - 1 PB |
+| Transfer Appliance | Any | On-prem to cloud | TA40 (40 TB) or TA300 (300 TB) per appliance |
 | BigQuery Data Transfer Service | Structured | SaaS to BigQuery | Any |
 | Database Migration Service (DMS) | Databases | On-prem/cloud to Cloud SQL, AlloyDB | Any |
 | Datastream | CDC events | Database to BigQuery, GCS | Continuous |
@@ -249,7 +251,7 @@ gcloud recommender recommendations mark-claimed RECOMMENDATION_ID \
 **Decision guide:**
 - **< 10 TB, good network**: `gcloud storage cp` or Storage Transfer Service
 - **10-100 TB, good network**: Storage Transfer Service (parallel, resumable)
-- **> 100 TB or slow network**: Transfer Appliance
+- **Network is the bottleneck**: Transfer Appliance. The decision is time, not volume: order one when `data size / usable bandwidth` exceeds the round-trip shipping time. Capacity comes in TA40 (40 TB) and TA300 (300 TB) units, and you can order several.
 - **Database migration**: DMS (supports MySQL, PostgreSQL, SQL Server, Oracle)
 - **Continuous replication**: Datastream (CDC)
 - **SaaS data to BQ**: BigQuery Data Transfer Service
@@ -280,7 +282,7 @@ The PCA exam frequently asks you to evaluate trade-offs. Key axes:
 
 | Trade-off | Option A | Option B | How Exam Tests It |
 |-----------|----------|----------|-------------------|
-| Consistency vs Availability | Spanner (strong consistency) | Firestore (eventual in multi-region) | "Requires globally consistent reads" |
+| Consistency vs Availability | Spanner (strong consistency, leader placement you choose) | Firestore (also strongly consistent, but writes pay a round trip to the primary region) | "Requires globally consistent reads with low write latency everywhere" |
 | Cost vs Performance | Standard Tier networking | Premium Tier networking | "Lowest latency for global users" |
 | Managed vs Self-managed | Cloud SQL | MySQL on CE | "Minimize operational overhead" |
 | Flexibility vs Simplicity | GKE Standard | GKE Autopilot | "Full control over nodes" vs "minimize management" |
@@ -415,7 +417,7 @@ Design systems to be observable from day one:
 - "How to monitor across microservices" → distributed tracing + structured logging
 - "Alert on user experience degradation" → SLO-based burn rate alerts
 
-**Docs:** [Cloud Operations Suite](https://cloud.google.com/products/operations), [Four Golden Signals](https://sre.google/sre-book/monitoring-distributed-systems/)
+**Docs:** [Google Cloud Observability](https://cloud.google.com/stackdriver/docs) (the suite formerly marketed as the Cloud Operations Suite), [Four Golden Signals](https://sre.google/sre-book/monitoring-distributed-systems/)
 
 ---
 
@@ -464,7 +466,7 @@ Zone (single data center)
 | Spanner | Regional (3 zones) | N/A (already multi-zone) | Multi-region (5+ replicas) |
 | Cloud Run | Single region | N/A (auto multi-zone in region) | Multi-region with global LB |
 | Cloud Storage | Regional | Dual-region | Multi-region |
-| Memorystore Redis | Standard (single zone) | Standard (zonal failover) | N/A |
+| Memorystore Redis | Basic (single node, no replica) | Standard (replica in a second zone, automatic failover) | N/A |
 
 **GKE HA architecture:**
 
@@ -503,7 +505,7 @@ gcloud sql instances create my-replica \
 - Cloud Run is automatically distributed across zones within a region
 - "99.999% availability" typically requires multi-region active-active
 
-**Docs:** [HA and DR](https://cloud.google.com/architecture/dr-scenarios-planning-guide), [Cloud SQL HA](https://cloud.google.com/sql/docs/mysql/high-availability), [GKE Regional Clusters](https://cloud.google.com/kubernetes-engine/docs/concepts/regional-clusters)
+**Docs:** [HA and DR](https://cloud.google.com/architecture/dr-scenarios-planning-guide), [Cloud SQL HA](https://cloud.google.com/sql/docs/mysql/high-availability), [GKE Regional Clusters](https://cloud.google.com/kubernetes-engine/docs/concepts/regional-clusters), [Memorystore for Redis tiers](https://cloud.google.com/memorystore/docs/redis/redis-tiers)
 
 ---
 
@@ -577,11 +579,11 @@ gcloud spanner instances update my-instance --processing-units=3000
 - HPA for pods, Cluster Autoscaler for nodes -- they work together
 - VPA and HPA should NOT be used together on the same metric (CPU)
 - Cloud Run scales based on concurrent requests, not CPU
-- Spanner scales linearly -- 1 node ≈ 10,000 reads/sec or 2,000 writes/sec
+- Spanner scales linearly. Published per-node (1000 PU) estimates for a regional SSD instance: **22,500 peak reads/sec** and **3,500 peak writes/sec**, rising to 22,500 writes/sec with throughput-optimized writes (100 ms batching delay)
 - "Predictable growth" → schedule-based autoscaling or CUDs
 - "Bursty traffic" → Cloud Run (scales to zero and up quickly)
 
-**Docs:** [Autoscaling](https://cloud.google.com/compute/docs/autoscaler), [GKE Autoscaling](https://cloud.google.com/kubernetes-engine/docs/concepts/cluster-autoscaler), [Cloud Run Scaling](https://cloud.google.com/run/docs/about-instance-autoscaling)
+**Docs:** [Autoscaling](https://cloud.google.com/compute/docs/autoscaler), [GKE Autoscaling](https://cloud.google.com/kubernetes-engine/docs/concepts/cluster-autoscaler), [Cloud Run Scaling](https://cloud.google.com/run/docs/about-instance-autoscaling), [Spanner performance](https://cloud.google.com/spanner/docs/performance)
 
 ---
 
@@ -677,7 +679,7 @@ Gemini Cloud Assist is Google's AI-powered assistant integrated across Google Cl
 | Spanner multi-region | Built-in replication | Near-zero |
 | Firestore | PITR (7-day window) | 1 minute granularity |
 | BigQuery | Time travel (7 days) + snapshots | Minutes |
-| GCS | Versioning + dual/multi-region | Near-zero (with versioning) |
+| GCS | Versioning + dual/multi-region | Versioning: per-write. Cross-region replication: default targets 99.9% of new objects within 1 hour and 100% within 12 hours; turbo replication guarantees 15 min for 100% |
 | GKE | Backup for GKE | Per backup schedule |
 | Filestore | Backups (snapshots) | Per backup schedule |
 
@@ -727,8 +729,8 @@ gcloud beta container backup-restore backup-plans create my-plan \
 
 | Option | Bandwidth | Latency | SLA | Cost | Use Case |
 |--------|-----------|---------|-----|------|----------|
-| HA VPN | Up to 3 Gbps/tunnel | Variable | 99.99% (with proper config) | $ | Dev/test, small workloads, encrypted |
-| Dedicated Interconnect | 10/100 Gbps per link | Low, predictable | 99.9% (1 link) or 99.99% (4 links) | $$$ | Production, high bandwidth |
+| HA VPN | 250,000 packets/sec per tunnel (~1-3 Gbps depending on packet size) | Variable | 99.99% (with proper config) | $ | Dev/test, small workloads, encrypted |
+| Dedicated Interconnect | 10, 100 or 400 Gbps per link | Low, predictable | None on a single link; 99.9% with 2 connections in one metro across 2 edge availability domains; 99.99% with 4 connections across 2 metros | $$$ | Production, high bandwidth |
 | Partner Interconnect | 50 Mbps - 50 Gbps | Low | 99.9% or 99.99% | $$ | When Dedicated not available |
 | Cross-Cloud Interconnect | 10/100 Gbps | Low | 99.99% | $$$$ | Direct GCP-to-AWS/Azure |
 
@@ -743,11 +745,11 @@ gcloud beta container backup-restore backup-plans create my-plan \
 - **Private Service Connect (PSC)**: Private endpoint in your VPC for Google APIs or published services
 - PSC is preferred for new architectures -- provides a dedicated IP in your VPC
 
-**Anthos / GKE Enterprise for multi-cloud:**
+**GKE Enterprise for hybrid and multicloud** (the edition that absorbed the Anthos brand; the software-only on-premises clusters are now Google Distributed Cloud):
 - Run GKE on AWS, Azure, bare metal, VMware
 - Fleet management for consistent policy across clusters
 - Config Sync for GitOps across environments
-- Service Mesh for cross-cluster networking
+- Cloud Service Mesh (the product that unified Anthos Service Mesh and Traffic Director) for cross-cluster networking
 
 ```bash
 # Enable Private Google Access on a subnet
@@ -767,13 +769,16 @@ gcloud compute forwarding-rules create psc-endpoint \
 - "Encrypted connection to on-prem" → HA VPN (Interconnect traffic is NOT encrypted by default)
 - "Private access to Google APIs without external IP" → Private Google Access (simple) or PSC (advanced)
 - HA VPN requires 2 tunnels for 99.99% SLA -- single tunnel is NOT HA
+- A **single Interconnect connection carries no SLA at all**. Two connections in one metro across two edge availability domains buy 99.9%; four across two metros buy 99.99%
 - Cross-Cloud Interconnect is for direct cloud-to-cloud, not on-prem
 
-**Docs:** [Hybrid Connectivity](https://cloud.google.com/network-connectivity/docs/how-to/choose-product), [Private Service Connect](https://cloud.google.com/vpc/docs/private-service-connect), [GKE Enterprise](https://cloud.google.com/kubernetes-engine/enterprise/docs)
+**Docs:** [Hybrid Connectivity](https://cloud.google.com/network-connectivity/docs/how-to/choose-product), [Cloud VPN overview](https://cloud.google.com/network-connectivity/docs/vpn/concepts/overview), [Dedicated Interconnect overview](https://cloud.google.com/network-connectivity/docs/interconnect/concepts/dedicated-overview), [Private Service Connect](https://cloud.google.com/vpc/docs/private-service-connect), [GKE Enterprise](https://cloud.google.com/kubernetes-engine/enterprise/docs), [Cloud Service Mesh](https://cloud.google.com/service-mesh/docs/overview)
 
 ---
 
 ### Google Cloud AI and ML Solutions
+
+> **Naming:** Vertex AI is now marketed as the **Gemini Enterprise Agent Platform**, and the docs carry that title. The v6.1 exam guide still says "Vertex AI", so this guide keeps the exam-guide names as primary throughout.
 
 **Vertex AI Platform -- the unified ML platform:**
 
@@ -796,14 +801,14 @@ gcloud compute forwarding-rules create psc-endpoint \
 **Vertex AI Agent Builder:**
 - Build AI agents with grounding (connect to your data)
 - Vertex AI Search: enterprise search over your documents
-- Vertex AI Conversation: conversational AI agents (replaces Dialogflow CX for new projects)
+- Vertex AI Conversation: conversational AI agents. It is a brand layered **on top of** Dialogflow CX, not a replacement for it -- Dialogflow CX remains the underlying engine and is now surfaced as **Conversational Agents**
 - RAG (Retrieval-Augmented Generation) pattern support
 
 **Model Garden:**
 - Catalog of 100+ models (Google, open-source, partner)
 - One-click deployment for supported models
 - Fine-tuning capabilities
-- Models: Gemini, PaLM, Llama, Mistral, Stable Diffusion, etc.
+- Models: Gemini, Imagen, Veo, Lyria, plus open-weight and partner models (Llama, Mistral, Claude). The PaLM 2 and Codey model families are no longer listed as available Google models
 
 **AI Hypercomputer:**
 - Optimized infrastructure for AI/ML workloads
@@ -833,7 +838,7 @@ gcloud compute forwarding-rules create psc-endpoint \
 - Pre-built APIs are the fastest path -- use them when they fit the use case
 - AutoML is for teams without ML expertise
 
-**Docs:** [Vertex AI](https://cloud.google.com/vertex-ai/docs), [Model Garden](https://cloud.google.com/vertex-ai/docs/start/explore-models), [Agent Builder](https://cloud.google.com/products/agent-builder)
+**Docs:** [Vertex AI](https://cloud.google.com/vertex-ai/docs), [Model Garden](https://cloud.google.com/vertex-ai/docs/start/explore-models), [Agent Builder](https://cloud.google.com/products/agent-builder), [Google models available on the platform](https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models), [Conversational Agents (Dialogflow CX)](https://cloud.google.com/dialogflow/cx/docs)
 
 ---
 
@@ -950,8 +955,8 @@ gcloud compute forwarding-rules create my-lb --global --target-https-proxy=my-pr
 | Archive | 365 days | Annual | Long-term regulatory archives |
 
 - **Autoclass**: Automatically moves objects between classes based on access patterns
-- **Dual-region**: Two specific regions, sub-second failover
-- **Turbo Replication**: RPO < 15 minutes for dual-region buckets
+- **Dual-region**: Two specific regions you choose. Reads and writes fail over automatically (RTO zero), but replication is asynchronous -- there is no sub-second guarantee
+- **Turbo Replication**: dual-region only. Guarantees an RPO of **15 minutes for 100% of newly written objects**. Default replication instead targets 99.9% within 1 hour and 100% within 12 hours
 - **Archive storage is NOT slow** -- same latency as other classes (exam trap!)
 
 **File storage:**
@@ -983,7 +988,7 @@ gcloud compute forwarding-rules create my-lb --global --target-https-proxy=my-pr
 - "Cache for sub-millisecond reads" → Memorystore
 - Archive storage has same access latency as Standard -- only cost differs
 
-**Docs:** [Cloud Storage](https://cloud.google.com/storage/docs), [Database Selection](https://cloud.google.com/products/databases), [Spanner](https://cloud.google.com/spanner/docs), [AlloyDB](https://cloud.google.com/alloydb/docs)
+**Docs:** [Cloud Storage](https://cloud.google.com/storage/docs), [Availability and durability](https://cloud.google.com/storage/docs/availability-durability), [Database Selection](https://cloud.google.com/products/databases), [Spanner](https://cloud.google.com/spanner/docs), [AlloyDB](https://cloud.google.com/alloydb/docs)
 
 ---
 
@@ -1083,7 +1088,7 @@ Gradually replace components of a legacy system by routing traffic through a fac
 
 ### Assessing and Migrating Systems and Data
 
-**Migration Center (formerly Migrate for Compute Engine):**
+**Migration Center** -- a separate assessment product, not a rename of anything. Migrate for Compute Engine became **Migrate to Virtual Machines**, which is the execution tool; Migration Center is the planning tool that runs before it:
 - Discovery and assessment of on-premises workloads
 - Dependency mapping between applications
 - TCO (Total Cost of Ownership) analysis
@@ -1099,7 +1104,7 @@ Gradually replace components of a legacy system by routing traffic through a fac
 | MySQL, PostgreSQL, SQL Server, Oracle | Cloud SQL, AlloyDB | Database Migration Service (DMS) |
 | Any database | BigQuery | Datastream (CDC) or batch export/import |
 | File shares | Filestore / GCS | Storage Transfer Service |
-| Large data (>100 TB) | GCS | Transfer Appliance |
+| Bulk data where the network is the bottleneck | GCS | Transfer Appliance (TA40 / TA300) |
 
 **Exam tips:**
 - "Assess on-prem workloads before migration" → Migration Center
@@ -1158,7 +1163,7 @@ Gradually replace components of a legacy system by routing traffic through a fac
 |-------|------------|-------------|
 | BYOL (Bring Your Own License) | Use existing on-prem licenses | Sole-tenant nodes (Windows, Oracle, SQL Server) |
 | Pay-as-you-go | Included in VM cost | Windows Server, SQL Server on CE/Cloud SQL |
-| License mobility | Move SA licenses to cloud | Microsoft SA licenses via Azure Hybrid Benefit equivalent |
+| License Mobility | Move Software Assurance licenses to cloud | A Microsoft Software Assurance benefit. Covers application servers such as SQL Server and SharePoint, which can then run on standard multi-tenant Compute Engine. Google has no Azure Hybrid Benefit equivalent |
 
 **TCO calculation components:**
 - Compute costs (VMs, GKE, serverless)
@@ -1170,11 +1175,12 @@ Gradually replace components of a legacy system by routing traffic through a fac
 
 **Exam tips:**
 - "Oracle licensing on GCP" → Sole-tenant nodes (required for per-core licensing)
-- "Windows Server licensing" → Included in CE pricing OR BYOL on sole-tenant nodes
+- "Windows Server licensing" → Included in CE pricing OR BYOL on sole-tenant nodes. Windows Server licenses are generally **not** eligible for License Mobility, so BYOL relies on Outsourcing Software Management Rights, which require dedicated hardware
+- The trap runs the other way for **application** servers: with Software Assurance and License Mobility, SQL Server BYOL does **not** need sole-tenant nodes
 - "Reduce total cost of ownership" → managed services reduce ops costs
 - TCO analysis should include operational savings, not just infrastructure costs
 
-**Docs:** [Sole-Tenant Nodes](https://cloud.google.com/compute/docs/nodes/sole-tenant-nodes), [Pricing Calculator](https://cloud.google.com/products/calculator)
+**Docs:** [Sole-Tenant Nodes](https://cloud.google.com/compute/docs/nodes/sole-tenant-nodes), [Microsoft licensing on Compute Engine](https://cloud.google.com/compute/docs/instances/windows/ms-licensing), [Pricing Calculator](https://cloud.google.com/products/calculator)
 
 ---
 
