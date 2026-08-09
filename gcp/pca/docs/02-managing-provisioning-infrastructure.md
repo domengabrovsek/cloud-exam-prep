@@ -1253,9 +1253,10 @@ gcloud compute instance-groups managed create spot-mig \
 | Strategy | Discount | Commitment | Flexibility |
 |----------|---------|------------|-------------|
 | **Spot VMs** | 60-91% | None (can be preempted) | Highest |
-| **3-year CUD** | Up to 57% | 3 years | Lowest |
-| **1-year CUD** | Up to 37% | 1 year | Low |
-| **Sustained use discount (SUD)** | Up to 30% | None (automatic) | High |
+| **3-year resource CUD** | Up to 55% (70% memory-optimized) | 3 years | Lowest |
+| **1-year resource CUD** | Up to 37% | 1 year | Low |
+| **Flexible CUD** | ~46% (3yr), ~28% (1yr) | 1 or 3 years | Medium: portable across region and family |
+| **Sustained use discount (SUD)** | Up to 30% (N1/M1/M2), 20% (N2/N2D/C2) | None (automatic) | High |
 | **On-demand** | 0% | None | Highest |
 
 **Exam tips:**
@@ -1720,19 +1721,19 @@ Model training -> Model evaluation -> Model deployment (conditional)
 ```
 
 ```bash
-# Submit a pipeline run
-gcloud ai pipelines run create \
-  --display-name=my-training-pipeline \
-  --template-path=gs://my-bucket/pipeline.yaml \
-  --region=us-central1 \
-  --parameter-values='{"learning_rate": 0.01, "epochs": 100}'
-
-# Schedule a pipeline
-gcloud ai pipelines schedules create \
-  --display-name=weekly-retrain \
-  --template-path=gs://my-bucket/pipeline.yaml \
-  --region=us-central1 \
-  --cron="0 2 * * 0"
+# There is no `pipelines` group under `gcloud ai`. Pipelines have no gcloud
+# surface at all: they are submitted from the Python SDK, the REST API, or the
+# console. For the exam, know that pipelines are defined as code and scheduled,
+# not that a CLI flag exists.
+#
+#   from google.cloud import aiplatform
+#   job = aiplatform.PipelineJob(
+#       display_name="my-training-pipeline",
+#       template_path="gs://my-bucket/pipeline.yaml",
+#       parameter_values={"learning_rate": 0.01, "epochs": 100},
+#   )
+#   job.submit()                      # one-off run
+#   job.create_schedule(cron="0 2 * * 0")   # recurring retrain
 ```
 
 **Python SDK example (conceptual -- know the pattern for the exam):**
@@ -1929,13 +1930,15 @@ gcloud ai endpoints deploy-model my-endpoint \
   --max-replica-count=5 \
   --region=us-central1
 
-# Run batch prediction
-gcloud ai batch-prediction-jobs create \
-  --model=my-model \
-  --input-path=gs://my-bucket/input/ \
-  --output-path=gs://my-bucket/output/ \
-  --region=us-central1 \
-  --machine-type=n1-standard-4
+# There is no `batch-prediction-jobs` group under `gcloud ai` either.
+# Batch prediction runs from the SDK, REST, or the console:
+#
+#   model.batch_predict(
+#       job_display_name="nightly-scoring",
+#       gcs_source="gs://my-bucket/input/",
+#       gcs_destination_prefix="gs://my-bucket/output/",
+#       machine_type="n1-standard-4",
+#   )
 ```
 
 #### Model Optimization Techniques

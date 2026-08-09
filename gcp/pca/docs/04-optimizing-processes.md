@@ -73,14 +73,15 @@ The exam tests whether you understand SRE principles and can map them to GCP ser
 - **Toil Reduction:** Automate repetitive operational work. Use Cloud Functions, Cloud Scheduler, Workflows for automation.
 
 ```bash
-# Create an SLO in Cloud Monitoring (typically done via Terraform or Console, but CLI exists)
-gcloud monitoring slos create \
-  --service=my-service \
-  --display-name="Availability SLO" \
-  --goal=0.999 \
-  --rolling-period=30d \
-  --request-based-sli \
-  --good-total-ratio-filter='metric.type="monitoring.googleapis.com/uptime_check/request_count" resource.type="uptime_url"'
+# SLOs have no gcloud surface. They are created via the Monitoring API v3,
+# Terraform, or the console. Terraform is the form worth knowing.
+#
+#   resource "google_monitoring_slo" "availability" {
+#     service             = google_monitoring_custom_service.api.service_id
+#     goal                = 0.999
+#     rolling_period_days = 30
+#     request_based_sli { good_total_ratio { ... } }
+#   }
 ```
 
 **Exam tips:**
@@ -384,7 +385,7 @@ Artifact Registry integrates with Artifact Analysis (formerly Container Analysis
 # Enable on-push scanning
 gcloud artifacts repositories update my-repo \
   --location=us-central1 \
-  --enable-vulnerability-scanning
+  --allow-vulnerability-scanning
 
 # View scan results
 gcloud artifacts docker images list us-central1-docker.pkg.dev/my-project/my-repo \
@@ -886,16 +887,12 @@ Private Catalog allows platform teams to publish Terraform modules, Deployment M
 - **Version:** Each solution can have multiple versions for controlled rollouts.
 
 ```bash
-# Create a catalog
-gcloud privatecatalog catalogs create my-catalog \
-  --display-name="Platform Solutions" \
-  --organization=123456789
+# The gcloud `privatecatalog` surface is search-only. Catalogs and solutions are
+# created in the console or through the Service Catalog API. The product was
+# renamed from Private Catalog to Service Catalog in 2022.
 
-# Add a solution (Terraform module)
-gcloud privatecatalog products create web-app-template \
-  --catalog=my-catalog \
-  --display-name="Standard Web Application" \
-  --asset-type=terraform
+# Search the catalogs available to you
+gcloud privatecatalog products search --query="web application"
 ```
 
 **Terraform Modules as Service Catalog Entries:**
@@ -1405,22 +1402,25 @@ FinOps (Financial Operations) is the practice of bringing financial accountabili
 
 #### Committed Use Discounts (CUDs)
 
-CUDs provide significant discounts (up to 57% for compute, up to 70% for memory-optimized) in exchange for a 1-year or 3-year commitment.
+CUDs give a discount in exchange for a 1-year or 3-year commitment. There are **three** types, and the exam tests which one fits a described workload.
 
-**Two Types of CUDs:**
+| Type | What You Commit To | Flexibility | 1-year | 3-year |
+|------|-------------------|-------------|--------|--------|
+| **Resource-based CUDs** | Specific vCPU count and memory in one region | Locked to that region and machine family. Covers Compute Engine and GKE nodes | ~37% | up to 55% (up to 70% memory-optimized) |
+| **Flexible CUDs** (spend-based compute) | Dollar amount per hour of compute spend | Portable across regions and machine families. Covers Compute Engine, GKE Autopilot and Cloud Run | ~28% | ~46% |
+| **Spend-based CUDs** (per service) | Dollar amount per hour on one service | Cloud SQL, AlloyDB, VMware Engine, BigQuery editions and other eligible services | ~25% | ~52% |
 
-| Type | What You Commit To | Flexibility | Discount |
-|------|-------------------|-------------|----------|
-| **Resource-based CUDs** | Specific vCPU count and memory amount in a region | Applies to any VM type using those resources (GCE, GKE nodes, Dataflow) | Up to 57% (3-year) |
-| **Spend-based CUDs** | Dollar amount per hour on specific services | Applies to Cloud SQL, VMware Engine, Cloud Run, and other eligible services | Up to 52% (3-year) |
+**Flexible CUDs are what Google leads with now.** You accept a lower rate in return for not being locked to a machine family or region, which suits any workload that might be re-shaped or moved. Reach for resource-based only when the workload's shape and location are genuinely stable, and take the higher rate for that certainty.
 
 ```bash
 # Create a resource-based CUD (Compute Engine)
+# Commitment types are lowercase-hyphenated: general-purpose, general-purpose-n2,
+# compute-optimized, memory-optimized, and so on.
 gcloud compute commitments create my-commitment \
   --region=us-central1 \
   --plan=36-month \
   --resources=vcpu=100,memory=400GB \
-  --type=GENERAL_PURPOSE
+  --type=general-purpose
 
 # Create a spend-based CUD
 # (Done through Cloud Console or API, not gcloud CLI for spend-based)
@@ -1433,11 +1433,12 @@ gcloud compute commitments describe my-commitment --region=us-central1
 ```
 
 **Key CUD facts:**
-- Resource-based CUDs are regional. A commitment in `us-central1` does not apply to VMs in `us-east1`.
-- Resource-based CUDs apply across VM families within the commitment type (general-purpose CUD covers N2, N2D, E2, etc.).
+- Resource-based CUDs are regional. A commitment in `us-central1` does not apply to VMs in `us-east1`. Flexible CUDs are not regional, which is their point.
+- Resource-based CUDs apply across VM families within the commitment type (a general-purpose CUD covers N2, N2D, E2 and so on).
+- **Resource-based CUDs do not cover Dataflow.** Dataflow bills under its own SKUs. This is a common wrong assumption because Dataflow runs on VMs.
 - CUDs are non-cancellable. If you overcommit, you still pay for the committed amount.
-- CUDs can be shared across projects within the same billing account (with CUD sharing enabled).
-- 1-year CUDs give ~37% discount; 3-year CUDs give ~55-57% discount.
+- CUDs can be shared across projects within the same billing account, with CUD sharing enabled.
+- Resource-based: ~37% for 1-year, up to 55% for 3-year, up to 70% for memory-optimized. Flexible: ~28% and ~46%.
 
 ---
 
@@ -1447,23 +1448,33 @@ SUDs are automatic discounts for running Compute Engine resources for a signific
 
 **How SUDs Work:**
 - Computed monthly per region per resource type.
-- The more you use a resource type in a month, the higher the discount (up to 30% for running all month).
-- Applied automatically -- no commitment or action required.
-- Applies to GCE VMs, GKE nodes, and Dataproc clusters.
-- **Does NOT apply to:** E2 machines, sole-tenant nodes, preemptible/Spot VMs, or resources covered by CUDs.
+- Earned in quarters of the month. The more of the month a resource runs, the higher the discount.
+- Applied automatically. No commitment or action required.
+- Applies to Compute Engine VMs, GKE nodes, and **sole-tenant nodes, including the sole-tenancy premium**.
+- **Does NOT apply to:** E2 machines, Spot VMs, or resources already covered by CUDs.
 
 **SUD Discount Tiers:**
 
-| Usage (% of month) | Effective Discount |
+| Usage (% of month) | Discount earned on that portion |
 |--------------------|--------------------|
 | 0-25% | 0% (full price) |
-| 25-50% | ~8.3% |
-| 50-75% | ~16.7% |
-| 75-100% | ~30% |
+| 25-50% | 10% |
+| 50-75% | 20% |
+| 75-100% | 30% |
 
-> **Exam trap:** SUDs and CUDs do not stack. If a resource is covered by a CUD, it does not also get a SUD. CUDs provide better discounts, so they take priority.
+**The maximum depends on the machine family**, which is the part most people miss:
 
-> **Exam trap:** E2 machine types do NOT receive SUDs. This is a frequently tested gotcha. N1, N2, and C2 families do.
+| Family | Maximum SUD |
+|--------|-------------|
+| N1, M1, M2 | 30% |
+| N2, N2D, C2 | 20% |
+| E2 | none |
+
+> **Exam trap:** SUDs and CUDs do not stack. If a resource is covered by a CUD it does not also get a SUD. CUDs give the better rate, so they take priority.
+
+> **Exam trap:** E2 machine types receive no SUDs at all. N1, N2 and C2 do, but at different maximums, so "up to 30%" is only true for N1, M1 and M2. C2 is eligible despite being commonly listed as excluded.
+
+> **Exam trap:** sole-tenant nodes **do** earn SUDs. The sole-tenancy premium is discounted too, which is counter-intuitive because sole-tenancy is usually framed as the expensive option.
 
 ---
 
@@ -1703,9 +1714,10 @@ Budgets can trigger Pub/Sub messages, which can invoke Cloud Functions to take a
 |----------|---------|--------|----------|
 | **Delete idle resources** | Immediate | Low | Quick wins |
 | **Right-size VMs** | 20-50% per VM | Low | Overprovisioned workloads |
-| **Sustained Use Discounts** | Up to 30% | None (automatic) | Steady-state non-E2 VMs |
-| **1-Year CUDs** | ~37% | Medium (commitment) | Predictable workloads |
-| **3-Year CUDs** | ~55-57% | High (long commitment) | Stable, long-term workloads |
+| **Sustained Use Discounts** | Up to 30% (N1/M1/M2) or 20% (N2/N2D/C2) | None (automatic) | Steady-state non-E2 VMs |
+| **1-Year resource CUDs** | ~37% | Medium (commitment) | Predictable workloads, fixed region and family |
+| **3-Year resource CUDs** | Up to 55% (70% memory-optimized) | High (long commitment) | Stable, long-term workloads |
+| **Flexible CUDs** | ~28% (1yr), ~46% (3yr) | Medium | Compute spend that may move region or family |
 | **Spot VMs** | 60-91% | Medium (fault tolerance) | Batch, CI/CD, dev/test |
 | **Autoscaling** | Variable | Medium | Variable traffic patterns |
 | **BigQuery partitioning** | 50-90% per query | Low-Medium | Large BigQuery tables |
@@ -1713,8 +1725,9 @@ Budgets can trigger Pub/Sub messages, which can invoke Cloud Functions to take a
 | **Preemptible Dataproc** | 60-80% | Low | Batch analytics |
 
 **Exam tips:**
-- **CUDs vs SUDs:** CUDs require commitment, give bigger discounts (37-57%). SUDs are automatic, give up to 30%. They do NOT stack.
-- **Resource-based CUDs** are for Compute Engine. **Spend-based CUDs** are for Cloud SQL, Cloud Run, VMware Engine.
+- **CUDs vs SUDs:** CUDs require commitment and give the bigger discount (~37% for 1 year, up to 55% for 3, up to 70% memory-optimized). SUDs are automatic and cap at 30% for N1/M1/M2 or 20% for N2/N2D/C2. They do NOT stack.
+- **Three CUD types:** resource-based (Compute Engine and GKE, locked to region and family), flexible (compute spend, portable, ~28%/~46%), and spend-based per service (Cloud SQL, AlloyDB, Cloud Run, VMware Engine, BigQuery editions).
+- **Flexible CUDs are the current default recommendation** when the workload might move. If a question stresses changing requirements or multi-region, the flexible CUD is likely the answer even though its headline rate is lower.
 - **E2 machines do NOT get SUDs.** This is a trap.
 - **Spot VMs require fault tolerance.** If the question says "mission-critical" or "cannot tolerate interruption," Spot is wrong.
 - **Budgets alert but do not stop spending.** Programmatic enforcement requires Pub/Sub + Cloud Functions.

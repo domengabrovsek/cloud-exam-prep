@@ -135,14 +135,14 @@ Layer 4: Security/Audit (who did what, when)
 # Create an alerting policy for high error rate
 gcloud monitoring policies create --policy-from-file=error-rate-policy.yaml
 
-# Create a notification channel
-gcloud monitoring channels create \
+# Create a notification channel (beta track, not GA)
+gcloud beta monitoring channels create \
   --type=email \
   --display-name="On-Call Team" \
   --channel-labels=email_address=oncall@company.com
 
-# View SLO compliance
-gcloud monitoring slos list --service=my-service
+# SLOs have no gcloud surface. Define them in Terraform with
+# google_monitoring_slo, or read compliance from the Monitoring API v3.
 
 # Create a log-based metric
 gcloud logging metrics create high_latency_requests \
@@ -355,10 +355,15 @@ gcloud resource-manager org-policies enable-enforce \
   constraints/compute.requireOsLogin \
   --organization=123456789
 
-# Disable external IP addresses on VMs
-gcloud resource-manager org-policies enable-enforce \
-  constraints/compute.vmExternalIpAccess \
-  --organization=123456789
+# Disable external IP addresses on VMs.
+# vmExternalIpAccess is a LIST constraint, so enable-enforce does not apply to it.
+# enable-enforce is only for boolean constraints.
+gcloud org-policies set-policy vm-external-ip-deny.yaml --organization=123456789
+# where the policy file denies all values:
+#   name: organizations/123456789/policies/compute.vmExternalIpAccess
+#   spec:
+#     rules:
+#     - denyAll: true
 
 # Restrict VPC peering to approved networks
 gcloud resource-manager org-policies set-policy \
@@ -708,7 +713,7 @@ Region A (us-central1)              Region B (us-east1)
 
 - **Cloud SQL HA is NOT multi-region**: Regional HA with a standby in a different zone is automatic failover within ONE region. Cross-region requires read replicas with manual promotion.
 - **Spanner multi-region configs**: Know the named configs -- `nam14` (North America), `eur6` (Europe), `nam-eur-asia1` (global). These provide zero RPO and automatic failover.
-- **Cloud Storage classes and availability**: Multi-regional = 99.95%, Regional = 99.9%, Nearline/Coldline/Archive = 99.0%/99.0%/99.0%. Archive is NOT slower to read -- it just has higher retrieval costs and minimum storage duration (365 days).
+- **Cloud Storage classes and availability**: the SLA depends on **class and location together**, not class alone. Standard is 99.95% in multi-region or dual-region and 99.9% in a single region. Nearline, Coldline and Archive are 99.9% in multi-region or dual-region and 99.0% in a single region. Archive is NOT slower to read -- it has millisecond first-byte latency like the rest, and its cost is in retrieval charges plus a 365-day minimum storage duration.
 - **Global vs Regional Load Balancer**: If the question mentions multi-region backend or anycast IP, the answer is **global**. If it mentions data sovereignty or single-region, the answer is **regional**.
 - **GKE regional cluster**: The control plane runs in 3 zones automatically. Node pools can be single-zone or multi-zone. For HA, always use **regional clusters with multi-zone node pools**.
 - **RPO = 0 requires synchronous replication**: Only achievable with services like Spanner multi-region, Cloud Storage multi-regional, or Firestore multi-region. Async replication always has RPO > 0.
@@ -745,8 +750,9 @@ Cost optimization is about achieving business outcomes at the lowest price point
 | Model | Description | Discount | Commitment |
 |-------|-------------|----------|------------|
 | **On-demand** | Pay per second/minute/hour | None (baseline) | None |
-| **Sustained Use Discounts (SUDs)** | Automatic discounts for running VMs 25%+ of a month | Up to **20%** | None (automatic) |
-| **Committed Use Discounts (CUDs)** | 1-year or 3-year resource commitments | **20-57%** | 1 or 3 years |
+| **Sustained Use Discounts (SUDs)** | Automatic discounts for running VMs 25%+ of a month | Up to **30%** (N1/M1/M2) or **20%** (N2/N2D/C2) | None (automatic) |
+| **Resource-based CUDs** | 1-year or 3-year commitment to vCPU and memory in a region | **~37%** (1yr), up to **55%** (3yr), up to **70%** memory-optimized | 1 or 3 years |
+| **Flexible CUDs** | Commitment to compute spend, portable across region and family | **~28%** (1yr), **~46%** (3yr) | 1 or 3 years |
 | **Spot VMs (Preemptible)** | Interruptible VMs at steep discounts | **60-91%** | None (can be reclaimed anytime) |
 | **Flat-rate pricing** | BigQuery, Spanner capacity-based pricing | Varies | Edition commitment |
 | **Free tier** | Always-free products and limits | 100% (within limits) | None |
@@ -756,9 +762,10 @@ Cost optimization is about achieving business outcomes at the lowest price point
 ```
 Is the workload predictable (stable baseline)?
 ├── YES: Will it run for 1+ years?
-│   ├── YES (3+ years) → 3-year CUD (largest discount: ~57% for memory-optimized)
-│   ├── YES (1-3 years) → 1-year CUD (~20-37% discount)
-│   └── YES (< 1 year) → Let SUDs apply automatically
+│   ├── YES: is the region and machine family also fixed?
+│   │   ├── YES → resource-based CUD (up to 55%, up to 70% memory-optimized)
+│   │   └── NO  → flexible CUD (~46% at 3 years, portable across region and family)
+│   └── NO (< 1 year) → let SUDs apply automatically
 └── NO: Is it fault-tolerant / batch processing?
     ├── YES → Spot VMs (60-91% discount, but can be preempted)
     └── NO → On-demand with autoscaling
@@ -828,7 +835,7 @@ gcloud sql instances patch my-instance \
 ```
 
 **Label strategy best practices:**
-- Enforce required labels via **Org Policy** (`constraints/compute.requireLabels`)
+- Enforce required labels at apply time with policy-as-code (Terraform validation, `gcloud beta terraform vet`, or Policy Controller). There is no `constraints/compute.requireLabels` org policy. For governance that must be enforced by the platform rather than the pipeline, use **tags** with `resourcemanager` constraints, since tags are IAM-controlled and labels are not
 - Standard labels: `team`, `env`, `cost-center`, `app`, `owner`, `managed-by`
 - Use labels in billing exports for team/project chargeback dashboards
 
@@ -1021,9 +1028,9 @@ Performance optimization ensures that resources are used efficiently to meet sys
 | Hardware | Service | Use Case | Performance Gain |
 |----------|---------|----------|-----------------|
 | **NVIDIA GPUs** (T4, L4, A100, H100) | Compute Engine, GKE, Vertex AI | ML training/inference, rendering | 10-100x for parallel workloads |
-| **Cloud TPU** (v4, v5e, v5p) | TPU VMs, Vertex AI, GKE | Large language model training | Purpose-built for TensorFlow/JAX |
+| **Cloud TPU** (v5e, v5p, v6e Trillium, v7 Ironwood) | TPU VMs, Vertex AI, GKE | Large language model training | Purpose-built for JAX/XLA and TensorFlow |
 | **Local SSD** | Compute Engine, GKE | High-IOPS temporary storage | 680K read IOPS, 360K write IOPS |
-| **Hyperdisk** | Compute Engine, GKE | High-throughput persistent storage | Up to 2.4 TB/s throughput |
+| **Hyperdisk** | Compute Engine, GKE | High-throughput persistent storage | Balanced up to 2,400 MiB/s per volume; Extreme up to 5,000 MiB/s; ML up to ~2 TiB/s |
 | **Persistent Disk (pd-ssd)** | Compute Engine, GKE | General high-performance persistent | 100K IOPS per VM |
 
 ### Architect-Level Considerations
@@ -1289,8 +1296,11 @@ Energy savings: Reduced storage footprint. Archive class uses less active infras
 ```
 
 ```bash
-# View Carbon Footprint data via API
-gcloud beta carbon-footprint get \
+# There is no `gcloud carbon-footprint` command group. Carbon Footprint data is
+# consumed through its BigQuery export or the console.
+# The export is configured in Billing, then queried like any other dataset.
+# Legacy example kept below for shape only; do not run it.
+# gcloud beta carbon-footprint get \
   --billing-account=BILLING_ACCOUNT_ID
 
 # Or access via BigQuery export:

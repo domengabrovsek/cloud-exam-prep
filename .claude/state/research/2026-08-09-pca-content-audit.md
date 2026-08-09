@@ -72,27 +72,27 @@ Marked answer survives; the reasoning does not.
 
 A learner who types these gets "unrecognized". Highest-confusion class of error.
 
-- [ ] `docs/02:1724`, `02:1731` - `gcloud ai pipelines run create` / `schedules create`. No `pipelines` group under `gcloud ai`. Pipelines are SDK/REST only.
-- [ ] `docs/02:1933` - `gcloud ai batch-prediction-jobs create`. No such group.
+- [x] `docs/02:1724`, `02:1731` - `gcloud ai pipelines run create` / `schedules create`. No `pipelines` group under `gcloud ai`. Pipelines are SDK/REST only.
+- [x] `docs/02:1933` - `gcloud ai batch-prediction-jobs create`. No such group.
 - [ ] `docs/02:1793`, `02:1799` - `gcloud ai feature-online-stores` / `feature-views` exist only under `gcloud beta ai`.
-- [ ] `docs/03:769-777` - `gcloud dlp inspect-content` / `deidentify-content`. Actual surface is `gcloud alpha dlp text inspect` / `redact`.
-- [ ] `docs/03:611-614` and `04:385-387` - `--enable-vulnerability-scanning`. Real flag is `--allow-vulnerability-scanning`.
-- [ ] `docs/04:77-84` and `06:1350-1363` and `07:145` - `gcloud monitoring slos create/list/describe`. No `slos` group. SLOs come from the Monitoring API v3, Terraform `google_monitoring_slo`, or the console. Significant because 6.5 is the SLO objective.
+- [x] `docs/03:769-777` - `gcloud dlp inspect-content` / `deidentify-content`. Actual surface is `gcloud alpha dlp text inspect` / `redact`.
+- [x] `docs/03:611-614` and `04:385-387` - `--enable-vulnerability-scanning`. Real flag is `--allow-vulnerability-scanning`.
+- [x] `docs/04:77-84` and `06:1350-1363` and `07:145` - `gcloud monitoring slos create/list/describe`. No `slos` group. SLOs come from the Monitoring API v3, Terraform `google_monitoring_slo`, or the console. Significant because 6.5 is the SLO objective.
 - [ ] `docs/04:713-717` - `gcloud logging metrics create --bucket-options=...`. No such flag; distribution metrics need `--config-from-file`.
-- [ ] `docs/04:889-898` - `gcloud privatecatalog catalogs create` / `products create`. Not real; the surface is search-only. Product also renamed to Service Catalog in 2022.
+- [x] `docs/04:889-898` - `gcloud privatecatalog catalogs create` / `products create`. Not real; the surface is search-only. Product also renamed to Service Catalog in 2022.
 - [ ] `docs/04:1352-1357` - `gcloud monitoring policies create --condition-display-name/--condition-filter/--condition-threshold-value`. Invented flags; takes `--policy` / `--policy-from-file`.
-- [ ] `docs/06:76`, `06:80-85` - `gcloud monitoring metrics-descriptors list/create`. No such group on any track. GA groups are dashboards, policies, snoozes, uptime.
-- [ ] `docs/06:234`, `06:237-240`, `07:139-142` - `gcloud monitoring channels`. Beta only.
-- [ ] `docs/06:634` - `gcloud beta error-events list`. Correct group is `gcloud beta error-reporting events list`.
-- [ ] `docs/07:1293` - `gcloud beta carbon-footprint get`. No such group; use the BigQuery export.
-- [ ] `docs/10:184-186` - `gcloud ai pipelines runs create`. Fabricated.
+- [x] `docs/06:76`, `06:80-85` - `gcloud monitoring metrics-descriptors list/create`. No such group on any track. GA groups are dashboards, policies, snoozes, uptime.
+- [x] `docs/06:234`, `06:237-240`, `07:139-142` - `gcloud monitoring channels`. Beta only.
+- [x] `docs/06:634` - `gcloud beta error-events list`. Correct group is `gcloud beta error-reporting events list`.
+- [x] `docs/07:1293` - `gcloud beta carbon-footprint get`. No such group; use the BigQuery export.
+- [x] `docs/10:184-186` - `gcloud ai pipelines runs create`. Fabricated.
 - [ ] `docs/05:2040` - `gcloud services quota update` is alpha-only.
-- [ ] `docs/07:831` - org policy `constraints/compute.requireLabels` does not exist. Label governance uses tags or apply-time policy-as-code.
-- [ ] `docs/07:361` - `enable-enforce` used on `compute.vmExternalIpAccess`, which is a list constraint needing `set-policy`. The three neighbouring boolean constraints are correct, which makes this harder to spot.
+- [x] `docs/07:831` - org policy `constraints/compute.requireLabels` does not exist. Label governance uses tags or apply-time policy-as-code.
+- [x] `docs/07:361` - `enable-enforce` used on `compute.vmExternalIpAccess`, which is a list constraint needing `set-policy`. The three neighbouring boolean constraints are correct, which makes this harder to spot.
 
 ## P1 - numbers that are wrong
 
-- [ ] `docs/07:1026` - Hyperdisk "up to 2.4 TB/s". Off by 1000x. Hyperdisk Balanced maxes at 2,400 MiB/s per volume; Extreme at 5,000 MiB/s; only Hyperdisk ML reaches ~2 TiB/s.
+- [x] `docs/07:1026` - Hyperdisk "up to 2.4 TB/s". Off by 1000x. Hyperdisk Balanced maxes at 2,400 MiB/s per volume; Extreme at 5,000 MiB/s; only Hyperdisk ML reaches ~2 TiB/s.
 - [ ] `docs/06:68` - metric retention "5 years". Actual 24 months (6 weeks native, then 10-minute).
 - [ ] `docs/06:72` - log-based metrics "24 months". Actual 6 weeks.
 - [ ] `docs/06:1226` - Enhanced support minimum "$500/month" (actual $100); Premium "contact sales" (published minimum $15,000/month).
@@ -102,10 +102,10 @@ A learner who types these gets "unrecognized". Highest-confusion class of error.
 - [ ] `docs/01:576` - Spanner "1 node ~ 10,000 reads/sec or 2,000 writes/sec". Current: 22,500 peak reads/sec, 3,500 peak writes/sec (22,500 with throughput-optimized writes).
 - [ ] `docs/02:873` - Bigtable "10K rows/sec reads and writes". Current SSD node: up to 17,000 reads/sec, 14,000 writes/sec.
 - [ ] `docs/07:624` - `nam14` replica list wrong. Actual: read-write in us-east4 (default leader) and northamerica-northeast1, witness in us-east1.
-- [ ] `docs/07:749`, `07:760` - CUD "20-57%" / "~57% memory-optimized". Actual up to 55% for most series, up to 70% memory-optimized. Flexible CUDs (17-63%) missing entirely.
-- [ ] `docs/04:1457-1462` - SUD tier table (~8.3% / ~16.7% / 30%). Published tiers are 0 / 10 / 20 / 30% across quartiles.
-- [ ] `docs/04:1453` - "SUDs do not apply to sole-tenant nodes". They do, including the sole-tenancy premium.
-- [ ] `docs/01:126-127` - claims C2 is SUD-ineligible. C2 is eligible (20% max), as are M1 and M2 (30%). The flat "up to 30%" is wrong for N2/N2D/C2.
+- [x] `docs/07:749`, `07:760` - CUD "20-57%" / "~57% memory-optimized". Actual up to 55% for most series, up to 70% memory-optimized. Flexible CUDs (17-63%) missing entirely.
+- [x] `docs/04:1457-1462` - SUD tier table (~8.3% / ~16.7% / 30%). Published tiers are 0 / 10 / 20 / 30% across quartiles.
+- [x] `docs/04:1453` - "SUDs do not apply to sole-tenant nodes". They do, including the sole-tenancy premium.
+- [x] `docs/01:126-127` - claims C2 is SUD-ineligible. C2 is eligible (20% max), as are M1 and M2 (30%). The flat "up to 30%" is wrong for N2/N2D/C2.
 - [ ] `docs/02:997` - Firestore PITR "enabled by default, 1-hour granularity". Both wrong: disabled by default, 1-minute granularity. Contradicts `01:674` which is correct.
 - [ ] `docs/02:900` - BigQuery Standard edition shown with 1yr/3yr commitments. Standard has no capacity commitments.
 - [ ] `docs/02:1577` - Cloud Run "max timeout 60 min (default)". Default is 5 minutes; 60 is the max.
@@ -119,7 +119,7 @@ A learner who types these gets "unrecognized". Highest-confusion class of error.
 - [ ] `docs/09:305`, `09:309`, `09:367` - Dedicated Interconnect "10-200 Gbps". Now 10, 100 and 400 Gbps link types.
 - [ ] `docs/09:322`, `09:329`, `09:369` and `02:22` - HA VPN "3 Gbps per tunnel". Documented limit is 250,000 packets/sec, which is 1-3 Gbps depending on packet size.
 - [ ] `docs/07:858-862` - inter-region egress "$0.01/GB". Within North America it is $0.02/GB.
-- [ ] `docs/07:711` and `02:596` conflict on storage class SLAs. `02:596` is correct (99.9% multi/dual-region, 99.0% regional for the cold classes). `07:711` flattens all three to 99.0% and is wrong.
+- [x] `docs/07:711` and `02:596` conflict on storage class SLAs. `02:596` is correct (99.9% multi/dual-region, 99.0% regional for the cold classes). `07:711` flattens all three to 99.0% and is wrong.
 - [ ] `docs/01:727` - Dedicated Interconnect "99.9% (1 link)". A single link carries no SLA.
 - [ ] `docs/06:1371` vs `06:668`/`06:1388-1391` - two different downtime bases (43.8 vs 43.2 min). Pick the 30-day basis and make it consistent.
 
@@ -132,7 +132,7 @@ A learner who types these gets "unrecognized". Highest-confusion class of error.
 - [ ] `docs/04:668` - "Cloud Deploy canary requires a service mesh". It supports plain Kubernetes service networking.
 - [ ] `docs/04:693` - Cloud Debugger "replaced by Snapshot Debugger". Both are gone; delete the row.
 - [ ] `docs/04:1015` - "Memorystore Redis cross-region replication, Standard tier". Standard tier is cross-zone within one region. Cross-region is a Redis Cluster / Valkey feature.
-- [ ] `docs/04:1414` - resource-based CUDs cover Dataflow. They do not.
+- [x] `docs/04:1414` - resource-based CUDs cover Dataflow. They do not.
 - [ ] `docs/04:1291` - "AlloyDB single-region only". AlloyDB supports cross-region replication.
 - [ ] `docs/03:226-227` - "Key Access Justifications only available with EKM". KAJ works on software and HSM keys too.
 - [ ] `docs/03:583`, `03:641` - "Binary Authorization is for GKE". Also Cloud Run, Cloud Service Mesh, Google Distributed Cloud. Contradicts `04:397`.

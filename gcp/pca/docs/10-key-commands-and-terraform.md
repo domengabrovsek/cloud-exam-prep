@@ -180,10 +180,10 @@ gcloud ai endpoints deploy-model ENDPOINT_ID \
 # List models
 gcloud ai models list --region=us-central1
 
-# Create a pipeline run
-gcloud ai pipelines runs create \
-  --region=us-central1 --display-name=my-pipeline \
-  --template-uri=gs://my-bucket/pipeline.yaml
+# There is no `pipelines` group under `gcloud ai`. Pipelines are submitted from
+# the Python SDK or the REST API:
+#   from google.cloud import aiplatform
+#   aiplatform.PipelineJob(template_path=..., display_name=...).submit()
 ```
 
 ### Cloud Deploy

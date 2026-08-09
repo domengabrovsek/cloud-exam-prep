@@ -99,13 +99,17 @@ Architects must translate business goals into technical architecture. The exam t
 
 ### Cost Optimization
 
-**Committed Use Discounts (CUDs):**
-- 1-year or 3-year commitments for predictable workloads
-- **Resource-based CUDs**: Commit to specific vCPU/memory amounts (Compute Engine, GKE)
-  - 1-year: ~37% discount, 3-year: ~55% discount
-- **Spend-based CUDs**: Commit to $/hour spend (Cloud SQL, AlloyDB, Cloud Run, BigQuery editions)
-  - 1-year: ~25% discount, 3-year: ~52% discount
+**Committed Use Discounts (CUDs):** three kinds, and knowing which is which is the exam skill.
+
+| Type | Commit to | Locked to | 1-year | 3-year |
+|------|-----------|-----------|--------|--------|
+| **Resource-based** | Specific vCPU and memory in one region | Region and machine family | ~37% | up to 55% (up to 70% memory-optimized) |
+| **Flexible (spend-based compute)** | $/hour of compute spend | Nothing: portable across region and machine family | ~28% | ~46% |
+| **Spend-based (service)** | $/hour on a specific service (Cloud SQL, AlloyDB, Cloud Run, BigQuery editions) | That service | ~25% | ~52% |
+
 - CUDs apply automatically across projects in the same billing account
+- **Flexible CUDs are the current default recommendation** for compute where the workload may move between regions or machine families. You trade a lower discount rate for not being locked to a family or region, and they cover Cloud Run and GKE Autopilot as well as Compute Engine
+- Resource-based still wins on rate when the shape of the workload is genuinely stable
 
 ```bash
 # List active commitments
@@ -121,11 +125,11 @@ gcloud compute commitments create my-commitment \
 ```
 
 **Sustained Use Discounts (SUDs):**
-- Automatic discounts for running resources 25%+ of a month
-- Up to ~30% discount at full-month usage
-- Apply to N1, N2, N2D machine types and sole-tenant nodes
-- **Do NOT apply to:** E2, T2D, Tau, C2, C2D, A2, Spot VMs, or committed-use resources
-- Applied automatically per billing account per region
+- Automatic, no commitment, applied per billing account per region
+- Earned in quarters of the month: 0% for the first quarter, then 10%, 20%, 30% as usage accumulates
+- **The maximum depends on the family:** up to **30%** for N1, M1 and M2; up to **20%** for N2, N2D and C2
+- **Do apply to sole-tenant nodes**, including the sole-tenancy premium
+- **Do NOT apply to:** E2, Spot VMs, or resources already covered by a commitment
 
 **Other cost levers:**
 
