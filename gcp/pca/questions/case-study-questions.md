@@ -74,16 +74,16 @@ B) Set up a single Partner Interconnect connection with 10 Gbps capacity and con
 
 C) Deploy redundant HA VPN gateways with multiple tunnels across two regions. Use BGP for dynamic routing and rely on IPsec encryption provided by the VPN tunnels.
 
-D) Provision two Dedicated Interconnect connections in different metro areas (edge availability domains) for 99.99% SLA. Add a Cloud HA VPN overlay on top of the Interconnect for encrypted transit and as a failover path.
+D) Provision four Dedicated Interconnect connections, two in each of two metro areas, with the two in each metro landing in different edge availability domains, for a 99.99% SLA. Add a Cloud HA VPN overlay on top of the Interconnect for encrypted transit and as a failover path.
 
 <details>
 <summary>Answer</summary>
 
 **Correct: D)**
 
-This design addresses all three requirements. Two Dedicated Interconnect connections in different edge availability domains provide the highest availability (up to 99.99% SLA, exceeding the 99.9% requirement). At 5 Gbps consistent throughput, Dedicated Interconnect (minimum 10 Gbps per connection) easily handles the load. The HA VPN overlay running over the Interconnect connections provides IPsec encryption for data in transit, meeting HIPAA requirements. The VPN also serves as an encrypted failover path.
+This design addresses all three requirements. The 99.99% SLA has a specific topology: **four** connections, two per metro across two metros, with the pair in each metro landing in separate edge availability domains. Anything less tops out at 99.9%. At 5 Gbps consistent throughput, Dedicated Interconnect (10 Gbps minimum per connection) carries the load easily. The HA VPN overlay running over the Interconnect provides IPsec encryption in transit and doubles as an encrypted failover path.
 
-- **A is wrong:** Two Interconnect connections in the same metro only achieves 99.9% SLA (not leveraging different edge availability domains for maximum resilience). More critically, application-layer TLS alone may not satisfy HIPAA data-in-transit requirements at the network level -- a VPN overlay or MACsec provides more comprehensive encryption.
+- **A is wrong:** Two connections in a single metro is the 99.9% topology, not 99.99%, and it leaves the whole metro as a failure domain. More critically, application-layer TLS alone may not satisfy the data-in-transit requirement at the network level -- a VPN overlay or MACsec is the stronger answer.
 - **B is wrong:** A single Partner Interconnect is a single point of failure and does not meet the 99.9% SLA on its own. MACsec availability depends on the partner/location and is not guaranteed.
 - **C is wrong:** HA VPN maxes out at ~3 Gbps per tunnel. While multiple tunnels can aggregate throughput, achieving consistent 5 Gbps with headroom requires many tunnels and is operationally complex. Dedicated Interconnect is the right choice for this throughput level.
 

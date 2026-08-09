@@ -6,7 +6,8 @@ Study materials for cloud certification exams, designed to be used with [Claude 
 
 | Provider | Certification | Status | Guide |
 |----------|--------------|--------|-------|
-| GCP | Associate Cloud Engineer (Renewal) | Active | [gcp/ace/](./gcp/ace/) |
+| GCP | Professional Cloud Architect | **Active** | [gcp/pca/](./gcp/pca/) |
+| GCP | Associate Cloud Engineer (Renewal) | Reference | [gcp/ace/](./gcp/ace/) |
 
 ## How to Use This Repo
 

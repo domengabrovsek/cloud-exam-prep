@@ -9,6 +9,23 @@ Status legend: `[ ]` open, `[x]` fixed, `[?]` needs a decision before fixing.
 
 ---
 
+## P0 - UNVERIFIED CLAIM: the case study write-ups may be largely fabricated
+
+**Do not act on this until someone reads the four PDFs.** It is recorded here because if true it is the largest problem in the repo, and if false it must not be allowed to trigger a destructive rewrite.
+
+The claim, from the lead auditor: `docs/08-case-studies.md` (1210 of 1514 lines) invents most of its case study content. Specific assertions were that Cymbal Retail is online-only with MySQL/SQL Server/Redis/MongoDB rather than an omnichannel retailer on Oracle, that Altostrat Media already runs on Google Cloud rather than on bare metal, and that EHR Healthcare's HIPAA framing and HL7/FHIR requirements are not in the source document.
+
+**Why it is not actioned:** the auditor said it verified this by text-extracting the official PDFs. That is not reproducible. The PDFs render their text as images: 25 image objects, zero text-showing operators, and the only `/ActualText` content is zero-width joiners. A WebFetch of the Cymbal PDF returned "the text layer is largely inaccessible" and then asserted the opposite of the auditor's claim, which is what an unreadable source looks like when a model fills the gap. So the evidence offered for the claim cannot exist as described.
+
+**How to settle it:** open the four PDFs by hand, or OCR them, and diff against `docs/08`. Links are in the file and now resolve (see below). Until then, `docs/08` stands.
+
+Related claims from the same report, inheriting the same doubt: that all 20 case study questions are built on invented facts, and that the official case studies contain almost no numbers so the exam tests qualitative requirement matching rather than the transfer-time arithmetic the repo drills. The second point is worth checking even if the first turns out to be overstated, because it is a calibration question, not a factual one.
+
+## P0 - verified and fixed
+
+- [x] `docs/08-case-studies.md` - three of the four case study PDF links returned 404 (`:283` Cymbal, `:570` Altostrat, `:897` KnightMotives; only EHR resolved). Confirmed by HTTP check. Replaced all four with the `v6.1_pca_*_case_study_english.pdf` URLs, each verified 200.
+- [x] `questions/case-study-questions.md:79` - option D claimed a 99.99% Interconnect SLA from two connections across two metros. The topology is four connections, two per metro, in separate edge availability domains. Confirmed as an internal contradiction against the repo's own correct statement at `docs/09:310`.
+
 ## P0 - wrong answer keys (teaches the wrong answer)
 
 All fixed on branch `fix/pca-answer-key-errata` (2026-08-09). Kept here as the record of what changed.
@@ -173,7 +190,7 @@ The Vertex AI rebrand is the big one and is a rewrite, not a find-and-replace.
 
 ## P2 - README and exam-metadata problems
 
-- [?] `README.md:16-25` - **the section weight table is unsourced.** Google does not publish per-section weights for PCA. These look reverse-engineered from objective counts. A learner allocating study time on invented weights is the worst failure mode here. Either drop them or label them clearly as an estimate.
+- [x] `README.md:16-25` - section weights. **Two auditors contradicted each other**: one said Google publishes no per-section weights, the other said it extracted them verbatim and that the table is correct. Neither is reproducible: the exam guide PDF renders text as images, so nothing can be quoted from it. A third-party variant reports 25/18/19/15/11/12 instead. Resolved by keeping the numbers, since the ordering is consistent across all sources and the numbers may well be right, and adding a note that they are approximate and unconfirmed. Revisit if a text-layer version of the guide appears.
 - [ ] `README.md:11` - omits the officially published figure: case study questions are **20-30% of the exam**. This is the most actionable planning fact available and it is missing.
 - [ ] `README.md:3-14` - does not pin the exam guide version. Current is **v6.1, effective 2025-10-30**, which added the Vertex AI sections 2.4/2.5, made WAF and Terraform/IaC explicit, added "Securing AI", and swapped out Helicopter Racing League / Mountkirk Games / TerramEarth for the current case studies. Pin it so drift is detectable.
 - [ ] `README.md:3-14` - the **Renewal exam** is absent: 1 hour, 25 questions, $100, 1 case study aligned to generative AI, and case-study questions are 90-100% of that exam.
@@ -207,6 +224,46 @@ The Vertex AI rebrand is the big one and is a rewrite, not a find-and-replace.
 - [ ] Missing decision trees in `docs/09`, ranked by expected yield: resource hierarchy / landing zone, network topology selection, data pipeline and ingestion, multi-tenancy isolation, identity and federation, CI/CD topology, AI/ML serving, caching strategy, observability and logging architecture, cost optimization, compliance and data residency, encryption key strategy.
 - [ ] Thin relative to weight: securing AI (`docs/03:648-681`, 33 lines for a named objective), envisioning future improvements (`docs/01:1177-1237`, all of 1.5), success measurements (`docs/01:331-354`), Cloud Code (`docs/05:661-682`).
 - [ ] `docs/06:13-22` and `07:53-65` - the operational excellence "key principles" are hand-written SRE principles, not Google's published pillar principles. Objective 6.1 reads verbatim "the principles and recommendations of the operational excellence pillar", so a question quoting Google's wording would not be recognisable.
+
+## P2 - effort is allocated inversely to exam weight (verified)
+
+Measured directly on 2026-08-09. Line counts confirmed with `wc -l`.
+
+| Section | Weight | Doc lines | Lines per weight point |
+|---------|--------|-----------|------------------------|
+| 1 Designing and planning | 25% | 1237 | **49** |
+| 3 Security and compliance | 17.5% | 936 | **53** |
+| 2 Provisioning | 17.5% | 2242 | 128 |
+| 4 Optimizing processes | 15% | 1820 | 121 |
+| 6 Operations excellence | 12.5% | 2108 | 169 |
+| 5 Managing implementation | 12.5% | 2287 | **183** |
+
+Sections 1 and 3 are 42.5% of the exam and hold 20% of the section-doc content. Sections 5 and 6 are 25% of the exam and hold 41%. Section 5 gets 3.7x more prose per weight point than section 1.
+
+The surplus sits in the most code-dense files, so it is spent on the material that transfers least to a multiple-choice architecture exam: `docs/10` is roughly 71% inside code fences, `docs/05` roughly 61% including 208 lines of Python and 31 of Go. Question distribution is fine (2.0-2.6 per weight point); it is only the prose that is skewed.
+
+- [ ] Move roughly 800 lines of CLI and client-library code out of `docs/05` and `docs/10`, and spend that budget on sections 1 and 3. See the P3 compression list below for the specific blocks.
+- [ ] `docs/10:3` claims "PCA tests understanding of advanced CLI usage". That framing is what produced the imbalance, and several of the fabricated commands above exist because the file reached for CLI depth it did not need. Rewrite the opening.
+
+## P2 - question format inconsistency (verified)
+
+Measured on 2026-08-09 with `grep -c`:
+
+| File | Questions | Exam tips | Doc links |
+|------|-----------|-----------|-----------|
+| section-1-designing-planning | 65 | 0 | 0 |
+| section-2-provisioning-infrastructure | 45 | 0 | 0 |
+| section-3-security-compliance | 45 | 45 | 0 |
+| section-4-optimizing-processes | 35 | 35 | 35 |
+| section-5-managing-implementations | 25 | 25 | 24 |
+| section-6-operations-excellence | 25 | 25 | 21 |
+| case-study-questions | 20 | 20 | 0 |
+
+(Counts are pre-fix. A handful of tips and links were added to sections 1, 2, 3 and 5 on 2026-08-09 as part of the answer key corrections.)
+
+- [ ] **Sections 1 and 2 carry 110 questions, 42% of the bank, with no exam tips and no doc links at all.** This violates rules 7 and 9 of the repo's own `CLAUDE.md`. These are also the two heaviest-weighted sections.
+- [ ] Sections 3 and case-study have tips but no doc links.
+- [ ] Structural split: sections 1, 2, 3 and case-study put the stem inline on the `### Qn.` line; sections 4, 5 and 6 put it on the following line. Anything parsing `### Q` behaves differently across files. The 4/5/6 shape is better, with per-option "X is wrong" bullets and a `Docs:` line. Standardise on it.
 
 ## P3 - depth calibration (ACE-level filler to compress)
 

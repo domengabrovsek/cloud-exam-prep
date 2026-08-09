@@ -4,16 +4,32 @@
 
 | Detail | Value |
 |--------|-------|
+| **Exam guide** | v6.1, effective 2025-10-30 |
 | **Duration** | 2 hours |
 | **Questions** | 50-60 (multiple choice + multiple select) |
+| **Case study questions** | **20-30% of the exam** (officially published) |
 | **Passing score** | ~70% (not officially published) |
 | **Cost** | $200 USD |
-| **Case studies** | 4 available, 2 appear on exam |
+| **Case studies** | 4 published, 2 appear on the exam |
 | **Recertification** | Every 2 years |
 
 **Registration:** [Google Cloud Certification](https://cloud.google.com/learn/certification/cloud-architect)
 
+### Renewal exam
+
+Different exam, different shape. If you are renewing rather than certifying for the first time:
+
+| Detail | Value |
+|--------|-------|
+| **Duration** | 1 hour |
+| **Questions** | 25 |
+| **Cost** | $100 USD |
+| **Case studies** | 1, aligned to generative AI |
+| **Case study questions** | 90-100% of the exam |
+
 ## Exam Sections & Weights
+
+> **Treat these weights as approximate.** They could not be independently confirmed on 2026-08-09: the [official exam guide PDF](https://services.google.com/fh/files/misc/professional_cloud_architect_exam_guide_english.pdf) renders its text as images, so the figures cannot be extracted or quoted directly. Third-party sources also disagree, with one variant reporting 25/18/19/15/11/12. The ordering is consistent across every source, so use these to rank effort, not to budget it to the percentage point. The one figure Google does publish prominently is that **case study questions are 20-30% of the exam**, which is why the study plan dedicates a full week to them.
 
 | # | Section | Weight | Study Guide |
 |---|---------|--------|-------------|
@@ -32,6 +48,16 @@
 | [08-case-studies.md](docs/08-case-studies.md) | 4 official case studies with analysis framework |
 | [09-decision-trees.md](docs/09-decision-trees.md) | Architect-level service selection decision trees |
 | [10-key-commands-and-terraform.md](docs/10-key-commands-and-terraform.md) | gcloud at architect level, Terraform deep dive, kubectl |
+
+## Studying
+
+| File | Purpose |
+|------|---------|
+| [study-plan.md](study-plan.md) | 8-week plan working backward from the exam date, with a go/no-go gate |
+| `progress.md` | Per-topic confidence and review schedule (gitignored, created on first use) |
+| [.claude/study-modes.md](../../.claude/study-modes.md) | How Claude behaves in each mode: distill, quiz, teach-back, case drill, mock exam, review |
+
+Start with `mock exam` only after the diagnostic. Start with "quiz me" to build the tracker, and "teach back X" to prove you can explain a topic cold, which is the only thing that sets confidence 3.
 
 ## Practice Questions (~260 total)
 
