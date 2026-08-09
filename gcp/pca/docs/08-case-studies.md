@@ -24,7 +24,7 @@
 
 ## Case Study 1: EHR Healthcare
 
-**Official doc:** [EHR Healthcare Case Study](https://services.google.com/fh/files/blogs/master_case_study_ehr_healthcare.pdf)
+**Official doc:** [EHR Healthcare Case Study](https://services.google.com/fh/files/misc/v6.1_pca_ehr_healthcare_case_study_english.pdf)
 
 ### Company Overview
 
@@ -280,7 +280,7 @@ Phase 4: Analytics & Optimization (Months 5-7)
 
 ## Case Study 2: Cymbal Retail
 
-**Official doc:** [Cymbal Retail Case Study](https://services.google.com/fh/files/blogs/master_case_study_cymbal_retail.pdf)
+**Official doc:** [Cymbal Retail Case Study](https://services.google.com/fh/files/misc/v6.1_pca_cymbal_retail_case_study_english.pdf)
 
 ### Company Overview
 
@@ -567,7 +567,7 @@ Strangler Fig Pattern:
 
 ## Case Study 3: Altostrat Media
 
-**Official doc:** [Altostrat Media Case Study](https://services.google.com/fh/files/blogs/master_case_study_altostrat_media.pdf)
+**Official doc:** [Altostrat Media Case Study](https://services.google.com/fh/files/misc/v6.1_pca_altostrat_media_case_study_english.pdf)
 
 ### Company Overview
 
@@ -894,7 +894,7 @@ Key considerations:
 
 ## Case Study 4: KnightMotives Automotive
 
-**Official doc:** [KnightMotives Automotive Case Study](https://services.google.com/fh/files/blogs/master_case_study_knightmotives_automotive.pdf)
+**Official doc:** [KnightMotives Automotive Case Study](https://services.google.com/fh/files/misc/v6.1_pca_knightmotives_automotive_case_study_english.pdf)
 
 ### Company Overview
 

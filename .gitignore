@@ -1,3 +1,5 @@
-# Quiz results are personal progress tracking - keep local only
+# Quiz results and progress tracking are personal performance data - keep local only
 gcp/ace/quizzes/
 gcp/pca/quizzes/
+gcp/ace/progress.md
+gcp/pca/progress.md

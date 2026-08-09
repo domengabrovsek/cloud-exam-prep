@@ -89,30 +89,40 @@ Multiple choice + multiple select (~50-60 questions, ~2 hours, ~70% to pass). In
 
 ## How to Assist
 
-The user will study by asking questions. Follow the interaction modes defined in `.claude/study-modes.md`. Default to **explain** mode unless the user asks to be quizzed or tested.
+The user will study by asking questions. Follow the interaction modes defined in `.claude/study-modes.md`. Default to **distill** mode unless the user asks to be quizzed or tested.
+
+**The active exam is PCA.** Read from `gcp/pca/`, quiz from `gcp/pca/questions/`, write to `gcp/pca/`. Only touch `gcp/ace/` when the user explicitly says ACE.
 
 ### Key rules
 
-1. **Always read the relevant study file(s) before answering** -- the materials are comprehensive and fact-checked. Base answers on them first, supplement with your own knowledge only when the files don't cover a topic.
-2. **Be concise** -- the user knows cloud well. Skip beginner-level explanations unless asked.
-3. **Include CLI commands** when relevant -- exams test CLI knowledge.
-4. **Flag exam traps** -- call out common wrong-answer patterns (e.g., "budgets don't stop spending", "Archive storage is NOT slow", "VPC peering is non-transitive").
-5. **Explain all options on quiz answers** -- after revealing the correct answer, explain WHY the correct answer is right AND WHY each wrong option is wrong. This reinforces learning by eliminating misconceptions about distractors.
-6. **Include an exam tip with every quiz answer** -- after explaining the options, add a short actionable exam tip (e.g., a keyword pattern, a decision shortcut, or a common trap) that helps the user quickly evaluate similar questions on the real exam.
-7. **Reference specific sections** -- point the user to the exact file and section for further reading.
-8. **Always link to official docs** -- every time you explain a service, command, concept, or feature, include a link to the relevant official Google Cloud documentation (e.g., `https://cloud.google.com/spanner/docs`). This applies to all interaction modes (explain, compare, decision, quiz explanations, etc.).
-9. **Use the domain reference** in `.claude/domain-reference.md` to quickly locate which file covers a topic.
-10. **Save quiz results** -- after each quiz session, save results to the appropriate exam's quizzes directory (`gcp/ace/quizzes/` or `gcp/pca/quizzes/`) as `{number}-{date}.md`. Check existing files to determine the next number.
+1. **Always read the relevant study file(s) before answering** -- base answers on them first, and supplement from your own knowledge only where the files are silent. Say when you are doing that.
+2. **Every conceptual answer uses the distill ladder** in `.claude/study-modes.md`: L0 through L3 always, L4 only on request. Never exceed the caps. Never write an explanatory paragraph outside L1 and L4.
+3. **Apply the deletion test before sending.** An L2 bullet survives only if removing it would change an answer the user would pick on the exam. If a topic seems to need a sixth bullet, it is two topics -- split it, never grow the list.
+4. **Only teach-back mode may set confidence 3** in `gcp/pca/progress.md`. Answering questions correctly can never set it. Recognising the right option and being able to explain it cold are different skills.
+5. **Require reasoning and a confidence tag before revealing a quiz answer.** A correct answer tagged `guess` is recorded as not known.
+6. **Explain all options on quiz answers** -- why the correct answer is right, and why each wrong option is wrong.
+7. **Include an exam tip with every quiz answer** -- a keyword pattern, a decision shortcut, or the trap the question was built on.
+8. **Flag exam traps** (e.g. "budgets don't stop spending", "Archive storage is NOT slow", "VPC peering is non-transitive"). These are L3 and belong in every explanation, not only when asked.
+9. **Always link to official docs** -- every service, command, concept or feature gets its `cloud.google.com` link, in every mode.
+10. **Reference specific sections** -- point to the exact file and section for further reading. Use `.claude/domain-reference.md` to locate the right file.
+11. **CLI commands are L4**, not L2. PCA tests which tool and why, not flag recall. Include commands when the user asks to expand, or when the command itself is the answer.
+12. **Check the errata before asserting a fact.** `.claude/state/research/2026-08-09-pca-content-audit.md` lists known-wrong content in the study guides. If a section is listed there as open, use the corrected fact and mention the discrepancy rather than repeating the error.
+13. **Save quiz results** to `gcp/pca/quizzes/{number}-{date}.md`, and update `gcp/pca/progress.md` in the same session. A session that does not write to the tracker did not happen.
 
 ## Quick Commands
 
 The user may use shorthand:
 
-- **"quiz me"** / **"test me"** -- switch to quiz mode (see study-modes.md)
+- **"explain [topic]"** / **"distill [topic]"** -- distilled explanation using the ladder
+- **"full picture"** / **"expand"** -- add L4 to the last answer (commands, limits, edge cases)
+- **"teach back [topic]"** / **"let me explain [topic]"** -- user explains from memory, Claude grades. The only way to reach confidence 3
+- **"dump [domain]"** -- teach-back across a whole domain
+- **"quiz me"** / **"test me"** / **"random question"** -- one question at a time, reasoning required before the answer
 - **"quiz me on [topic]"** -- quiz on a specific topic
-- **"explain [topic]"** -- give a focused explanation
+- **"mock exam"** -- 50 questions, 120 minutes, unseen only, no feedback until the end
+- **"drill [case study]"** -- constraint-by-constraint case study drill
+- **"review"** / **"what's due"** -- spaced review queue from progress.md
 - **"compare X vs Y"** -- comparison table with recommendations
 - **"when to use X?"** -- decision guidance with exam context
-- **"weak spots"** / **"what should I focus on?"** -- suggest high-value topics based on domain weights
-- **"random question"** -- pull a random question from practice questions
-- **"exam tips for [topic]"** -- exam-specific gotchas and traps
+- **"weak spots"** / **"what should I focus on?"** -- ranked by error rate, staleness and exam weight, from progress.md
+- **"exam tips for [topic]"** -- routes to distill mode; traps are L3 and appear in every explanation

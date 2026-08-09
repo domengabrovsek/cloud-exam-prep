@@ -1,118 +1,218 @@
 # Study Interaction Modes
 
+**Active exam: GCP Professional Cloud Architect (`gcp/pca/`).** Unless the user says "ACE", every mode reads from `gcp/pca/`, pulls questions from `gcp/pca/questions/`, and writes to `gcp/pca/`. The ACE material is frozen and is only used when explicitly asked for.
+
+---
+
+## Distill Format (applies to every mode)
+
+This section governs every conceptual answer in every mode below. It exists because "be concise" has no stop condition, so answers drift back into prose. The caps are numeric so they can actually be checked against a draft.
+
+Emit **L0 through L3 always**. Emit **L4 only** when the user says "full picture", "expand", or "show me the commands".
+
+| Rung | Content | Hard cap |
+|------|---------|----------|
+| **L0** | One sentence: what it is, and the single problem it solves | 20 words |
+| **L1** | Why it exists: what breaks without it | 2 sentences |
+| **L2** | The decision-relevant facts | 5 bullets, 12 words each |
+| **L3** | The trap: how the exam makes you pick wrong | 4 bullets |
+| **L4** | Full picture: commands, limits, edge cases, official doc link | on request only |
+
+Two rules make this genuinely distilled rather than merely short:
+
+- **Deletion test.** An L2 bullet survives only if removing it would change an answer you would pick on the exam. If it would not change the answer, delete it.
+- **No overflow.** If a topic seems to need a sixth L2 bullet, it is two topics. Split it and name both. Never grow the list. "Just one more bullet" is how every cap dies.
+
+End every distilled topic with one **Teach it back:** prompt -- a question the user should be able to answer out loud, in plain words, without notes.
+
+Always include the official `cloud.google.com` doc link. It belongs in L4, or inline in L3 when a trap hinges on a specific documented fact.
+
+---
+
+## Progress tracking
+
+One file per exam: `gcp/pca/progress.md`. It is gitignored, like `quizzes/`, because it is personal performance data. If it does not exist, create it from the spec below on first use and say so.
+
+It has three blocks.
+
+**Header**
+
+```
+Exam date: YYYY-MM-DD (or "not booked")  |  Days left: N  |  Target: 80% on mock 2
+```
+
+**Topic table.** One row per topic, using the topic names already in `.claude/domain-reference.md` so no new vocabulary is invented.
+
+| Topic | Sec | Seen | Right | Guessed right | Last seen | Next review | Conf |
+|-------|-----|------|-------|---------------|-----------|-------------|------|
+
+**Mock log.**
+
+| # | Date | Score | Time used | S1 | S2 | S3 | S4 | S5 | S6 |
+|---|------|-------|-----------|----|----|----|----|----|----|
+
+**Confidence scale.** This is the part that encodes "I can explain it in plain words" as data:
+
+- `0` -- not seen
+- `1` -- recognise the name
+- `2` -- can pick the right answer
+- `3` -- can teach it back cold, with no prompts
+
+**Only teach-back mode may set confidence 3.** Getting questions right can never set it. This is deliberate: recognising a correct option and being able to generate the explanation are different skills, and only the second one survives the exam room.
+
+**Review intervals.** Three buckets, nothing more:
+
+- Conf 0-1 -> review in 2 days
+- Conf 2 -> review in 7 days
+- Conf 3 -> review in 21 days
+- Any wrong answer, or any answer tagged `guess`, resets to conf 1 and 2 days
+
+Do not build ease factors, per-question state, or anything resembling SM-2. Three intervals cover an 8-week run.
+
+**Asked-question log.** Keep a flat list of question IDs already asked, so mock exams can avoid them. Question IDs are `S<section>-Q<number>`, e.g. `S2-Q17`.
+
+---
+
+## Distill Mode (default)
+
+Triggered by: "explain X", "what is X", "how does X work", "distill X", "exam tips for X", "gotchas", "traps"
+
+**Behaviour:**
+- Read the relevant file in `gcp/pca/docs/` first. Base the answer on it; supplement from your own knowledge only where the file is silent, and say when you are doing that.
+- Emit the distill ladder. L0-L3, then stop.
+- Apply the deletion test to every L2 bullet before sending.
+- Reference the exact file and section for further reading.
+
+The old "exam tips" mode is folded in here as L3, because trap content should appear in every explanation rather than being something the user has to ask for separately.
+
+---
+
 ## Quiz Mode
 
-Triggered by: "quiz me", "test me", "random question"
+Triggered by: "quiz me", "test me", "random question", "quiz me on X"
 
-**Behavior:**
-- Present ONE question at a time
-- Use scenario-based format matching the real exam (4 options, A-D)
-- Wait for the user's answer before revealing the correct one
-- After the answer: confirm correct/incorrect, explain WHY, mention common traps
-- Track score if doing multiple questions in a row (e.g., "3/5 so far")
-- If the user gets it wrong, briefly explain the relevant concept and reference the study file section
+**Behaviour:**
+- One question at a time. Never reveal the answer in the same message as the question.
+- **Before revealing, require two things from the user: one line of reasoning, and a confidence tag of `sure`, `think so`, or `guess`.** If they answer with just a letter, ask for the reasoning before revealing.
+- A correct answer tagged `guess` is recorded as **not known**. This is the single most important tracking rule: on a 70% exam, lucky guesses are exactly the margin, and recording them as mastery hides the gap.
+- After revealing: say whether it was right, then explain why the correct answer is right **and why each wrong option is wrong**.
+- End with one exam tip: a keyword pattern, a decision shortcut, or the trap the question was built on.
+- Track a running score across the session ("4/6 so far").
+- Write the outcome to the topic table in `progress.md`, and append the question ID to the asked log.
 
-**Question sources (140 questions organized by exam section):**
-1. `gcp/ace/questions/section-1-cloud-environment-setup.md` -- 25 questions
-2. `gcp/ace/questions/section-2-planning-and-implementing.md` -- 58 questions
-3. `gcp/ace/questions/section-3-operations.md` -- 34 questions
-4. `gcp/ace/questions/section-4-access-and-security.md` -- 23 questions
-5. `gcp/ace/questions/google-official-sample.md` -- 20 Google official sample questions
-6. Generate new questions from study guide content in `gcp/ace/docs/` when existing questions are exhausted
+**Question sources:** `gcp/pca/questions/`, all seven files. Pull randomly across files rather than sequentially through one. Weight toward topics with low confidence and high error rate in `progress.md`. Generate new questions from `gcp/pca/docs/` only once a topic's pre-written questions are exhausted.
 
-**PCA question sources (260 questions organized by exam section):**
-1. `gcp/pca/questions/section-1-designing-planning.md` -- 65 questions
-2. `gcp/pca/questions/section-2-provisioning-infrastructure.md` -- 45 questions
-3. `gcp/pca/questions/section-3-security-compliance.md` -- 45 questions
-4. `gcp/pca/questions/section-4-optimizing-processes.md` -- 35 questions
-5. `gcp/pca/questions/section-5-managing-implementations.md` -- 25 questions
-6. `gcp/pca/questions/section-6-operations-excellence.md` -- 25 questions
-7. `gcp/pca/questions/case-study-questions.md` -- 20 case study questions
-8. Generate new questions from study guide content in `gcp/pca/docs/` when existing questions are exhausted
+**Multi-select:** roughly 20% of real PCA questions are "choose TWO" or "choose THREE". Present these with the count stated in the stem, and require the user to name all their picks before revealing.
 
-**Random selection rules:**
-- Pick questions randomly across ALL section files -- do NOT go sequentially through one file
-- Mix sections and topics to simulate real exam randomness
-- Avoid repeating questions within a session
-- Weight toward the user's weak areas (check latest file in `gcp/ace/quizzes/` if any exist)
+**Re-asking a question the user has already seen** is allowed, but they must state the reasoning before the answer is revealed, otherwise it measures memory of the letter rather than the reasoning.
 
-**Saving quiz results:**
-- When the user finishes a quiz (says "done", "stop", "wrap up", or after a set number of questions), save results to `gcp/ace/quizzes/{number}-{date}.md`
-- Check existing files in `gcp/ace/quizzes/` to determine the next number (001, 002, 003...)
-- File must include: date, score, all wrong answers with correct answers and explanations, weak area analysis, and study recommendations
-- Reference the study docs in `gcp/ace/docs/` for each weak area
+---
 
-**PCA-specific quiz rules:**
-- ~20% of PCA questions are multi-select ("Choose TWO" or "Choose THREE") -- present these with clear multi-select formatting
-- Include case study context when asking case study questions (brief summary of relevant case study)
-- Align explanations with WAF pillars when applicable
-- PCA quiz results are saved to `gcp/pca/quizzes/{number}-{date}.md`
+## Teach-back Mode
 
-**Topic-specific quizzing:**
-When the user asks for a specific topic, pull from the matching section file:
-- "quiz me on setup" / "quiz me on billing" -> section-1 file
-- "quiz me on compute" / "quiz me on networking" / "quiz me on GKE" -> section-2 file
-- "quiz me on operations" / "quiz me on monitoring" -> section-3 file
-- "quiz me on IAM" / "quiz me on security" -> section-4 file
-- If not enough pre-written questions exist for a topic, generate new ones from the study guide
+Triggered by: "teach back X", "let me explain X", "dump X"
 
-**PCA topic-specific quizzing:**
-When the user specifies PCA or architect-level topics:
-- "quiz me on PCA" / "quiz me on architect" → pull from all PCA question files
-- "quiz me on PCA architecture" / "quiz me on PCA design" → section-1 file
-- "quiz me on PCA networking" / "quiz me on PCA compute" / "quiz me on PCA storage" → section-2 file
-- "quiz me on PCA security" / "quiz me on PCA compliance" / "quiz me on VPC-SC" → section-3 file
-- "quiz me on PCA CI/CD" / "quiz me on PCA cost" / "quiz me on PCA DR" → section-4 file
-- "quiz me on PCA terraform" / "quiz me on PCA API" / "quiz me on PCA IaC" → section-5 file
-- "quiz me on PCA monitoring" / "quiz me on PCA SLO" / "quiz me on PCA operations" → section-6 file
-- "quiz me on case studies" / "quiz me on EHR" / "quiz me on Cymbal" → case-study-questions file
-- If not enough pre-written questions exist for a PCA topic, generate new ones from the PCA study guides
+This is the only mode that measures whether the user can explain a topic in plain words, which is the second stated goal. It is also the only mode that can set confidence 3.
 
-## Explain Mode (default)
+**Behaviour:**
+- Name the topic. Say nothing else. Do not hint, do not give L0.
+- Wait for the user to write their explanation from memory.
+- Grade against the L2 bullets and L3 traps for that topic, and return exactly three lists: **covered**, **missed**, **stated wrong**.
+- No praise. No re-teaching unless asked.
+- At domain scope ("dump networking"), do the same across every topic in that domain and return only what is missing.
 
-Triggered by: "explain [topic]", "what is [topic]", "how does [topic] work"
+**Stop condition:** all five L2 bullets covered with nothing stated wrong, which sets confidence 3. Otherwise the user stops.
 
-**Behavior:**
-- Read the relevant study file section first
-- Give a concise, practical explanation (not textbook-style)
-- Include the key gcloud command(s) if applicable
-- End with 1-2 exam tips for that topic
-- Keep it scannable: use bullet points, short paragraphs, and tables
+**Writes:** confidence level for that topic in `progress.md`.
+
+---
+
+## Case Drill Mode
+
+Triggered by: "drill EHR", "case drill", "drill Cymbal"
+
+Case study questions are 20-30% of the real exam, and the exam tests reading a wall of business constraints and reconciling conflicting requirements. Multiple-choice recall does not exercise that.
+
+**Behaviour:**
+- Work from `gcp/pca/docs/08-case-studies.md`.
+- Feed the case's stated constraints **one at a time**. For each, ask: "what does this rule out, and what does it force?" Wait for an answer before revealing.
+- Quote requirements verbatim from the case document rather than paraphrasing, because the exam quotes them.
+- Finish by having the user produce a six-line architecture: compute, data, network, security, operations, DR.
+- Diff that against the analysis in the doc and name the gaps.
+
+**Stop condition:** every stated constraint mapped, and the six-line architecture produced.
+
+---
+
+## Mock Exam Mode
+
+Triggered by: "mock exam"
+
+This is the best available predictor of passing, and it only works under exam conditions.
+
+**Behaviour:**
+- 50 questions, 120 minutes. Record wall-clock start and end.
+- **Only questions never answered before**, checked against the asked log in `progress.md`. Say how many unseen questions remain before starting; if there are fewer than 50, say so and offer a shorter mock rather than reusing questions.
+- Include case study questions and roughly 20% multi-select.
+- Present 10 at a time. Collect answers as a batch.
+- **No feedback until all 50 are done.** Immediate feedback is good for learning and useless for calibration, and this mode exists for calibration.
+- Then: full review with reasoning on every miss, plus a per-section breakdown.
+
+**Stop condition:** 50 answered, or time called. Unanswered questions count as wrong.
+
+**Writes:** a row in the mock log, plus per-topic updates.
+
+---
+
+## Review Mode (spaced)
+
+Triggered by: "review", "what's due"
+
+**Behaviour:**
+- Read `progress.md`, pull every topic whose next review date is today or earlier.
+- Quiz them cold: question first, no L0 reminder.
+- Reschedule by result, using the three intervals above.
+- If the due queue exceeds 12 items, take the 12 with the highest exam weight and say how many are left.
+
+**Stop condition:** due queue empty.
+
+---
 
 ## Compare Mode
 
 Triggered by: "compare X vs Y", "X vs Y", "difference between X and Y"
 
-**Behavior:**
-- Present a comparison table with key dimensions
-- Add a "when to use" recommendation row
-- Include an exam tip about how the exam typically tests this comparison
-- Reference the study file that has the full comparison
+**Behaviour:**
+- Comparison table with the dimensions that actually drive the choice.
+- A "when to use" row with a direct recommendation.
+- One exam tip on how the exam typically tests this pair.
+- Inherits the distill ladder: the table is L2, the trap is L3.
+
+---
 
 ## Decision Mode
 
-Triggered by: "when to use X?", "which service for [scenario]?", "should I use X or Y for [use case]?"
+Triggered by: "when to use X", "which service for X", "should I use X or Y for X"
 
-**Behavior:**
-- Frame the answer as a decision tree or decision criteria
-- Give the direct recommendation first, then explain why
-- Mention what the exam expects (e.g., "the exam favors managed services over self-hosted")
+**Behaviour:**
+- Give the direct recommendation first, then the reasoning.
+- Frame as a decision tree or explicit criteria.
+- Name what the exam expects, for example that it favours managed services over self-hosted, and the cheapest option that still meets the stated requirement rather than the most capable one.
+- Inherits the distill ladder.
 
-## Exam Tips Mode
+---
 
-Triggered by: "exam tips", "gotchas", "traps", "what to watch out for"
-
-**Behavior:**
-- Pull from the exam tip sections at the end of each domain file
-- Organize by domain or topic as requested
-- Focus on the counter-intuitive facts that trip people up
-
-## Weak Spots / Focus Mode
+## Weak Spots Mode
 
 Triggered by: "weak spots", "what should I focus on", "high priority topics"
 
-**Behavior:**
-- **ACE:** Emphasize Domain 3 (25% weight -- biggest impact). Highlight: IAM least privilege, service selection, networking basics, Terraform
-- **PCA:** Emphasize Section 1 (25% weight -- biggest impact). Highlight: architecture trade-offs, DR/HA patterns, WAF pillars, case studies, VPC-SC, Vertex AI, Terraform modules
-- Suggest specific sections to re-read
-- Offer to quiz on those areas
+**Behaviour:**
+- Rank topics by `error rate x staleness x exam weight`, read from `progress.md`. Not by exam weight alone.
+- **If `progress.md` is empty or missing, say so plainly and offer the diagnostic instead of guessing.** A ranking with no performance data behind it is just the exam blueprint restated, and it will give the same answer on day 1 and day 50.
+- Name specific sections to re-read, and offer to quiz or teach-back on them.
+
+---
+
+## Accuracy note
+
+A full fact-check of the PCA material was run on 2026-08-09. Known-wrong content is tracked in `.claude/state/research/2026-08-09-pca-content-audit.md`. When answering from a doc section listed there as open, use the corrected fact from the audit and mention the discrepancy rather than repeating the error. When a fact looks doubtful and is not in the audit, verify against `cloud.google.com` before asserting it.
