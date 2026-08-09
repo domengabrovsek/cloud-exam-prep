@@ -2,7 +2,7 @@
 
 > **Quick context:** This section tests hands-on infrastructure management -- configuring networks, storage, compute, and AI/ML systems at architect level. Expect 9-11 questions on the exam. Unlike ACE, PCA questions focus on *why* you choose a particular configuration, not just *how* to set it up.
 
-> Last updated: February 2026
+> Last updated: August 2026. Product names follow the v6.1 exam guide (effective 2025-10-30). Where Google has since renamed a product, the current name is noted at first use.
 
 ---
 
@@ -19,10 +19,10 @@ HA VPN provides encrypted IPsec tunnels over the public internet with a **99.99%
 **Key facts:**
 - Each HA VPN gateway has **two interfaces**, each with its own external IP
 - For 99.99% SLA: configure **two tunnels** (one per interface) to the peer gateway
-- Maximum throughput per tunnel: **3 Gbps** (with proper MTU and single flow)
+- Documented limit per tunnel: **250,000 packets/sec** for ingress and egress combined, which Google describes as between **1 Gbps and 3 Gbps** depending on average packet size. The limit is packets, not bits -- small-packet traffic hits it far below 3 Gbps
 - Aggregate bandwidth scales by adding tunnels (up to 8 tunnels per gateway pair)
 - Supports **dynamic routing only** (BGP via Cloud Router) -- no static routing on HA VPN
-- Classic VPN (deprecated for new deployments) supported static routes but only offered 99.9% SLA
+- Classic VPN supports static routes and carries a 99.9% SLA. It is de-emphasized in favor of HA VPN but is **not marked deprecated**
 - Encrypted in transit using IKEv2
 
 **HA VPN redundancy patterns:**
@@ -86,17 +86,18 @@ Cloud Interconnect provides **private, dedicated connectivity** between on-premi
 
 | Feature | Dedicated Interconnect | Partner Interconnect |
 |---------|----------------------|---------------------|
-| **Bandwidth** | 10 Gbps or 100 Gbps per link | 50 Mbps -- 50 Gbps |
+| **Bandwidth** | 10, 100 or 400 Gbps per link (up to 8 circuits per connection) | 50 Mbps -- 50 Gbps |
 | **Physical connection** | Direct to Google PoP | Via service provider |
-| **SLA** | 99.99% (with redundancy) | 99.99% (with redundancy) |
+| **SLA** | None on a single connection; 99.9% or 99.99% with redundancy | 99.9% or 99.99% (with redundancy) |
 | **Use when** | High bandwidth, low latency, colocation near Google PoP | No colocation near Google PoP, or need < 10 Gbps |
 | **Encryption** | Not encrypted by default (use MACsec or VPN overlay) | Not encrypted by default |
 | **Setup time** | Weeks (physical cross-connect) | Days-weeks (provider dependent) |
 | **Cost** | Port fee + VLAN attachment fee | Provider fee + VLAN attachment fee |
 
-**Dedicated Interconnect redundancy for 99.99% SLA:**
-- Minimum: **4 connections** across **2 metro areas** (2 connections per metro)
-- Each metro must have connections to **2 different edge availability domains**
+**Dedicated Interconnect redundancy and SLA:**
+- **Single connection: no SLA at all.** This is the fact most often got wrong
+- **99.9%:** at least **2 connections in the same metro**, in **2 different edge availability domains**
+- **99.99%:** at least **4 connections across 2 metros** (2 per metro), each metro's pair in 2 different edge availability domains
 - Google provides a topology validation tool in the console
 
 **Partner Interconnect** is the right choice when:
@@ -133,7 +134,7 @@ gcloud compute routers update my-router \
 
 | Criteria | HA VPN | Dedicated Interconnect | Partner Interconnect |
 |----------|--------|----------------------|---------------------|
-| **Bandwidth needed** | < 3 Gbps per tunnel (scale with multiple) | 10-100 Gbps per link | 50 Mbps-50 Gbps |
+| **Bandwidth needed** | 1-3 Gbps per tunnel, capped at 250,000 pps (scale with multiple) | 10, 100 or 400 Gbps per link | 50 Mbps-50 Gbps |
 | **Latency sensitivity** | Tolerant (internet path) | Critical (private path) | Moderate (provider path) |
 | **Encryption required** | Built-in (IPsec) | Add MACsec or VPN overlay | Add VPN overlay |
 | **Budget** | Lowest | Highest | Mid-range |
@@ -141,12 +142,13 @@ gcloud compute routers update my-router \
 | **Near Google PoP** | Not required | Required | Not required |
 
 **Exam tips:**
-- "Need encrypted connectivity quickly with < 3 Gbps?" --> **HA VPN**
+- "Need encrypted connectivity quickly with a few Gbps?" --> **HA VPN**
 - "Need 10+ Gbps dedicated private link, data center near Google PoP?" --> **Dedicated Interconnect**
 - "Need private connectivity but no Google PoP nearby?" --> **Partner Interconnect**
 - HA VPN **requires** Cloud Router (BGP) -- no static routing option
 - Cloud Interconnect is **not encrypted by default** -- this is a common exam trap
-- 99.99% SLA for Interconnect requires redundancy across **two metro areas**
+- 99.99% SLA for Interconnect requires redundancy across **two metro areas**; 99.9% needs two connections in **different edge availability domains** within one metro; one connection gets **no SLA**
+- HA VPN tunnel capacity is a **packets-per-second** limit, so "3 Gbps per tunnel" is a ceiling under favorable packet sizes, not a guarantee
 
 **Docs:**
 - [Cloud VPN overview](https://cloud.google.com/network-connectivity/docs/vpn/concepts/overview)
@@ -211,7 +213,7 @@ Cloud Armor provides **DDoS protection and WAF (Web Application Firewall)** capa
 - **Rate limiting** rules to throttle abusive clients
 - **Bot management** to identify and block automated threats
 - **Named IP lists** for allow/deny by provider-managed IP ranges (e.g., CDN providers)
-- **Two tiers:** Standard (pay-per-policy) and Managed Protection Plus (monthly subscription with DDoS response team)
+- **Two tiers:** Cloud Armor Standard (pay-per-policy) and **Cloud Armor Enterprise** (the tier formerly called Managed Protection Plus; subscription with DDoS response team, available Annual or Paygo)
 
 **Security policy types:**
 - **Backend security policies:** Attached to backend services (most common)
@@ -269,12 +271,18 @@ gcloud ids endpoints create my-ids-endpoint \
 
 Google Cloud offers a **hierarchical firewall** model:
 
-| Level | Scope | Precedence |
-|-------|-------|-----------|
-| **Hierarchical firewall policies** | Organization or folder | Evaluated first |
-| **Global network firewall policies** | VPC network (all regions) | Evaluated second |
-| **Regional network firewall policies** | VPC network (specific region) | Evaluated third |
-| **VPC firewall rules** | VPC network (legacy) | Evaluated last |
+Evaluation order under the **default** `AFTER_CLASSIC_FIREWALL` enforcement order:
+
+| Order | Level | Scope |
+|-------|-------|-------|
+| 1 | **Hierarchical firewall policies** | Organization, then folder ancestors |
+| 2 | **Regional system firewall policies** | Google-managed, regional |
+| 3 | **VPC firewall rules** | VPC network (classic) |
+| 4 | **Global network firewall policies** | VPC network (all regions) |
+| 5 | **Regional network firewall policies** | VPC network (specific region) |
+| 6 | **Implied rules** | Deny ingress, allow egress |
+
+Setting `--network-firewall-policy-enforcement-order=BEFORE_CLASSIC_FIREWALL` on the network swaps steps 3-5, so global and regional network firewall policies are evaluated **before** classic VPC firewall rules. The name says it all: the setting describes where the *network firewall policies* sit relative to the classic rules.
 
 **Hierarchical firewall policies:**
 - Applied at **organization or folder** level
@@ -320,7 +328,7 @@ gcloud compute firewall-rules create allow-internal \
 **Exam tips:**
 - Cloud Armor protects against **DDoS and application-layer attacks** -- works with external HTTP(S) load balancers
 - Cloud IDS **detects** threats but does NOT **block** them -- it is detection only
-- Hierarchical firewall policies are evaluated **before** VPC firewall rules
+- Hierarchical firewall policies are evaluated **before** VPC firewall rules -- but by default **global and regional network firewall policies are evaluated after them**, which is the opposite of what most people assume. Flip it with `BEFORE_CLASSIC_FIREWALL` on the network
 - `goto_next` in hierarchical policies delegates evaluation to the next level (not the same as `allow`)
 - Firewall Insights requires logging enabled to provide recommendations
 - Cloud Armor **Adaptive Protection** is the ML-based L7 DDoS defense -- exam may describe symptoms of a DDoS attack and expect you to enable this
@@ -329,7 +337,9 @@ gcloud compute firewall-rules create allow-internal \
 - [Cloud Armor overview](https://cloud.google.com/armor/docs/cloud-armor-overview)
 - [Cloud IDS overview](https://cloud.google.com/intrusion-detection-system/docs/overview)
 - [Firewall policies overview](https://cloud.google.com/firewall/docs/firewall-policies-overview)
+- [Firewall policy rule evaluation order](https://cloud.google.com/firewall/docs/firewall-policies-rule-eval-order)
 - [Firewall Insights](https://cloud.google.com/firewall/docs/using-firewall-insights)
+- [Cloud Armor Enterprise](https://cloud.google.com/armor/docs/managed-protection-overview)
 
 ---
 
@@ -340,7 +350,7 @@ gcloud compute firewall-rules create allow-internal \
 | Architecture | Description | When to use | Limitations |
 |-------------|-------------|-------------|-------------|
 | **Shared VPC** | Host project owns the network; service projects deploy resources into shared subnets | Single organization, centralized network admin, separation of duties | Same org only; host project limit of 1 per service project |
-| **VPC Peering** | Two VPCs exchange routes directly | Cross-org connectivity, low-latency inter-VPC | Non-transitive, 25 peering limit per VPC, no overlapping CIDRs |
+| **VPC Peering** | Two VPCs exchange routes directly | Cross-org connectivity, low-latency inter-VPC | Non-transitive; no overlapping CIDRs; peerings per VPC network are a per-network quota (`PEERINGS_PER_NETWORK`) that can be raised on request, not a hard architectural ceiling |
 | **Hub-and-spoke (NCC)** | Network Connectivity Center hub with spoke VPCs | Transitive routing across many VPCs, hybrid connectivity hub | Additional cost for NCC resources |
 | **Hub-and-spoke (NVA)** | Appliance-based routing through a hub VPC | Need advanced firewall/IPS between spokes | Complex, single point of failure without HA |
 
@@ -500,6 +510,7 @@ gcloud compute forwarding-rules create psc-endpoint \
 - [Cloud NAT overview](https://cloud.google.com/nat/docs/overview)
 - [Private Google Access](https://cloud.google.com/vpc/docs/private-google-access)
 - [Private Service Connect](https://cloud.google.com/vpc/docs/private-service-connect)
+- [VPC quotas and limits](https://cloud.google.com/vpc/docs/quota)
 
 ---
 
@@ -737,7 +748,7 @@ gcloud storage buckets update gs://my-bucket \
 |----------------|-----------|--------|-------|
 | **gsutil / gcloud storage** | Small-medium (< 1 TB) | On-premises or other cloud | Network speed |
 | **Storage Transfer Service** | Any size | AWS S3, Azure Blob, HTTP, GCS-to-GCS | Managed, scheduled, repeatable |
-| **Transfer Appliance** | Large (10 TB - 1 PB) | On-premises (limited bandwidth) | Physical shipping (days-weeks) |
+| **Transfer Appliance** | TA40 (40 TB) or TA300 (300 TB) per appliance | On-premises (limited bandwidth) | Physical shipping (days-weeks) |
 | **BigQuery Data Transfer** | N/A | SaaS (Google Ads, etc.) | Managed, scheduled |
 
 **Storage Transfer Service key features:**
@@ -748,7 +759,7 @@ gcloud storage buckets update gs://my-bucket \
 - **Event-driven transfers:** Trigger transfers on S3 event notifications
 
 **Transfer Appliance:**
-- Physical device shipped to your data center (100 TB or 480 TB capacity)
+- Physical device shipped to your data center. Two current models: **TA40** (max 40 TB of encrypted data) and **TA300** (max 300 TB), each in rackable and freestanding form
 - Data is encrypted on the appliance (AES-256)
 - Best when: `(Data size / Network bandwidth) > 1 week`
 - Google uploads data to GCS after receiving the appliance back
@@ -870,7 +881,7 @@ gcloud storage objects update gs://my-bucket/important.pdf \
 |----------|------------------|-------------------|
 | **Cloud Spanner** | Add/remove **processing units** (1000 PU = 1 node) | Horizontally scales reads AND writes; no downtime during scaling; min 100 PU for regional, 100 PU per region for multi-region |
 | **BigQuery** | **Slots** (units of compute) | On-demand (per-query pricing, auto-allocated) or **editions** (Standard, Enterprise, Enterprise Plus) with autoscaling slot commitments |
-| **Cloud Bigtable** | Add/remove **nodes** per cluster | Min 1 node; scales linearly (1 node ~ 10K rows/sec reads, 10K rows/sec writes); rebalancing takes time |
+| **Cloud Bigtable** | Add/remove **nodes** per cluster | Min 1 node; scales linearly. Published per-node estimates at 1 KB rows: SSD up to **17,000 reads/sec** and **14,000 writes/sec**; HDD up to 500 reads/sec and 10,000 writes/sec. Rebalancing takes time |
 | **Cloud SQL** | Vertical scaling (machine type) + read replicas | Cannot scale writes horizontally; HA with regional failover; max instance size limits exist |
 | **AlloyDB** | Primary instance (vertical) + read pool (horizontal) | PostgreSQL compatible; columnar engine for analytics; auto-scales read pool; cross-region replicas |
 | **Firestore** | Automatic | Fully serverless; scales automatically; watch for hotspot patterns in key design |
@@ -897,9 +908,9 @@ gcloud spanner instances update my-instance \
 | Edition | Commitment | Autoscaling | Cost model |
 |---------|-----------|-------------|-----------|
 | **On-demand** | None | Auto (no control) | Per TB scanned |
-| **Standard** | 1 year or 3 year | Baseline + autoscale slots | Per-slot-hour |
-| **Enterprise** | 1 year or 3 year | Baseline + autoscale slots | Per-slot-hour (lower) |
-| **Enterprise Plus** | 1 year or 3 year | Baseline + autoscale slots | Per-slot-hour (lowest), CMEK, advanced security |
+| **Standard** | **None -- no access to capacity commitments** | Autoscale slots only | Per-slot-hour |
+| **Enterprise** | 1 year or 3 year | Baseline + autoscale slots | Per-slot-hour, discounted by the commitment |
+| **Enterprise Plus** | 1 year or 3 year | Baseline + autoscale slots | Per-slot-hour, largest commitment discount, CMEK, advanced security |
 
 ```bash
 # Create a BigQuery reservation (Enterprise edition)
@@ -914,6 +925,7 @@ bq mk --reservation \
 **Exam tips:**
 - Spanner is the only relational DB that scales **writes horizontally** -- key differentiator
 - BigQuery on-demand = simple (pay per query). Editions = predictable cost with autoscaling slots.
+- **Standard edition cannot buy capacity commitments.** If a question pairs "cheapest committed slot rate" with an edition, the answer is Enterprise or Enterprise Plus
 - Bigtable scaling is linear: 2x nodes = 2x throughput (approximately), but rebalancing takes time
 - Cloud SQL **cannot** scale writes horizontally -- if you need write scaling for relational, go to **Spanner** or **AlloyDB**
 - AlloyDB is the "best of both worlds" for PostgreSQL: auto-scaling reads + columnar analytics engine
@@ -994,7 +1006,7 @@ gcloud spanner databases restore --async \
 
 | Feature | Description |
 |---------|-------------|
-| **PITR** | Enabled by default; recover to any point within the last 7 days (1-hour granularity) |
+| **PITR** | **Disabled by default.** Once enabled, retains one version per **minute** for 7 days; reads use a whole-minute timestamp. Historical data becomes available about an hour after you switch it on |
 | **Export** | Export to GCS as LevelDB-format files |
 | **Import** | Import from GCS export files |
 | **Managed backup and restore** | Scheduled backups with retention policies |
@@ -1058,6 +1070,7 @@ gcloud storage buckets update gs://my-bucket \
 - Cloud SQL HA uses **synchronous replication** to a standby in another zone -- automatic failover
 - Spanner multi-region provides the **highest availability** (99.999% SLA) of any relational database on Google Cloud
 - BigQuery time travel is **7 days** by default (configurable 2-7 days). Fail-safe adds another 7 days but is Google-managed.
+- Firestore PITR is **off until you enable it**. A question that assumes recovery is already possible on a fresh database is testing exactly this.
 - GCS versioning and soft delete are complementary -- versioning keeps old versions, soft delete allows recovery of deleted objects
 - For DR: Cloud SQL uses read replicas + PITR. Spanner uses multi-region. BigQuery uses dataset replicas + snapshots.
 
@@ -1086,8 +1099,10 @@ gcloud storage buckets update gs://my-bucket \
 | **Compute-optimized** | C2 | 4-60 | HPC, gaming, single-thread performance |
 | | C2D | 2-112 | AMD; HPC, high-performance computing |
 | | H3 | 88 | HPC with high-bandwidth networking (200 Gbps) |
-| **Memory-optimized** | M2 | 12-416 | SAP HANA, large in-memory databases |
-| | M3 | 32-128 | Next-gen memory-optimized; in-memory analytics |
+| **Memory-optimized** | M1 | up to 160 | Earlier generation; 14.9-24 GB memory per vCPU, up to 4 TB |
+| | M2 | up to 416 | Largest scale-up SAP HANA; up to 12 TB memory |
+| | M3 | up to 128 | In-memory analytics, genomics; 1-4 TB memory |
+| | M4 | up to 224 | Current generation memory-optimized; up to 6 TB memory |
 | **Accelerator-optimized** | A2 | 12-96 | NVIDIA A100 GPUs; ML training and inference |
 | | A3 | 26-208 | NVIDIA H100 GPUs; largest ML training workloads |
 | | G2 | 4-96 | NVIDIA L4 GPUs; inference, graphics, video |
@@ -1100,7 +1115,7 @@ gcloud storage buckets update gs://my-bucket \
 | Balanced production workloads | N2 or N2D |
 | Web serving at scale | T2D or C4 |
 | HPC / scientific computing | C2, C2D, or H3 |
-| SAP HANA, large in-memory DBs | M2 or M3 |
+| SAP HANA, large in-memory DBs | M4 (current generation) or M2 when you need beyond 6 TB |
 | ML training with GPUs | A2 (A100) or A3 (H100) |
 | ML inference, video transcoding | G2 (L4) |
 
@@ -1195,6 +1210,48 @@ gcloud compute instances create my-vm \
 - [Managed instance groups](https://cloud.google.com/compute/docs/instance-groups)
 - [Sole-tenant nodes](https://cloud.google.com/compute/docs/nodes/sole-tenant-nodes)
 - [Instance templates](https://cloud.google.com/compute/docs/instance-templates)
+
+---
+
+### Google Cloud VMware Engine
+
+Objective 2.3 names VMware Engine directly. It is the answer when a scenario wants an existing VMware estate moved to Google Cloud **without re-platforming the VMs or retraining the operations team**.
+
+**What it is:** a fully managed service that runs the VMware platform on dedicated, isolated Google Cloud bare metal nodes. The stack is the real thing -- ESXi hosts, vCenter Server, vSAN, NSX and HCX -- so existing vSphere tooling, templates and runbooks keep working.
+
+| Concept | What it means |
+|---------|---------------|
+| **Private cloud** | An isolated VMware stack made of one or more vSphere clusters on dedicated nodes in a region |
+| **Node** | A dedicated bare metal host providing the compute, memory and storage for ESXi. The unit of consumption and of billing |
+| **Node families** | `ve1` (older) and `ve2` (current, in Small / Standard / Large / Mega storage tiers). A single cluster must use one node type; a private cloud may mix families in some regions |
+| **Storage-only nodes** | Add vSAN capacity without adding vCPU or memory, for storage-heavy estates |
+| **HCX** | The VMware migration tool bundled with the service, used to move VMs from on-premises vSphere |
+| **Stretched private cloud** | Cluster spanning two zones for zonal resilience; minimum 6 data nodes (3+3), maximum 32 (16+16) |
+
+**Sizing and SLA:**
+- A private cloud must contain **at least 3 nodes** with complete vSAN data replication to be eligible for the SLA
+- **1-node private clouds are allowed for proof of concept only**: no SLA, vSAN runs at FTT=0 so a node failure loses data, and DRS and HA are unavailable
+- Connectivity to the rest of Google Cloud and to on-premises uses Cloud VPN, Cloud Interconnect, or a point-to-site VPN
+
+**Architect decision -- VMware Engine vs the alternatives:**
+
+| Situation | Choose |
+|-----------|--------|
+| Data center exit on a deadline, large vSphere estate, no appetite to change the VMs | VMware Engine |
+| A handful of VMs, willing to run them as Compute Engine instances | Migrate to Virtual Machines (rehost) |
+| Per-socket or per-core licensing that demands dedicated hardware, but no VMware dependency | Sole-tenant nodes |
+| Willing to containerize | GKE, via Migrate to Containers |
+
+**Exam tips:**
+- The signal for VMware Engine is **"existing VMware skills and tooling"** or **"vSphere/NSX/vSAN"** in the stem, plus a migration deadline. It is a rehost answer, not a modernization answer
+- Do not confuse it with **sole-tenant nodes**: both give dedicated hardware, but only VMware Engine gives you the VMware control plane
+- **3 nodes** is the SLA floor. A single-node private cloud in an answer option is a distractor unless the stem says pilot or proof of concept
+
+**Docs:**
+- [VMware Engine overview](https://cloud.google.com/vmware-engine/docs/overview)
+- [About private clouds](https://cloud.google.com/vmware-engine/docs/concepts-private-cloud)
+- [Node types](https://cloud.google.com/vmware-engine/docs/concepts-node-types)
+- [Stretched private clouds](https://cloud.google.com/vmware-engine/docs/concepts-stretched-private-cloud)
 
 ---
 
@@ -1344,11 +1401,11 @@ EOF
 
 #### Serverless VPC Access
 
-Allows **Cloud Run, Cloud Functions, and App Engine** to connect to resources in your VPC.
+Allows **Cloud Run, Cloud Run functions, and App Engine** to connect to resources in your VPC.
 
 **Two options:**
-1. **Serverless VPC Access connector:** Dedicated connector (powered by e2-micro VMs); supports throughput up to 1 Gbps
-2. **Direct VPC egress (Cloud Run only):** Routes traffic directly through VPC without a connector; simpler, supports higher throughput
+1. **Serverless VPC Access connector:** dedicated connector VMs. Throughput depends on the instance type you pick, not a flat 1 Gbps ceiling: `f1-micro` 100-500 Mbps, `e2-micro` 200-1000 Mbps, `e2-standard-4` 3200-16000 Mbps
+2. **Direct VPC egress (Cloud Run only):** routes traffic directly through the VPC without a connector; simpler, and there are no connector VMs to size or pay for
 
 ```bash
 # Create a Serverless VPC Access connector
@@ -1361,14 +1418,14 @@ gcloud compute networks vpc-access connectors create my-connector \
 
 # Deploy Cloud Run with VPC connector
 gcloud run deploy my-service \
-  --image=gcr.io/my-project/my-image \
+  --image=us-central1-docker.pkg.dev/my-project/my-repo/my-image:latest \
   --vpc-connector=my-connector \
   --vpc-egress=all-traffic \
   --region=us-central1
 
 # Deploy Cloud Run with Direct VPC egress
 gcloud run deploy my-service \
-  --image=gcr.io/my-project/my-image \
+  --image=us-central1-docker.pkg.dev/my-project/my-repo/my-image:latest \
   --network=my-vpc \
   --subnet=my-subnet \
   --vpc-egress=all-traffic \
@@ -1380,13 +1437,15 @@ gcloud run deploy my-service \
 - GKE **VPC-native clusters** are the default and recommended -- pods get routable VPC IPs
 - **Gateway API** is replacing Ingress for advanced traffic management (multi-cluster, traffic splitting)
 - Serverless VPC Access connector uses a **/28 subnet** -- plan your IP space accordingly
-- **Direct VPC egress** (Cloud Run) is simpler and higher throughput than a connector -- prefer it for new deployments
+- **Direct VPC egress** (Cloud Run) is simpler than a connector and removes the connector VMs entirely -- prefer it for new deployments
+- Image references use Artifact Registry (`REGION-docker.pkg.dev/PROJECT/REPO/IMAGE`). **Container Registry was shut down for writes on 2025-03-18**, so any `gcr.io` path in an answer option is a dated distractor
 
 **Docs:**
 - [Compute Engine networking](https://cloud.google.com/compute/docs/networking)
 - [GKE networking overview](https://cloud.google.com/kubernetes-engine/docs/concepts/network-overview)
 - [Serverless VPC Access](https://cloud.google.com/vpc/docs/configure-serverless-vpc-access)
 - [Gateway API on GKE](https://cloud.google.com/kubernetes-engine/docs/concepts/gateway-api)
+- [Transition from Container Registry to Artifact Registry](https://cloud.google.com/artifact-registry/docs/transition/transition-from-gcr)
 
 ---
 
@@ -1473,12 +1532,12 @@ gcloud compute instance-groups managed rolling-action start-update my-mig \
 | Feature | GKE Standard | GKE Autopilot |
 |---------|-------------|---------------|
 | **Node management** | You manage nodes (create/configure node pools) | Google manages nodes fully |
-| **Billing** | Pay for nodes (VMs) whether utilized or not | Pay per pod (CPU, memory, ephemeral storage) |
+| **Billing** | Pay for nodes (VMs) whether used or not | Pod-based for general-purpose pods; **node-based** for pods that select specific hardware (a Compute Engine machine series or an accelerator), where you pay for the node plus a management premium |
 | **Node configuration** | Full control (machine type, GPU, taints) | Google selects optimal config |
 | **GPU/TPU support** | Full control via node pools | Supported (request in pod spec) |
 | **Security posture** | You harden nodes | Hardened by default (shielded nodes, COS, no SSH) |
 | **Max pods per node** | Configurable (default 110) | Google-managed |
-| **DaemonSets** | Full support | Limited (allowed list) |
+| **DaemonSets** | Full support | Supported. Autopilot sets default and minimum resource requests for DaemonSet containers, and caps DaemonSet CPU on some GPU node types. The allowlist mechanism applies to **privileged** workloads, not to DaemonSets |
 | **Privileged containers** | Allowed | Not allowed |
 | **Node auto-provisioning** | Optional | Built-in |
 | **Recommended for** | Full control, specific node requirements | Most workloads; reduced ops overhead |
@@ -1491,8 +1550,8 @@ gcloud compute instance-groups managed rolling-action start-update my-mig \
 | Want lowest operational overhead | Autopilot |
 | Specific GPU/TPU node pool configurations | Standard (more control) or Autopilot |
 | Security-first with minimal configuration | Autopilot |
-| Need DaemonSets for monitoring agents | Standard |
-| Pay only for what pods use | Autopilot |
+| Need DaemonSets for monitoring agents | Either -- Autopilot runs DaemonSets |
+| Pay only for what general-purpose pods use | Autopilot |
 | Need Windows containers | Standard |
 
 #### GKE Enterprise Features
@@ -1503,7 +1562,7 @@ gcloud compute instance-groups managed rolling-action start-update my-mig \
 | **Multi-cluster Services (MCS)** | Expose services across clusters in a fleet |
 | **Config Sync** | GitOps: automatically sync Kubernetes configs from Git repos to clusters |
 | **Policy Controller** | Enforce policies (based on OPA Gatekeeper) across fleet clusters |
-| **Service Mesh (Anthos Service Mesh)** | Managed Istio-based service mesh for observability, security, traffic management |
+| **Cloud Service Mesh** | Managed Istio-based service mesh for observability, security, traffic management. It unified the products previously sold as Anthos Service Mesh and Traffic Director |
 | **Connect Gateway** | Access fleet clusters from anywhere via Google Cloud identity |
 | **Binary Authorization** | Enforce that only trusted container images are deployed |
 
@@ -1555,11 +1614,15 @@ kubectl annotate serviceaccount my-ksa \
 - **Workload Identity** replaces service account key files in GKE -- always prefer it over mounting key files
 - **Config Sync** = GitOps for GKE. **Policy Controller** = OPA Gatekeeper for GKE. Know the difference.
 - **Binary Authorization** enforces that only signed/attested images can be deployed -- pairs with Artifact Registry vulnerability scanning
-- Autopilot billing is per-pod, Standard billing is per-node -- this affects cost optimization strategies
+- Autopilot billing is per-pod **only for general-purpose pods**. Ask for a specific machine series or an accelerator and you are billed per node again, which removes most of the cost argument for Autopilot on GPU workloads
+- Two Autopilot claims that are commonly wrong in question banks: it **does** run DaemonSets, and it **does** support Spot pods
 
 **Docs:**
 - [GKE Autopilot](https://cloud.google.com/kubernetes-engine/docs/concepts/autopilot-overview)
+- [Autopilot resource requests](https://cloud.google.com/kubernetes-engine/docs/concepts/autopilot-resource-requests)
+- [Spot Pods and Spot VMs on GKE](https://cloud.google.com/kubernetes-engine/docs/concepts/spot-vms)
 - [GKE Enterprise](https://cloud.google.com/kubernetes-engine/enterprise/docs/concepts/overview)
+- [Cloud Service Mesh](https://cloud.google.com/service-mesh/docs/overview)
 - [Workload Identity](https://cloud.google.com/kubernetes-engine/docs/concepts/workload-identity)
 - [Config Sync](https://cloud.google.com/kubernetes-engine/enterprise/docs/config-sync-overview)
 - [Policy Controller](https://cloud.google.com/kubernetes-engine/enterprise/docs/concepts/policy-controller)
@@ -1575,7 +1638,7 @@ kubectl annotate serviceaccount my-ksa \
 | **Purpose** | HTTP request handling | Batch/background tasks |
 | **Trigger** | HTTP requests, Pub/Sub, Eventarc | Manual, scheduled, Workflows |
 | **Scaling** | 0 to N instances (request-based) | 0 to N tasks (parallel execution) |
-| **Max timeout** | 60 min (default), configurable | 24 hours |
+| **Request timeout** | **5 min default**, configurable up to 60 min | 24 hours per task |
 | **Concurrency** | Up to 1000 requests/instance | 1 task per instance |
 | **Billing** | CPU + memory per request duration | CPU + memory per task duration |
 
@@ -1626,7 +1689,7 @@ Cloud Run functions (formerly Cloud Functions 2nd gen) are built on Cloud Run an
 - Also supports HTTP triggers
 - Supports **concurrency** (multiple requests per function instance) -- unlike 1st gen
 - Max timeout: 60 minutes (vs 9 minutes for 1st gen)
-- Supports **larger instances** (up to 16 GiB memory, 4 vCPUs)
+- Supports **larger instances**: up to **32 GiB memory and 8 vCPU**, the same ceiling as any Cloud Run service
 
 #### Eventarc
 
@@ -1678,6 +1741,7 @@ gcloud eventarc triggers create audit-trigger \
 
 **Exam tips:**
 - Cloud Run **services** = request-driven. Cloud Run **jobs** = task-driven (batch).
+- The Cloud Run request timeout **defaults to 5 minutes**; 60 minutes is the ceiling you have to opt into. A scenario where a long request is being cut off short is usually this default, not a hard limit
 - `min-instances > 0` eliminates cold starts but increases cost -- architect trade-off between latency and cost
 - Cloud Run functions 2nd gen is built on Cloud Run -- know that it inherits Cloud Run features (concurrency, longer timeouts)
 - **Eventarc** is the answer when the exam says "trigger a service when X happens in Google Cloud"
@@ -1687,6 +1751,8 @@ gcloud eventarc triggers create audit-trigger \
 **Docs:**
 - [Cloud Run services](https://cloud.google.com/run/docs/overview/what-is-cloud-run)
 - [Cloud Run jobs](https://cloud.google.com/run/docs/create-jobs)
+- [Cloud Run request timeout](https://cloud.google.com/run/docs/configuring/request-timeout)
+- [Cloud Run memory and CPU limits](https://cloud.google.com/run/docs/configuring/services/memory-limits)
 - [Cloud Run functions](https://cloud.google.com/functions/docs/concepts/overview)
 - [Eventarc](https://cloud.google.com/eventarc/docs/overview)
 
@@ -1695,6 +1761,8 @@ gcloud eventarc triggers create audit-trigger \
 ## 2.4 Leveraging Vertex AI for End-to-End ML Workflows
 
 > **Note:** AI/ML content is significantly expanded in the 2025/2026 PCA exam. Expect 2-4 questions specifically on Vertex AI and ML infrastructure.
+
+> **Naming:** Vertex AI is now marketed as the **Gemini Enterprise Agent Platform**, and the documentation pages carry that title. The v6.1 exam guide still says "Vertex AI", so this guide keeps the exam-guide names as primary throughout sections 2.4 and 2.5.
 
 ### Vertex AI Pipelines
 
@@ -1789,20 +1857,7 @@ Vertex AI Feature Store provides a **centralized repository** for ML features wi
 - **Point-in-time correctness:** For training, retrieve features as they existed at a specific time
 - **Freshness:** Feature values updated via streaming or batch ingestion
 
-```bash
-# Create a Feature Store (online store)
-gcloud ai feature-online-stores create my-online-store \
-  --region=us-central1 \
-  --bigtable-auto-scaling-min-node-count=1 \
-  --bigtable-auto-scaling-max-node-count=3
-
-# Create a feature view
-gcloud ai feature-views create my-feature-view \
-  --feature-online-store=my-online-store \
-  --region=us-central1 \
-  --big-query-source-uri="bq://my-project.my-dataset.my-features_table" \
-  --entity-id-columns="customer_id"
-```
+Feature Store has **no gcloud surface**. There is no `feature-online-stores` or `feature-views` command group under `gcloud ai` on the GA, beta or alpha track. Online stores and feature views are created from the Vertex AI SDK, the REST API, or the console. For the exam, what matters is the online/offline split and why it exists, not a CLI invocation.
 
 #### Datasets and Data Labeling
 
@@ -1819,6 +1874,7 @@ gcloud ai feature-views create my-feature-view \
 **Docs:**
 - [Vertex AI Feature Store](https://cloud.google.com/vertex-ai/docs/featurestore/overview)
 - [Managed datasets](https://cloud.google.com/vertex-ai/docs/training/using-managed-datasets)
+- [`gcloud ai` command reference](https://cloud.google.com/sdk/gcloud/reference/ai)
 
 ---
 
@@ -1899,6 +1955,33 @@ gcloud container node-pools create gpu-pool \
 ---
 
 ### Optimizing for Different Consumption Models
+
+#### Dynamic Workload Scheduler
+
+Accelerator capacity is the scarce resource in AI infrastructure, and Dynamic Workload Scheduler is the consumption model built around that scarcity: you say what you need and when, and Google schedules it rather than failing your request outright.
+
+| Mode | What you ask for | Fits |
+|------|------------------|------|
+| **Flex Start** | GPU or TPU capacity for a stated duration, in a preferred region. The request persists; VMs are provisioned automatically once capacity frees up | Fine-tuning, experiments, shorter training runs, distillation, offline inference, batch jobs |
+| **Calendar** | A fixed-duration capacity block starting on a chosen date, reserved in advance | Training and experimentation that need a **known start time** |
+
+- Both modes price at Dynamic Workload Scheduler rates, which Google states are up to **53% off on-demand**
+- Flex Start is available through GKE (flex-start provisioning mode), Compute Engine, Batch and Managed Service for Apache Spark
+
+**Architect decision -- which accelerator consumption model:**
+
+| Requirement | Model |
+|-------------|-------|
+| Interruptible, cheapest possible, no deadline | Spot VMs / Spot Pods |
+| Job must run to completion once started, but can wait to start | Dynamic Workload Scheduler **Flex Start** |
+| Job must start on a specific date | Dynamic Workload Scheduler **Calendar** |
+| Steady, always-on serving | Reservations plus CUDs |
+
+**Exam tips:**
+- The tell for Flex Start is **"can wait for capacity but must not be preempted mid-run"** -- that is exactly the gap between Spot and on-demand that it fills
+- Objective 2.4's "optimizing for different consumption models" is this topic plus reservations, Spot and CUDs. Do not answer with Spot for every cost-sensitive accelerator question
+
+**Docs:** [Flex-start provisioning on GKE](https://cloud.google.com/kubernetes-engine/docs/concepts/dws), [Dynamic Workload Scheduler pricing](https://cloud.google.com/products/dws/pricing)
 
 #### Prediction Serving Options
 
@@ -2096,11 +2179,14 @@ gcloud ml translate translate-text \
 
 #### Gemini Models in Vertex AI
 
-| Model | Strengths | Use case |
-|-------|----------|----------|
-| **Gemini 1.5 Pro** | Long context (up to 2M tokens), multimodal | Document analysis, code generation, complex reasoning |
-| **Gemini 1.5 Flash** | Fast, cost-effective | High-volume, lower-complexity tasks |
-| **Gemini Ultra** | Highest capability | Most demanding reasoning, creative, and multimodal tasks |
+Model version numbers turn over faster than the exam guide does, so learn the **tiers**, not the SKUs. Named versions below are the ones currently listed as available; the 1.5 generation and Gemini Ultra are gone.
+
+| Tier | Currently listed as | Strengths | Use case |
+|------|--------------------|-----------|----------|
+| **Pro** | Gemini 3.1 Pro, Gemini 2.5 Pro | Strongest reasoning, long context, multimodal | Document analysis, code generation, complex reasoning |
+| **Flash** | Omni Flash | Fast and cost-efficient | High-volume, lower-complexity tasks |
+| **Image** | Gemini 3 Pro Image | Multimodal generation with interleaved text and images | Conversational image creation and editing |
+| **Embedding** | Gemini Embedding 2 | Vector representations | RAG retrieval, semantic search, clustering |
 
 #### Vertex AI Agent Builder
 
@@ -2122,6 +2208,20 @@ User query -> Agent Builder retrieves relevant documents from your data store ->
 Gemini generates response grounded in those documents -> Response with citations
 ```
 
+#### Generative Media APIs
+
+Objective 2.5 covers the generative API families alongside the classic pre-trained APIs. They are separate products from the Vision/Speech/Translation set above, and the distinction is worth holding: the older APIs **analyze** input, these **produce** output.
+
+| Family | Produces | Notable capabilities |
+|--------|----------|---------------------|
+| **Imagen** | Images | Text-to-image generation; edit or expand an image using a mask area you define; upscale existing, generated or edited images |
+| **Veo** | Video | Video generation |
+| **Lyria** | Music | Music generation |
+
+**Exam tip:** a requirement phrased as "generate product photography variants, change backgrounds, add text overlays" maps to **Imagen** (generation plus masked editing), not to Vision AI, which only reads images.
+
+**Docs:** [Imagen on Vertex AI](https://cloud.google.com/vertex-ai/generative-ai/docs/image/overview)
+
 #### Gemini in Google Cloud Products
 
 | Product | Gemini integration | Use case |
@@ -2132,17 +2232,36 @@ Gemini generates response grounded in those documents -> Response with citations
 | **Gemini Cloud Assist** | Infrastructure recommendations, troubleshooting | Cloud operations |
 | **NotebookLM** | AI research assistant grounded in your documents | Research, document analysis |
 
+#### Gemini Enterprise AI Agents
+
+Objective 2.5 names AI Agents and NotebookLM explicitly. **Gemini Enterprise** is the end-user product: a console where staff work with agents grounded in company data. It sits above the **Gemini Enterprise Agent Platform**, which is the developer platform (the product the exam guide still calls Vertex AI).
+
+| Agent kind | What it is | Who builds it |
+|-----------|------------|---------------|
+| **Core Assistant** | Handles a request when the user does not name a specific agent | Google |
+| **Deep Research** | In-depth exploration of a topic across connected sources | Google |
+| **NotebookLM** | Research assistant grounded in a chosen document set | Google |
+| **Agent Designer agents** | Single-step and multi-step agents built interactively, low code | Employees |
+| **Registered custom agents** | ADK agents on Agent Runtime, Agent2Agent (A2A) agents, Dialogflow conversational agents | Developers |
+
+On the platform side, the pieces an architect is expected to name: **Agent Development Kit** (framework), **Agent Garden** (prebuilt agents and templates), **Agent Registry** (catalog of agents, tools and MCP servers), **Agent Identity** (a managed identity per agent, so access can be granted and audited), and **Agent Gateway** (central policy enforcement for agent tool calls).
+
 **Exam tips:**
 - **Vertex AI Agent Builder** = the answer when the exam says "build a chatbot/search app grounded in company data"
 - **Grounding** prevents hallucination by connecting Gemini to your actual data sources
 - **RAG (Retrieval Augmented Generation)** is the architectural pattern -- retrieve context, then generate
 - Know the difference: **Gemini Code Assist** = IDE code generation. **Gemini Cloud Assist** = cloud operations help. **Gemini in BigQuery** = SQL/data help.
 - Agent Builder **Extensions** connect agents to external APIs (e.g., call a REST API, query a database)
+- Split the two Gemini Enterprise names: **Gemini Enterprise** = the assistant and agent experience employees use. **Gemini Enterprise Agent Platform** = where you build, deploy and govern agents
+- "Every agent needs its own auditable identity and its tool calls must be policy-controlled" maps to **Agent Identity** plus **Agent Gateway**, not to a service account per agent
+- A question asking for grounded research over a curated document set, with citations, is **NotebookLM**; enterprise-wide search across connected systems is the search side of Agent Builder
 
 **Docs:**
 - [Vertex AI Gemini API](https://cloud.google.com/vertex-ai/docs/generative-ai/model-reference/gemini)
 - [Vertex AI Agent Builder](https://cloud.google.com/generative-ai-app-builder/docs/introduction)
 - [Grounding](https://cloud.google.com/vertex-ai/docs/generative-ai/grounding/overview)
+- [Gemini Enterprise agents overview](https://cloud.google.com/gemini/enterprise/docs/agents-overview)
+- [Agent Platform overview](https://cloud.google.com/gemini-enterprise-agent-platform/overview)
 
 ---
 
@@ -2156,7 +2275,7 @@ Vertex AI Model Garden is a **curated catalog** of models available for deployme
 
 | Category | Examples | Deployment options |
 |----------|---------|-------------------|
-| **Google models** | Gemini, PaLM 2, Imagen, Codey | API (managed), Vertex AI endpoints |
+| **Google models** | Gemini, Imagen (image), Veo (video), Lyria (music), Gemini Embedding. The PaLM 2 (`text-bison`, `chat-bison`) and Codey (`code-bison`) families are no longer listed as available | API (managed), Vertex AI endpoints |
 | **Open-source models** | Llama 3, Mistral, Falcon, Stable Diffusion | One-click deploy to Vertex AI endpoint, GKE |
 | **Partner models** | Anthropic Claude, AI21, Cohere | API through Model Garden |
 
@@ -2206,9 +2325,11 @@ sft_tuning_job = sft.train(
 - If the exam says "deploy an open-source LLM on Google Cloud with minimal effort" -> **Model Garden one-click deploy**
 - If the exam says "customize a foundation model for domain-specific tasks" -> **fine-tuning** (supervised or adapter)
 - **Distillation** = make a smaller, cheaper model that mimics a larger one -- key cost optimization strategy for serving
+- Any answer option naming **PaLM 2, `text-bison` or Codey** is a dated distractor. The current Google families are Gemini, Imagen, Veo and Lyria
 
 **Docs:**
 - [Model Garden](https://cloud.google.com/vertex-ai/docs/start/explore-models)
+- [Google models available on the platform](https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models)
 - [Fine-tuning models](https://cloud.google.com/vertex-ai/docs/generative-ai/models/tune-models)
 - [Deploy models from Model Garden](https://cloud.google.com/vertex-ai/docs/start/deploy-model)
 
@@ -2223,9 +2344,11 @@ sft_tuning_job = sft.train(
 | **Load balancer** | L4 vs L7, internal vs external, proxy vs passthrough | Application LB, Network LB (proxy/passthrough) |
 | **Storage class** | Access frequency, cost, retrieval needs | Standard / Nearline / Coldline / Archive / Autoclass |
 | **Database scaling** | Read vs write scaling, relational vs NoSQL | Spanner (write scale) vs Cloud SQL (read replicas) vs AlloyDB |
-| **Compute platform** | Control, scaling, operational overhead | Compute Engine vs GKE vs Cloud Run vs Functions |
+| **Compute platform** | Control, scaling, operational overhead | Compute Engine vs GKE vs Cloud Run vs Cloud Run functions |
+| **VMware estate** | Migration deadline, existing VMware skills | VMware Engine (keep vSphere) vs Migrate to VMs (rehost onto Compute Engine) vs sole-tenant nodes (dedicated hardware, no VMware) |
 | **GKE mode** | Control vs simplicity | Standard (full control) vs Autopilot (managed) |
 | **ML infrastructure** | Scale, framework, cost | GPUs (flexible) vs TPUs (scale, TF/JAX) |
+| **Accelerator consumption** | Deadline tolerance, preemption tolerance | Spot vs Dynamic Workload Scheduler Flex Start vs Calendar vs reservations plus CUDs |
 | **AI approach** | Expertise, customization, speed | Pre-trained APIs vs AutoML vs Custom training |
 | **Model serving** | Latency, traffic pattern, cost | Dedicated endpoint vs Serverless vs Batch |
 | **Foundation model use** | Customization, cost, data sensitivity | MaaS vs Fine-tuning vs Self-hosted |
