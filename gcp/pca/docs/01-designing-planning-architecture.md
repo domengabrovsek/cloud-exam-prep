@@ -282,7 +282,7 @@ The PCA exam frequently asks you to evaluate trade-offs. Key axes:
 
 | Trade-off | Option A | Option B | How Exam Tests It |
 |-----------|----------|----------|-------------------|
-| Consistency vs Availability | Spanner (strong consistency) | Firestore (eventual in multi-region) | "Requires globally consistent reads" |
+| Consistency vs Availability | Spanner (strong consistency, leader placement you choose) | Firestore (also strongly consistent, but writes pay a round trip to the primary region) | "Requires globally consistent reads with low write latency everywhere" |
 | Cost vs Performance | Standard Tier networking | Premium Tier networking | "Lowest latency for global users" |
 | Managed vs Self-managed | Cloud SQL | MySQL on CE | "Minimize operational overhead" |
 | Flexibility vs Simplicity | GKE Standard | GKE Autopilot | "Full control over nodes" vs "minimize management" |
