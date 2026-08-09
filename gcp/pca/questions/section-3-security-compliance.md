@@ -23,6 +23,8 @@ D) Create custom roles for each department and assign them to individual users
 Assigning IAM roles to Google Groups at the folder level is the recommended enterprise pattern. When employees change teams, you simply move them between groups -- no IAM policy changes needed. The folder-level binding inherits down to all projects within that folder. Option A does not scale and creates a management nightmare with 2,000 users across many projects. Option C violates least privilege by granting Editor to everyone at the org level. Option D uses custom roles correctly but still assigns to individuals, which does not scale.
 
 **Exam tip:** Whenever you see "minimize operational overhead" + "frequently changing teams," the answer is almost always Google Groups + folder-level bindings. Google Groups are the unit of IAM management at scale.
+
+Docs: https://cloud.google.com/iam/docs/overview and https://cloud.google.com/iam/docs/groups-in-cloud-console
 </details>
 
 ---
@@ -42,6 +44,8 @@ D) Cloud Armor security policy attached to the Cloud Storage bucket
 VPC Service Controls (VPC-SC) create a security perimeter around GCP services that cannot be bypassed, even by users with `roles/owner`. When combined with an Access Context Manager access level that restricts to corporate IP ranges, data access from outside the network is blocked at the API level. Option A only applies to VM-based traffic, not direct API calls to Cloud Storage. Option C -- IAM Conditions on IP address exist but can be overridden by project owners who can modify IAM policies; VPC-SC cannot be bypassed by project-level permissions. Option D -- Cloud Armor protects HTTP(S) Load Balancers, not Cloud Storage directly.
 
 **Exam tip:** VPC Service Controls is the ONLY mechanism that prevents data exfiltration even from privileged users. If a question mentions "even project owners cannot bypass," the answer is VPC-SC.
+
+Docs: https://cloud.google.com/vpc-service-controls/docs/overview
 </details>
 
 ---
@@ -61,6 +65,8 @@ D) Use Policy Analyzer to export all permissions and manually prune them
 IAM Recommender analyzes actual permission usage over the last 90 days and generates machine-learning-based recommendations to remove unused roles or replace them with smaller roles. You can review and apply recommendations directly in the console or via API. Option A is technically possible but requires significant manual effort and expertise. Option C would break any workloads using that service account. Option D provides analysis capabilities but does not generate actionable recommendations -- Policy Analyzer helps you understand who has access to what, while Recommender suggests changes.
 
 **Exam tip:** IAM Recommender = automated right-sizing of roles based on actual usage. Policy Analyzer = "who can access what resource?" query tool. Know the difference -- the exam tests both.
+
+Docs: https://cloud.google.com/policy-intelligence/docs/role-recommendations-overview
 </details>
 
 ---
@@ -80,6 +86,8 @@ D) Store the service account key in Secret Manager and fetch it at pod startup
 Workload Identity is the recommended way for GKE workloads to access GCP services. It creates a mapping between a Kubernetes service account (KSA) and a GCP service account (GSA), so pods running as that KSA can authenticate as the GSA without any keys. Option A stores long-lived keys in the cluster, which is exactly what we need to avoid. Option C grants access to the node's default SA, meaning ALL pods on that node share the same broad permissions -- this violates least privilege. Option D still involves a service account key, just stored in Secret Manager.
 
 **Exam tip:** Workload Identity = keyless authentication for GKE pods. It's the answer whenever you see "GKE + access GCP services + no keys." The binding is KSA <-> GSA.
+
+Docs: https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity
 </details>
 
 ---
@@ -99,6 +107,8 @@ D) Client-side encryption before uploading to BigQuery
 CMEK with Cloud KMS lets your organization control the encryption keys (create, rotate, disable, destroy) while Google manages the underlying key material in a FIPS 140-2 Level 3 validated HSM. You can set automatic annual rotation. Option A -- Google-managed keys give you no control over key lifecycle; the keys are fully managed by Google. Option C -- CSEK means you supply the actual key material, which means you ARE managing the key material yourself, contradicting the requirement. Also, CSEK is not supported by BigQuery. Option D -- Client-side encryption is unnecessary overhead when CMEK meets the requirements, and it would break BigQuery's ability to query the data.
 
 **Exam tip:** CMEK = you control the key, Google holds it. CSEK = you supply the key material, Google never stores it. EKM = key stays in your external key manager. Know which services support each -- CSEK is only supported by Compute Engine and Cloud Storage.
+
+Docs: https://cloud.google.com/bigquery/docs/customer-managed-encryption and https://cloud.google.com/kms/docs/rotate-key
 </details>
 
 ---
@@ -118,6 +128,8 @@ D) Use IAM Conditions to restrict BigQuery operations to project-A only
 VPC Service Controls perimeters prevent data movement across the perimeter boundary. When project-A is inside the perimeter and project-B is outside, BigQuery will block any attempt to copy data from project-A to project-B, even if the user has the necessary IAM permissions in both projects. Option A removes export permissions but does not prevent `INSERT INTO` or `CREATE TABLE AS SELECT` into another project. Option C -- there is no such built-in organization policy constraint for BigQuery exports specifically. Option D -- IAM Conditions can restrict which resources a user accesses but cannot prevent data movement between projects the user already has access to.
 
 **Exam tip:** VPC Service Controls is the answer for any "prevent data exfiltration" or "prevent data from leaving the project" scenario. IAM controls WHO can access data; VPC-SC controls WHERE data can flow.
+
+Docs: https://cloud.google.com/vpc-service-controls/docs/overview
 </details>
 
 ---
@@ -137,6 +149,8 @@ D) Add the partner's project inside the perimeter
 Ingress rules in VPC Service Controls allow you to specify fine-grained access from outside the perimeter. You can restrict the ingress rule to a specific identity (the partner's service account), a specific service (e.g., Cloud Storage), and a specific method (e.g., `storage.objects.create` only). This lets data flow in without allowing any reads. Option A -- access levels grant general access into the perimeter, not fine-grained method-level control. Option C -- separate perimeters with bridges adds unnecessary complexity; bridges share access bidirectionally between perimeters. Option D -- adding the partner's project inside the perimeter gives them access to ALL services and data within the perimeter.
 
 **Exam tip:** VPC-SC ingress rules = controlled inbound access. Egress rules = controlled outbound access. Perimeter bridges = bidirectional access between two perimeters. The exam frequently tests ingress/egress rules for partner access scenarios.
+
+Docs: https://cloud.google.com/vpc-service-controls/docs/ingress-egress-rules
 </details>
 
 ---
@@ -156,6 +170,8 @@ D) Enable Private Google Access and disable external IP addresses on the trainin
 VPC Service Controls combined with VPC-native (peered VPC) Vertex AI training jobs ensures that the training jobs run within your VPC and the service perimeter prevents data from being exfiltrated to resources outside the perimeter. This is the only option that provides comprehensive API-level data exfiltration protection. Option B -- Cloud NAT controls internet egress but does not prevent data movement between GCP projects or services. Option C -- firewall rules can block network-level traffic but Vertex AI managed training does not always use customer-managed VMs you can apply firewall rules to. Option D -- Private Google Access and disabling external IPs prevents internet access but does not prevent data movement to other GCP projects.
 
 **Exam tip:** For AI/ML workloads on Vertex AI, "VPC-SC + VPC peering for Vertex AI" is the standard pattern for data exfiltration prevention. This is a newer exam topic -- expect questions combining AI workloads with VPC-SC.
+
+Docs: https://cloud.google.com/vertex-ai/docs/general/vpc-service-controls
 </details>
 
 ---
@@ -176,6 +192,8 @@ E) Configure Active Directory Federation Services (ADFS) or equivalent as the SA
 For enterprise SSO with on-premises Active Directory, you need two components: (1) GCDS to sync user identities from AD to Cloud Identity (this creates Cloud Identity accounts mapped to AD users, not separate Google accounts), and (2) a SAML IdP like ADFS that handles the actual authentication. Users authenticate against AD via the SAML IdP, and GCP trusts the SAML assertion. Option B is partially correct (SAML SSO is used) but is incomplete without specifying the IdP -- option E is more specific. Option C -- Workload Identity Federation is for workloads (applications/services), not human users accessing the Console. Option D creates unmanaged accounts manually, which does not scale and is not federated.
 
 **Exam tip:** Human users -> Cloud Identity + SAML SSO. Machine workloads -> Workload Identity Federation. The exam tests this distinction heavily. GCDS syncs identities; the SAML IdP handles authentication.
+
+Docs: https://cloud.google.com/architecture/identity/federating-gcp-with-active-directory-introduction
 </details>
 
 ---
@@ -195,6 +213,8 @@ D) Store all data in a single region and use IAM policies to restrict access by 
 Data sovereignty requires data to be physically stored in specific geographic regions. Separate Spanner instances with regional configurations (e.g., `regional-europe-west1` and `regional-us-central1`) guarantee that data is stored only in the designated region. Option A -- multi-region Spanner replicates data across regions for availability, which would violate data sovereignty. Option C -- row-level access controls restrict WHO can access data, not WHERE data is stored. Option D -- storing all data in one region does not meet the requirement to keep US data in the US and EU data in the EU separately.
 
 **Exam tip:** Data sovereignty = data must physically reside in a specific location. This always requires separate regional resources, not access controls. When you see "data must remain in [region]," think regional instance/bucket configurations.
+
+Docs: https://cloud.google.com/spanner/docs/instance-configurations
 </details>
 
 ---
@@ -214,6 +234,8 @@ D) Use an organization policy constraint to prevent Cloud SQL instance deletion
 IAM deny policies evaluate BEFORE allow policies. A deny policy at the organization level that denies `cloudsql.instances.delete` will block the deletion even if the principal has `roles/owner`, because deny takes precedence over allow. Option A addresses the issue but the question states the CTO might be granted Owner -- deny policies provide a guardrail that works regardless of what allow roles are assigned. Option C requires modifying the role assignment, which may not be possible if Owner is required for other tasks. Option D -- there is no built-in organization policy constraint that specifically prevents Cloud SQL instance deletion.
 
 **Exam tip:** Deny policies are evaluated BEFORE allow policies. The evaluation order is: deny policies -> org policy constraints -> allow policies. Deny policies are the answer when you need to block a specific action regardless of what roles are granted.
+
+Docs: https://cloud.google.com/iam/docs/deny-overview and https://cloud.google.com/iam/docs/deny-permissions-support
 </details>
 
 ---
@@ -233,6 +255,8 @@ D) Use IAP for TCP forwarding, which bypasses firewall rules entirely
 Hierarchical firewall policies evaluate top-down: organization -> folder -> VPC network firewall rules. The `goto_next` action delegates the decision to the next level in the hierarchy. By changing the org-level SSH rule to `goto_next` for the target VPC (using target resources), the project's VPC-level firewall rule can then allow SSH for specific VMs. Option A removes the protection for the entire organization. Option C is wrong because hierarchical firewall policies take precedence over VPC firewall rules -- a project-level rule cannot override an org-level deny. Option D is incorrect because IAP for TCP tunneling still requires firewall rules to allow traffic from the IAP IP range (35.235.240.0/20).
 
 **Exam tip:** Hierarchical firewalls evaluate org -> folder -> VPC. `goto_next` delegates to the next level. A "deny" at a higher level cannot be overridden by a lower-level "allow." The exam loves testing this hierarchy.
+
+Docs: https://cloud.google.com/firewall/docs/firewall-policies
 </details>
 
 ---
@@ -252,6 +276,8 @@ D) GKE Sandbox (gVisor) to isolate untrusted containers
 Binary Authorization enforces deploy-time security by requiring container images to have cryptographic attestations before they can be deployed to GKE. You create an attestor that uses a key pair, and the CI/CD pipeline signs (attests) images after they pass security checks. GKE then only admits images with valid attestations. Option A -- image scanning detects vulnerabilities but does not enforce deployment policies; images with vulnerabilities can still be deployed unless Binary Authorization blocks them. Option C -- checking image tags is easily bypassed and does not provide cryptographic guarantees. Option D -- GKE Sandbox provides runtime isolation but does not control which images can be deployed.
 
 **Exam tip:** Binary Authorization = deploy-time enforcement (cryptographic proof of provenance). Artifact Registry vulnerability scanning = detection only. The exam tests whether you know the difference between detection and enforcement.
+
+Docs: https://cloud.google.com/binary-authorization/docs/overview
 </details>
 
 ---
@@ -271,6 +297,8 @@ D) Client-side encryption using the Thales SDK before uploading to GCS
 Cloud External Key Manager (Cloud EKM) integrates with supported external key management partners, including Thales, to use encryption keys that remain in your on-premises HSM. Google Cloud services reference the external key but never have access to the key material. Option A -- CSEK requires you to supply the key with each API request, and Google temporarily holds the key in memory during the operation. Option B -- CMEK with Cloud KMS means the key material is stored in Google's KMS infrastructure, not on-premises. Option D -- client-side encryption works but adds significant application complexity and prevents server-side features like BigQuery querying; Cloud EKM provides the same trust boundary with native service integration.
 
 **Exam tip:** Cloud EKM = keys never leave your external key manager. CMEK = keys in Google's KMS (you control lifecycle). CSEK = you supply the raw key (Google holds it in memory temporarily). For "keys must never leave on-premises," the answer is always Cloud EKM.
+
+Docs: https://cloud.google.com/kms/docs/ekm
 </details>
 
 ---
@@ -290,6 +318,8 @@ D) Place all services in one perimeter, create an ingress rule for data scientis
 Placing all services in a single perimeter ensures that traffic between Vertex AI Notebooks, BigQuery, and Cloud Storage flows freely within the perimeter (intra-perimeter traffic is unrestricted). An ingress rule specifically allows data scientists from the corporate network to access the Vertex AI Notebooks API. Option A -- an access level would grant the corporate network access to ALL services in the perimeter, not just Notebooks. Option B -- placing Notebooks outside the perimeter means it cannot access BigQuery/Cloud Storage inside the perimeter without additional egress rules, and the notebook data would not be protected. Option C -- separate perimeters with bridges add unnecessary complexity for services that need to communicate freely.
 
 **Exam tip:** Within a VPC-SC perimeter, services communicate freely. Use ingress rules for targeted external access (specific identity + specific service). Access levels are broader and less granular than ingress rules.
+
+Docs: https://cloud.google.com/vpc-service-controls/docs/ingress-egress-rules
 </details>
 
 ---
@@ -310,6 +340,8 @@ E) Enable Access Transparency logs
 HIPAA compliance on GCP requires two fundamental steps: (1) signing a Business Associate Agreement (BAA) with Google, which establishes Google's obligations for handling Protected Health Information (PHI), and (2) only using GCP services that are covered under the BAA (listed in Google's HIPAA compliance documentation). Option A -- VPC-SC is a good security practice but not a HIPAA requirement. Option D -- HIPAA does not mandate a specific region; data can be stored in any region as long as the BAA is in place. Option E -- Access Transparency is useful for audit trails but is not a HIPAA requirement.
 
 **Exam tip:** HIPAA on GCP = BAA + use only BAA-covered services. That is the baseline. Additional controls (encryption, access controls, audit logs) are best practices but the BAA is the legal prerequisite. The exam tests whether you know the BAA is mandatory.
+
+Docs: https://cloud.google.com/security/compliance/hipaa
 </details>
 
 ---
@@ -329,6 +361,8 @@ D) Policy Denied audit logs
 Data Access audit logs record API calls that read or write user-provided data, including BigQuery queries that read table data. These logs must be explicitly enabled (except for BigQuery, where Data Access logs are enabled by default). Option A -- Admin Activity logs record administrative actions that modify configuration or metadata (e.g., creating a dataset), not data reads. Option C -- System Event logs record Google-initiated system actions (e.g., live migration of a VM). Option D -- Policy Denied logs record when access is denied due to a security policy violation.
 
 **Exam tip:** Admin Activity = config changes (always on, free, 400-day retention). Data Access = data reads/writes (must be enabled except BigQuery, can be expensive, 30-day retention). System Event = Google-initiated actions. Policy Denied = access blocked by VPC-SC or firewall. Know all four types.
+
+Docs: https://cloud.google.com/logging/docs/audit
 </details>
 
 ---
@@ -349,6 +383,8 @@ E) Customer-Managed Encryption Keys (CMEK)
 Access Transparency provides near-real-time logs of actions taken by Google personnel on your data, giving you visibility into Google's access. Access Approval goes further by requiring your explicit approval before Google personnel can access your data -- Google support cannot proceed without your consent. Together, they provide visibility (Transparency) and control (Approval) over Google's access. Option C -- VPC-SC prevents data exfiltration between GCP services, not Google personnel access. Option D -- DLP identifies sensitive data but does not control Google personnel access. Option E -- CMEK controls encryption keys but does not prevent Google personnel from accessing data (Google could still access data using the key if they accessed the CMEK key).
 
 **Exam tip:** Access Transparency = visibility (logs of Google's access). Access Approval = control (you must approve). They are complementary. The exam often presents them together. Both require a Premium support plan.
+
+Docs: https://cloud.google.com/cloud-provider-access-management/access-approval/docs
 </details>
 
 ---
@@ -368,6 +404,8 @@ D) You must create a new key and update the bucket's encryption configuration
 When you rotate a Cloud KMS key, a new key version is created and becomes the primary version. New data is encrypted with the new primary version. Existing data remains encrypted with the old key version. Cloud KMS retains all enabled key versions and transparently uses the correct version for decryption based on the key version metadata stored with the ciphertext. Option A -- data is NOT automatically re-encrypted; re-encryption requires an explicit rewrite operation. Option C -- existing data remains accessible as long as the old key version is not disabled or destroyed. Option D -- key rotation creates a new version within the same key, not a new key entirely.
 
 **Exam tip:** Key rotation in Cloud KMS = new primary version for encryption, old versions still used for decryption. Data is NOT re-encrypted automatically. To force re-encryption, you must rewrite the objects. Disabling or destroying an old key version makes data encrypted with it permanently inaccessible.
+
+Docs: https://cloud.google.com/kms/docs/rotate-key
 </details>
 
 ---
@@ -387,6 +425,8 @@ D) Web Security Scanner
 The Cloud Data Loss Prevention (DLP) API -- now called Sensitive Data Protection -- can inspect, classify, and de-identify (redact, mask, tokenize) sensitive data including PII like credit card numbers and SSNs. It can process data from Cloud Storage, BigQuery, and Datastore. Option A -- Security Command Center identifies security vulnerabilities and threats in your GCP environment, not PII in data. Option C -- Cloud Armor is a WAF/DDoS protection service for HTTP(S) load balancers. Option D -- Web Security Scanner detects vulnerabilities in web applications (XSS, outdated libraries), not PII in stored data.
 
 **Exam tip:** Sensitive Data Protection (formerly DLP API) = find and protect sensitive data in content. It supports inspection (find PII), de-identification (redact/mask/tokenize), and risk analysis. The exam may use either name.
+
+Docs: https://cloud.google.com/sensitive-data-protection/docs
 </details>
 
 ---
@@ -406,6 +446,8 @@ D) Use Security Command Center to detect non-CMEK buckets and alert the team
 Organization policy constraints provide preventive, organization-wide enforcement. `constraints/gcp.restrictNonCmekServices` prevents resources from being created without CMEK encryption. `constraints/gcp.restrictCmekCryptoKeyProjects` restricts which KMS projects can be used, ensuring keys come from approved projects (which you can organize by region). Option A is reactive and may fail or be bypassed. Option C -- IAM roles control who can perform actions, not how resources are configured. Option D -- SCC provides detection, not prevention; non-compliant buckets would already exist before being detected.
 
 **Exam tip:** Organization policy constraints = preventive controls (block non-compliant resources from being created). SCC = detective controls (find existing non-compliant resources). The exam favors preventive over detective controls when both are offered.
+
+Docs: https://cloud.google.com/resource-manager/docs/organization-policy/org-policy-constraints
 </details>
 
 ---
@@ -425,6 +467,8 @@ D) Create a GCP service account key and rotate it daily using automation
 Workload Identity Federation allows external identities (including AWS IAM roles) to impersonate GCP service accounts without service account keys. You create a Workload Identity Pool, add an AWS provider, and configure an attribute mapping that maps the AWS IAM role ARN to a GCP service account. The external workload exchanges its AWS credentials for short-lived GCP access tokens. Option A violates the no-keys policy. Option C -- VPN provides network connectivity, not identity federation. Option D -- daily key rotation still uses keys, violating the policy.
 
 **Exam tip:** Workload Identity Federation supports AWS, Azure, OIDC, and SAML identity providers. For AWS specifically, it uses the AWS STS `GetCallerIdentity` token. This is the keyless authentication pattern for any external workload.
+
+Docs: https://cloud.google.com/iam/docs/workload-identity-federation
 </details>
 
 ---
@@ -444,6 +488,8 @@ D) Audit access logs first -> If no unauthorized access found, no action needed
 The correct remediation order is: (1) Immediately revoke/delete the compromised key to prevent further unauthorized use, (2) audit Data Access and Admin Activity logs to determine if the key was used maliciously, (3) rotate credentials for any resources that may have been compromised, and (4) migrate to Workload Identity Federation to prevent future key leaks. Option B -- deleting the repository does not help because the key is already exposed (and may be cached/cloned). Option C -- rotating the key creates a new key but does not invalidate the old one; you must delete the compromised key. Option D -- waiting to audit before revoking leaves the door open for ongoing unauthorized access.
 
 **Exam tip:** Compromised key response: REVOKE FIRST, investigate second. The exam tests incident response order. Never delay revocation to investigate -- you can audit after the key is disabled.
+
+Docs: https://cloud.google.com/iam/docs/best-practices-service-accounts
 </details>
 
 ---
@@ -463,6 +509,8 @@ D) Store secrets in Cloud Storage with CMEK encryption
 Secret Manager is Google Cloud's centralized secret management service. It provides versioning, access control via IAM, audit logging, and supports automatic rotation through integration with Cloud Functions (a rotation function is triggered on a schedule). It integrates natively with GKE (via CSI driver), Cloud Run (via secret references), and Compute Engine (via client libraries). Option A only works for GKE and does not provide centralized management or rotation. Option B -- environment variables are not secure and do not support rotation. Option D -- Cloud Storage is not designed for secret management; it lacks features like rotation, versioning of secrets, and fine-grained access to individual secrets.
 
 **Exam tip:** Secret Manager = centralized secret storage with IAM, versioning, rotation. It is the answer for any "manage secrets across multiple services" scenario. Do not confuse it with KMS (KMS manages encryption keys, not arbitrary secrets).
+
+Docs: https://cloud.google.com/secret-manager/docs
 </details>
 
 ---
@@ -482,6 +530,8 @@ D) Third-party SIEM integration for all three requirements
 SCC Premium includes multiple specialized detection engines: **Web Security Scanner** (and Vulnerability scanning) detects vulnerabilities in web applications and managed services. **Security Health Analytics** detects misconfigurations (e.g., public Cloud Storage buckets, overly permissive firewall rules, MFA not enabled). **Event Threat Detection** analyzes Cloud Audit Logs and VPC Flow Logs to detect anomalous activity (e.g., cryptocurrency mining, brute-force SSH, exfiltration patterns). Option B -- Container Threat Detection only covers GKE runtime threats, not misconfigurations or web vulnerabilities. Option C -- Security Health Analytics only covers misconfigurations. Option D -- SIEM integration exports findings but does not generate them.
 
 **Exam tip:** SCC Premium detection engines: Security Health Analytics (misconfigs), Event Threat Detection (log-based threats), Container Threat Detection (GKE runtime), Web Security Scanner (web app vulns), VM Threat Detection (VM-level threats). Know which engine detects what.
+
+Docs: https://cloud.google.com/security-command-center/docs/security-command-center-overview
 </details>
 
 ---
@@ -501,6 +551,8 @@ D) Bucketing
 Format-preserving encryption (FPE), available as a de-identification technique in Sensitive Data Protection, encrypts data while preserving its format (e.g., a 16-digit credit card number is transformed into another 16-digit number). This allows existing applications that validate data formats to continue processing without modification. The transformation is reversible with the correct key. Option A -- redaction removes data entirely, which breaks applications expecting the field. Option B -- masking replaces characters with a fixed character (e.g., `****`), which changes the data irreversibly and may break format validation. Option D -- bucketing replaces values with ranges (e.g., age 25 -> "20-30"), which is irreversible and changes the data type.
 
 **Exam tip:** Sensitive Data Protection de-identification methods: Redaction (remove), Masking (replace with `*`), Tokenization/FPE (reversible, format-preserved), Bucketing (generalize into ranges), Date shifting (shift dates). FPE is the only reversible, format-preserving option.
+
+Docs: https://cloud.google.com/sensitive-data-protection/docs/transformations-reference
 </details>
 
 ---
@@ -520,6 +572,8 @@ D) Create a single folder and use labels to distinguish environments
 Folders provide security and policy boundaries within the organization hierarchy. Creating `dev`, `staging`, and `prod` folders allows you to: apply different IAM policies per environment (e.g., broader access in dev, restricted in prod), apply different organization policy constraints per folder, and set up VPC Service Controls perimeters per environment. Option A -- multiple organizations adds significant management overhead and prevents shared org-level policies. Option C -- naming conventions do not provide policy inheritance or security boundaries. Option D -- labels are metadata for billing and inventory; they cannot be used for IAM policy inheritance or organization policies.
 
 **Exam tip:** Folders = security/policy boundaries. Labels = billing/inventory metadata. The resource hierarchy (org -> folder -> project) is the backbone of GCP security at scale. The exam expects you to use folders for environment isolation.
+
+Docs: https://cloud.google.com/resource-manager/docs/cloud-platform-resource-hierarchy
 </details>
 
 ---
@@ -539,6 +593,8 @@ D) Use BigQuery authorized views that exclude PII columns
 BigQuery column-level security, combined with policy tags from Data Catalog and dynamic data masking, allows you to tag sensitive columns and define masking rules. The analytics team is granted fine-grained reader access to see actual values, while other users see masked data (e.g., hashed, nullified, or partially masked). This is applied dynamically at query time without maintaining separate datasets. Option A -- separate datasets require data duplication and synchronization. Option C -- `bigquery.dataViewer` grants access to all columns in all tables; it does not provide column-level control. Option D -- authorized views can exclude columns entirely but cannot show masked versions of the data.
 
 **Exam tip:** BigQuery column-level security = policy tags + data masking. This is the dynamic, zero-duplication approach to PII protection in BigQuery. If a question mentions "some users see real data, others see masked data," this is the answer.
+
+Docs: https://cloud.google.com/bigquery/docs/column-data-masking-intro
 </details>
 
 ---
@@ -559,6 +615,8 @@ E) Enable container image streaming for faster deployments
 SLSA (Supply-chain Levels for Software Artifacts) compliance requires verifiable provenance. Cloud Build natively generates SLSA Level 3 provenance metadata, which provides a non-forgeable record of how and where the image was built. Binary Authorization attestations provide an additional layer by cryptographically signing the image, creating a verifiable chain of trust from build to deploy. Option A -- vulnerability scanning detects known CVEs but does not establish provenance. Option D -- a private repository controls access but does not prove provenance or build integrity. Option E -- image streaming is a performance optimization, unrelated to supply chain security.
 
 **Exam tip:** SLSA framework on GCP = Cloud Build (provenance) + Binary Authorization (attestation) + Artifact Registry (secure storage). Cloud Build is one of the few build systems that natively supports SLSA Level 3. This is an increasingly tested PCA topic.
+
+Docs: https://cloud.google.com/build/docs/securing-builds/view-build-provenance and https://cloud.google.com/binary-authorization/docs/overview
 </details>
 
 ---
@@ -578,6 +636,8 @@ D) Automatic remediation of non-compliant resource configurations
 Assured Workloads creates a compliance-bound folder in your GCP organization that automatically enforces compliance controls including: data residency restrictions (limiting resources to specific regions), personnel access controls (ensuring only vetted Google staff can access data), and service restrictions (only compliance-certified GCP services can be used). These controls are enforced via automatically configured organization policies. Option A -- while FIPS 140-2 validation is part of GCP's infrastructure, Assured Workloads does more than just encryption. Option C -- there is no dedicated region; Assured Workloads restricts which existing regions can be used. Option D -- Assured Workloads prevents non-compliant configurations from being created (preventive) but does not automatically fix existing non-compliant resources.
 
 **Exam tip:** Assured Workloads = compliance-bound folder with automatic org policy enforcement. It covers FedRAMP, ITAR, CJIS, IL4/5, and more. The key word is "folder" -- compliance boundaries are implemented as folders in the resource hierarchy.
+
+Docs: https://cloud.google.com/assured-workloads/docs/overview
 </details>
 
 ---
@@ -597,6 +657,8 @@ D) BigQuery authorized datasets restricting access within a single project
 Separate GCP projects per customer, each with its own service account that only has IAM permissions on its own project, provides the strongest isolation. Even if the application has a bug, the service account's IAM permissions physically prevent cross-project data access at the API level. Option A -- application-level validation can be bypassed by bugs (which is exactly the scenario described). Option B -- VPC Service Controls prevent data from crossing perimeter boundaries but creating per-customer perimeters does not scale well for a SaaS application with many customers. Option D -- authorized datasets control sharing within the same project but the underlying permissions may still allow cross-dataset access if the principal has project-level BigQuery access.
 
 **Exam tip:** For multi-tenant isolation, project-level separation provides the strongest security boundary. Projects are the fundamental trust boundary in GCP. When the question emphasizes "strongest control" or "even if the application has a bug," think project-level isolation.
+
+Docs: https://cloud.google.com/vpc-service-controls/docs/overview and https://cloud.google.com/iam/docs/overview
 </details>
 
 ---
@@ -616,6 +678,8 @@ D) Cloud Identity with SAML SSO configured for the partner's IdP
 Workload Identity Federation supports SAML 2.0 identity providers. The partner's application authenticates to their SAML IdP, obtains a SAML assertion, and exchanges it for a short-lived GCP access token via the Security Token Service (STS). No Google software needs to be installed on the partner's infrastructure. Option B -- VPN provides network connectivity, not authentication. Option C -- service account keys are long-lived secrets that violate security best practices. Option D -- Cloud Identity with SAML SSO is for human users accessing the GCP Console, not for application-to-API authentication.
 
 **Exam tip:** Workload Identity Federation supports OIDC AND SAML for workloads. Cloud Identity + SAML SSO is for humans. If the scenario is "an application authenticating to GCP APIs," the answer is Workload Identity Federation, not Cloud Identity.
+
+Docs: https://cloud.google.com/iam/docs/workforce-identity-federation
 </details>
 
 ---
@@ -635,6 +699,8 @@ D) EXTERNAL_VPC
 Cloud KMS HSM protection level uses Cloud HSM, which is backed by FIPS 140-2 Level 3 certified hardware security modules. HSM keys support both symmetric and asymmetric operations including signing. Option A -- SOFTWARE protection level uses software-based key operations, which are FIPS 140-2 Level 1, not Level 3. Option C -- EXTERNAL (Cloud EKM) stores keys outside Google in an external key manager. While the external HSM might be Level 3 certified, the question asks about Cloud KMS protection levels, and EXTERNAL does not inherently guarantee FIPS Level 3 (that depends on the external provider). Also, EXTERNAL keys have more limited algorithm support. Option D -- EXTERNAL_VPC is a variant of EKM accessed over a VPC, with the same considerations as EXTERNAL.
 
 **Exam tip:** Cloud KMS protection levels: SOFTWARE (Level 1, cheapest), HSM (Level 3, hardware-backed), EXTERNAL (key in external KMS), EXTERNAL_VPC (external KMS over VPC). For FIPS 140-2 Level 3, the answer is HSM.
+
+Docs: https://cloud.google.com/kms/docs/hsm
 </details>
 
 ---
@@ -651,9 +717,11 @@ D) Configure IAM to restrict which users can send prompts to the model
 
 **Correct: B)**
 
-Model Armor is a Vertex AI feature that provides content safety guardrails for generative AI applications. It filters both input prompts and model responses to detect and block PII, hate speech, dangerous content, and other policy violations. It uses configurable safety filters that can be applied without modifying the model itself. Option A -- fine-tuning can reduce harmful outputs but cannot guarantee prevention and is expensive to maintain. Option C -- Cloud Armor protects against network-level attacks (DDoS, SQL injection) on load balancers, not AI content safety. Option D -- IAM controls who can access the model, not what the model generates.
+Model Armor screens LLM prompts and responses, blocking responsible-AI safety violations, prompt injection and jailbreak attempts, sensitive data such as PII and credentials, and malicious URLs, all without modifying the model. Note that it is a standalone Google Cloud service documented under Security Command Center, not a feature of Vertex AI, even though the application being protected runs on Vertex AI. Option A -- fine-tuning can reduce harmful outputs but cannot guarantee prevention and is expensive to maintain. Option C -- Cloud Armor protects against network-level attacks (DDoS, SQL injection) on load balancers, not AI content safety. Option D -- IAM controls who can access the model, not what the model generates.
 
-**Exam tip:** Model Armor = content safety for generative AI (prompt and response filtering). This is a new PCA topic. It is separate from Cloud Armor (network/WAF protection). Think: Model Armor = AI content safety, Cloud Armor = network security.
+**Exam tip:** Model Armor = content safety and prompt-injection screening for generative AI, on both prompts and responses. It is separate from Cloud Armor (network and WAF protection), and it ships under Security Command Center rather than under Vertex AI, which is a distinction older study material gets wrong.
+
+Docs: https://cloud.google.com/security-command-center/docs/model-armor-overview
 </details>
 
 ---
@@ -673,6 +741,8 @@ D) Contact Google Cloud sales to get a custom PCI DSS certification for the proj
 Google publishes a PCI DSS Shared Responsibility Matrix and maintains a list of GCP services that are included in their PCI DSS certification (Attestation of Compliance). Not all GCP services are covered -- you must verify that the services you use for processing, storing, or transmitting cardholder data are on the list. Option A -- Compliance Reports Manager provides access to audit reports (SOC, ISO) but the PCI DSS Shared Responsibility Matrix is the key document for understanding obligations. Option C -- not all GCP services are PCI DSS certified; using a non-certified service for cardholder data would violate PCI DSS. Option D -- PCI DSS certification is not project-specific; it applies to the GCP platform services.
 
 **Exam tip:** PCI DSS on GCP is a shared responsibility. Google certifies the infrastructure and specific services. You are responsible for application security, access controls, and ensuring you only use certified services for cardholder data. Always check the Shared Responsibility Matrix.
+
+Docs: https://cloud.google.com/security/compliance/pci-dss and https://cloud.google.com/security/compliance/compliance-reports-manager
 </details>
 
 ---
@@ -692,6 +762,8 @@ D) Use an access level to allow the Cloud Composer project
 Adding both projects to the same VPC Service Controls perimeter is the simplest and most secure solution when both projects are owned by the same organization and need bidirectional access. Resources within the same perimeter can communicate freely. Option B -- an egress rule would need to be on the project-orchestration perimeter (if it had one) to allow outbound access to project-prod, and project-prod would need an ingress rule -- this is more complex than necessary. Option C -- perimeter bridges are used when you need to allow access between two separate perimeters while keeping them distinct; this adds unnecessary complexity for projects that should share a boundary. Option D -- access levels are typically for controlling access based on request attributes (IP, device) not for project-to-project access.
 
 **Exam tip:** If two projects need to communicate and both are trusted, put them in the same perimeter. Use separate perimeters + bridges only when you need distinct boundaries. Use ingress/egress rules for external or partially trusted access.
+
+Docs: https://cloud.google.com/vpc-service-controls/docs/ingress-egress-rules
 </details>
 
 ---
@@ -711,6 +783,8 @@ D) Remove `resourcemanager.projects.setIamPolicy` from all custom roles
 An IAM deny policy with a condition that specifically targets the `roles/owner` role in the binding is the correct approach. Deny policies support conditions that can evaluate the role being granted, allowing you to block `roles/owner` specifically without blocking all IAM policy modifications. Option A -- denying `setIamPolicy` entirely would prevent ALL IAM changes at the project level, which is too restrictive. Option B -- organization policy custom constraints can restrict resource configurations but are not designed to control IAM role assignments directly. Option D -- removing the permission from custom roles does not affect predefined roles that include it, and users with predefined roles could still grant Owner.
 
 **Exam tip:** IAM deny policies with conditions are powerful for "block a specific role from being granted" scenarios. The deny policy can include conditions that evaluate `api.getAttribute('iam.googleapis.com/modifiedGrantsByRole', [])` to target specific roles.
+
+Docs: https://cloud.google.com/iam/docs/deny-overview
 </details>
 
 ---
@@ -730,6 +804,8 @@ D) Move EU customer data to a single Cloud Storage bucket for easier deletion
 Crypto-shredding is the recommended pattern for GDPR's "right to erasure" at scale. Each customer's data is encrypted with a dedicated CMEK key (or key version). When a deletion request arrives, you destroy the key in Cloud KMS, rendering all data encrypted with that key cryptographically unreadable. This is faster and more reliable than finding and deleting individual records across multiple services. Option B -- manual deletion is error-prone, slow, and may miss data in backups or derived datasets. Option C -- TTL-based deletion does not comply with the GDPR requirement to delete data "without undue delay" upon request. Option D -- consolidating data in one bucket loses the benefits of BigQuery and Cloud SQL and does not solve the cross-service deletion challenge.
 
 **Exam tip:** Crypto-shredding = destroy the encryption key to effectively delete data. This is the PCA-level answer for GDPR deletion at scale. Per-customer CMEK keys make this practical. The exam expects you to know this pattern.
+
+Docs: https://cloud.google.com/kms/docs/destroy-restore
 </details>
 
 ---
@@ -746,9 +822,11 @@ D) Use Cloud Armor to restrict access to the VPN IP range
 
 **Correct: A)**
 
-IAP integrates with Access Context Manager to enforce context-aware access. You create an access level that requires BOTH conditions: the request must come from a managed device (using BeyondCorp Enterprise device attributes) AND from the corporate VPN IP range. This access level is then bound to the IAP-secured resource. Option B -- firewall rules only check IP addresses, not device posture. They also do not integrate with IAP's identity-aware controls. Option C -- IAM Conditions on IP address are possible but do not support device posture checks; Access Context Manager is the proper integration point for IAP. Option D -- Cloud Armor protects load balancers but does not check device posture.
+IAP integrates with Access Context Manager to enforce context-aware access. You create an access level that requires BOTH conditions: the request must come from a managed device (using the device attributes supplied by Chrome Enterprise Premium, the product formerly sold as BeyondCorp Enterprise) AND from the corporate VPN IP range. This access level is then bound to the IAP-secured resource. Option B -- firewall rules only check IP addresses, not device posture. They also do not integrate with IAP's identity-aware controls. Option C -- IAM Conditions on IP address are possible but do not support device posture checks; Access Context Manager is the proper integration point for IAP. Option D -- Cloud Armor protects load balancers but does not check device posture.
 
 **Exam tip:** IAP + Access Context Manager = context-aware access (identity + device + network). Access levels can combine multiple conditions with AND/OR logic. When a question requires BOTH network and device conditions, Access Context Manager is the answer.
+
+Docs: https://cloud.google.com/access-context-manager/docs/overview and https://cloud.google.com/chrome-enterprise-premium/docs
 </details>
 
 ---
@@ -769,6 +847,8 @@ E) Grant `roles/compute.instanceAdmin.v1` to all team members
 The scenario describes two classes of user, so the complete solution needs the switch plus both roles. A enables OS Login project-wide via the `enable-oslogin` metadata key, which is the prerequisite for either role to do anything. B grants `roles/compute.osLogin` for standard, non-sudo SSH. C grants `roles/compute.osAdminLogin` for the users who need root. Option D is wrong because per-user SSH keys in project metadata are exactly the practice OS Login replaces; keys in metadata are not centrally revocable and do not follow the IAM lifecycle. Option E is wrong because `roles/compute.instanceAdmin.v1` confers VM management rights (start, stop, delete, change machine type) and does not by itself grant SSH access, so granting it to all team members hands out destructive permissions while still not solving the login problem.
 
 **Exam tip:** OS Login roles: `compute.osLogin` = standard SSH (no sudo), `compute.osAdminLogin` = SSH with sudo. OS Login replaces SSH key management with IAM-based access. Both require the `enable-oslogin` metadata flag.
+
+Docs: https://cloud.google.com/compute/docs/oslogin
 </details>
 
 ---
@@ -788,6 +868,8 @@ D) Use IAM policies to restrict the Dataflow service account to only these three
 A single VPC Service Controls perimeter containing all three projects is the simplest and most effective solution. Services within the same perimeter communicate freely, and the perimeter prevents data from flowing to any project or service outside the boundary. Option A -- three separate perimeters with bridges adds unnecessary complexity. Bridges create bidirectional access between perimeters but each service might need to be in both perimeters. Option C -- egress rules between three separate perimeters require six rules (two per perimeter) and are harder to manage. Option D -- IAM controls who can access resources but does not prevent the Dataflow job from writing to a BigQuery dataset in a fourth project if the service account is granted access.
 
 **Exam tip:** Group projects that need to communicate into the SAME perimeter. Only use separate perimeters when you need distinct trust boundaries. VPC-SC is about WHERE data can flow, not WHO can access it.
+
+Docs: https://cloud.google.com/vpc-service-controls/docs/ingress-egress-rules
 </details>
 
 ---
@@ -808,6 +890,8 @@ E) VPC Service Controls to prevent data from leaving the COPPA-governed projects
 Sensitive Data Protection (formerly DLP) can inspect data to identify PII associated with children (through custom infoTypes and inspection rules), enabling you to classify and route data appropriately. VPC Service Controls then creates a security perimeter around the COPPA-governed projects to prevent data exfiltration, ensuring child data cannot be moved outside the controlled environment. Option B -- Cloud Armor cannot determine user age; it is a WAF/DDoS service. Option C -- Assured Workloads currently supports government and financial compliance frameworks (FedRAMP, ITAR, CJIS) but does not have a specific COPPA compliance package. Option D -- CDN geo-restriction is unrelated to COPPA compliance.
 
 **Exam tip:** For compliance with data protection laws (COPPA, GDPR), the pattern is: classify data (Sensitive Data Protection) + contain data (VPC-SC) + control access (IAM). The exam tests whether you can map compliance requirements to GCP services.
+
+Docs: https://cloud.google.com/resource-manager/docs/organization-policy/defining-locations and https://cloud.google.com/vpc-service-controls/docs/overview
 </details>
 
 ---
@@ -827,6 +911,8 @@ D) In a customer-managed Cloud Storage bucket configured as a log sink
 GKE admin actions (creating/deleting clusters, changing configurations, RBAC changes) are captured as Admin Activity audit logs. These logs are always enabled (cannot be disabled), free, immutable (cannot be modified or deleted by any user), and retained for 400 days in Cloud Logging. This meets the requirement for tamper-proof admin action logging. Option A -- etcd stores cluster state, not audit logs, and cluster admins could potentially access it. Option C -- while GKE data plane logs depend on the logging configuration, Admin Activity audit logs are always on regardless. Option D -- log sinks export copies of logs but the original Admin Activity logs in Cloud Logging are the authoritative, tamper-proof source.
 
 **Exam tip:** Admin Activity audit logs = always on, free, 400-day retention, immutable. This is the baseline audit trail for all GCP services. Data Access logs = must be enabled (except BigQuery), can be expensive, 30-day default retention. Know the differences for compliance questions.
+
+Docs: https://cloud.google.com/logging/docs/audit
 </details>
 
 ---
@@ -846,6 +932,8 @@ D) No, but you can request an exception from Google for international regions
 IL4 (Impact Level 4) Assured Workloads mandates data residency within the United States. The compliance-bound folder automatically enforces organization policies that restrict resource creation to approved US regions only. Deploying in `asia-southeast1` would be blocked by these policies. Option A is incorrect because Assured Workloads enforces regional restrictions, not just encryption. Option C -- CMEK and BAA are necessary but not sufficient; data residency is a hard requirement for IL4. Option D -- regional restrictions for compliance frameworks are non-negotiable and cannot be exempted.
 
 **Exam tip:** Assured Workloads regional restrictions are automatically enforced. IL4, CJIS, and ITAR = US regions only. FedRAMP Moderate may have broader region options but still restricted. The compliance framework dictates the allowed regions, not the customer's preference.
+
+Docs: https://cloud.google.com/assured-workloads/docs/overview
 </details>
 
 ---
@@ -866,6 +954,8 @@ E) Encrypt the tickets with CMEK before sending them to the model
 A defense-in-depth approach requires protection on both input and output. Model Armor (A) inspects incoming prompts and can detect prompt injection patterns (e.g., "ignore previous instructions," role-playing attacks) before they reach the model. Sensitive Data Protection (B) can scan model outputs to detect and redact any PII, system prompts, or sensitive data that the model might inadvertently include in its response. Together, they provide input filtering and output sanitization. Option C -- behavioral training can help but is not reliable against novel injection techniques and requires expensive retraining. Option D -- rate limiting prevents abuse but does not detect or block prompt injection. Option E -- encrypting tickets is irrelevant; the model needs plaintext to process the content, and encryption does not prevent injection.
 
 **Exam tip:** AI security = defense in depth. Model Armor for input filtering + Sensitive Data Protection for output sanitization. This is a new and increasingly important topic for the PCA exam. Expect questions that combine traditional security (VPC-SC, IAM) with AI-specific controls (Model Armor).
+
+Docs: https://cloud.google.com/security-command-center/docs/model-armor-overview and https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/configure-safety-filters
 </details>
 
 ---

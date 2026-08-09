@@ -176,7 +176,7 @@ Docs: https://cloud.google.com/build/docs/automating-builds/github/connect-repo-
 Your CI/CD pipeline deploys a Cloud Run service. You want to implement progressive delivery where new revisions receive 5% of traffic initially, are validated for 10 minutes using custom metrics, and then gradually receive 100% traffic. If the custom metrics show errors above 1%, traffic should automatically roll back. What should you use?
 
 A) Cloud Run traffic splitting configured manually via `gcloud run services update-traffic` with a cron job for promotion
-B) Cloud Deploy with a Cloud Run target, canary deployment strategy, and Skaffold verify with custom metric checks
+B) Cloud Deploy with a Cloud Run target, canary deployment strategy, and deploy analysis against Cloud Monitoring alerting policies, with an automated rollback rule
 C) A Cloud Function triggered by Cloud Monitoring alerts that adjusts Cloud Run traffic percentages
 D) Cloud Run with a revision tag and an external load balancer that handles traffic shifting
 
@@ -185,15 +185,15 @@ D) Cloud Run with a revision tag and an external load balancer that handles traf
 
 **Correct: B)**
 
-Cloud Deploy supports Cloud Run targets with canary deployment strategies. Combined with Skaffold verify, you can define custom verification steps that check metrics. Cloud Deploy handles the progressive traffic shifting (5% -> more -> 100%) and supports automated rollback if verification fails.
+Cloud Deploy supports Cloud Run targets with canary deployment strategies, so it owns the progressive traffic shift from 5% to 100%. The metric-based part of the requirement is deploy analysis, which evaluates telemetry over a set duration using Google Cloud Observability alerting policies (or a custom metrics provider such as Prometheus or Datadog) and fails the rollout when the signal is bad. A `repairRolloutRule` automation then performs the rollback. Note the distinction: deployment verification runs an arbitrary container to validate a deployment, while analysis is the part that reads metrics.
 
 - **A) is wrong** -- Manual traffic splitting with a cron job is fragile, doesn't support automated metric validation, and has no built-in rollback mechanism. It's an operational burden, not a delivery strategy.
 - **C) is wrong** -- A Cloud Function adjusting traffic is reactive and custom-built. It lacks the delivery pipeline abstraction, promotion logic, and audit trail that Cloud Deploy provides.
 - **D) is wrong** -- Cloud Run already has built-in traffic splitting; an external load balancer adds unnecessary complexity. More importantly, this doesn't address the automated verification and rollback requirements.
 
-**Exam tip:** Cloud Deploy supports both GKE and Cloud Run targets with canary strategies. When you see "progressive delivery" + "automated verification" + "rollback," Cloud Deploy with canary is the answer.
+**Exam tip:** Cloud Deploy supports both GKE and Cloud Run targets with canary strategies. When you see "progressive delivery" + "automated verification" + "rollback," Cloud Deploy with canary is the answer. Keep its two validation mechanisms apart: verification (Skaffold `verify`) runs a container of your choosing as a test, while analysis reads telemetry and alerting policies. A stem that says "custom metrics" is describing analysis, not verification.
 
-Docs: https://cloud.google.com/deploy/docs/deployment-strategies/canary
+Docs: https://cloud.google.com/deploy/docs/deployment-strategies/canary and https://cloud.google.com/deploy/docs/analysis
 </details>
 
 ---
@@ -247,7 +247,7 @@ For HIPAA-regulated applications, testing must validate the entire stack includi
 
 **Exam tip:** For regulated industries (HIPAA, PCI-DSS), testing must cover compliance configurations, not just functional correctness. Look for answers that mention mirrored environments with matching security/compliance settings.
 
-Docs: https://cloud.google.com/architecture/framework/reliability/testing
+Docs: https://cloud.google.com/architecture/framework/reliability/perform-testing-for-recovery-from-failures
 </details>
 
 ---
@@ -423,7 +423,7 @@ Docs: https://cloud.google.com/sql/docs/postgres/backup-recovery/pitr
 A team deploys infrastructure using Terraform with state stored in a Cloud Storage backend. During a recent `terraform apply`, the process crashed midway, leaving some resources created and others not. The state file is now inconsistent with actual infrastructure. What is the recommended recovery approach?
 
 A) Delete all resources manually and run `terraform apply` from scratch
-B) Run `terraform refresh` to reconcile state with actual infrastructure, then run `terraform plan` to see the remaining changes and `terraform apply` to complete them
+B) Run `terraform apply -refresh-only` to reconcile state with actual infrastructure, then run `terraform plan` to see the remaining changes and `terraform apply` to complete them
 C) Restore the previous state file from Cloud Storage versioning, then re-run `terraform apply`
 D) Use `terraform import` for each resource that was created but not recorded in state, then run `terraform apply`
 
@@ -432,13 +432,13 @@ D) Use `terraform import` for each resource that was created but not recorded in
 
 **Correct: B)**
 
-`terraform refresh` (or `terraform plan` with refresh, which is the default) updates the state file to match actual infrastructure. After refreshing, `terraform plan` will show only the resources that still need to be created (those that weren't created before the crash). Running `terraform apply` then completes the deployment.
+A refresh-only apply updates the state file to match what actually exists, and shows you the state changes for approval before writing them. After that, `terraform plan` shows only the resources still missing (those the crash never created) and `terraform apply` completes the deployment. The standalone `terraform refresh` command is deprecated; HashiCorp's documented replacement is the `-refresh-only` flag on `apply` and `plan`, and an ordinary `terraform plan` refreshes state in memory by default anyway.
 
 - **A) is wrong** -- Deleting all resources is destructive and unnecessary. Some resources may have already received traffic or contain data. This is the nuclear option and violates the principle of least disruption.
 - **C) is wrong** -- Restoring the previous state file means Terraform thinks the successfully created resources don't exist. It would try to create them again, likely causing errors (duplicate resource names, IP conflicts, etc.).
-- **D) is wrong** -- `terraform import` is used for bringing existing resources under Terraform management for the first time. If the resources were created by the same Terraform config that crashed, `terraform refresh` is the simpler, correct approach.
+- **D) is wrong** -- `terraform import` is used for bringing existing resources under Terraform management for the first time. If the resources were created by the same Terraform config that crashed, a refresh-only apply is the simpler, correct approach.
 
-**Exam tip:** `terraform refresh` syncs state with reality. `terraform import` brings unmanaged resources into state. For crashed applies, refresh first, then plan, then apply.
+**Exam tip:** a refresh-only apply syncs state with reality; `terraform import` brings unmanaged resources into state. For crashed applies, refresh first, then plan, then apply. Use `terraform apply -refresh-only` rather than the deprecated `terraform refresh`, which older material and older question banks still show.
 
 Docs: https://cloud.google.com/docs/terraform/best-practices/general-style-structure
 </details>
@@ -583,7 +583,7 @@ Combined, these three strategies can achieve the $30K/month (20%) target.
 
 **Exam tip:** FinOps priority order: 1) CUDs for stable workloads, 2) right-size over-provisioned resources, 3) optimize data services (BigQuery, Storage lifecycle), 4) reduce networking costs. Always calculate the potential savings against the target.
 
-Docs: https://cloud.google.com/cost-management/docs/best-practices-to-optimize-costs
+Docs: https://cloud.google.com/architecture/framework/cost-optimization
 </details>
 
 ---
@@ -916,7 +916,7 @@ The FinOps Framework follows three phases: Inform (visibility), Allocate (accoun
 
 **Exam tip:** FinOps sequence: Inform -> Allocate -> Optimize. Visibility before optimization. PCA exam questions about cost management sequence should follow this framework.
 
-Docs: https://cloud.google.com/cost-management/docs/best-practices-to-optimize-costs
+Docs: https://cloud.google.com/architecture/framework/cost-optimization
 </details>
 
 ---
