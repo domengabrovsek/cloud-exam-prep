@@ -10,16 +10,29 @@
 
 The **Operational Excellence** pillar is one of six pillars in the Google Cloud Well-Architected Framework (along with Reliability, Security, Performance Optimization, Cost Optimization, and Sustainability). It focuses on running workloads effectively, monitoring them proactively, and continuously improving processes.
 
-### Key Principles
+### The Published Principles
 
-| Principle | What It Means | Exam Relevance |
-|-----------|---------------|----------------|
-| **Automate everything** | Eliminate manual, repetitive tasks (toil) through IaC, CI/CD, auto-remediation | Questions about reducing operational burden |
-| **Monitor before you act** | Observability must be in place before making changes; data-driven decisions | Questions about what to set up first |
-| **Reduce toil** | Toil = manual, repetitive, automatable, tactical, devoid of long-term value | Questions referencing SRE toil concepts |
-| **Learn from failure** | Blameless post-mortems, incident reviews, chaos engineering | Questions about incident response |
-| **Design for operability** | Systems should be easy to deploy, update, and debug | Questions about choosing architectures |
-| **Gradual rollouts** | Progressive delivery reduces blast radius | Questions about deployment strategies |
+Objective 6.1 reads "the principles and recommendations of the operational excellence pillar", so learn Google's five published principles as written. A question may quote one of these headings almost verbatim.
+
+| Principle (as published) | What It Covers |
+|--------------------------|----------------|
+| **Ensure operational readiness and performance using CloudOps** | Define SLOs, instrument for observability, test before launch, plan capacity |
+| **Manage incidents and problems** | Detect, respond, mitigate, then run retrospectives and close the preventive actions |
+| **Manage and optimize cloud resources** | Right-size, autoscale, and monitor cost as an operational signal, not a finance-only one |
+| **Automate and manage change** | IaC, CI/CD, progressive rollouts, and a change process that makes rollback cheap |
+| **Continuously improve and innovate** | Feed what operations learns back into design; adopt new capability deliberately |
+
+### SRE as the Supporting Model
+
+Google's operational excellence guidance is built on Site Reliability Engineering, so the SRE vocabulary is what the exam's distractors are drawn from. These are supporting concepts, not the pillar principles themselves:
+
+| Concept | Definition | Where It Shows Up |
+|---------|-----------|-------------------|
+| **Toil** | Manual, repetitive, automatable, tactical work with no enduring value, scaling linearly with the service | "Team spends 60% of time on deployments" |
+| **Error budget** | 1 minus the SLO. Spending it is allowed; exhausting it freezes feature work | "What do we do when we miss the SLO?" |
+| **Blameless post-mortem** | Incident review focused on systemic cause, not individual fault | "The team blamed one engineer" |
+| **Progressive delivery** | Canary or blue/green rollout that bounds the blast radius | "How do we deploy this safely?" |
+| **Golden signals** | Latency, traffic, errors, saturation | "What should we alert on?" |
 
 ### How Operational Excellence Appears in Exam Questions
 
@@ -41,13 +54,38 @@ Level 3: Predictive   --> ML-based anomaly detection, chaos engineering, self-he
 
 The exam expects Level 2-3 thinking. If a question describes manual or ad-hoc operations, the answer almost always involves automation and monitoring.
 
+### DORA Metrics
+
+DORA is Google's own software delivery research programme, and its metrics are the standard answer to "how do we measure whether our delivery process is improving?" They measure the **delivery pipeline**, not the running service, which is what separates them from SLOs.
+
+| Metric | What It Measures | Axis |
+|--------|------------------|------|
+| **Deployment frequency** | How often deployments reach production | Throughput |
+| **Change lead time** | Commit to running in production | Throughput |
+| **Change fail rate** | Share of deployments needing immediate intervention | Stability |
+| **Deployment rework rate** | Share of deployments that are unplanned, caused by a production incident | Stability |
+| **Failed deployment recovery time** | Time to recover from a deployment that failed | Stability |
+
+The throughput/stability split is the exam-relevant part: the research finding is that these move **together**, not against each other. An option that frames the choice as "ship faster or be more stable" is the wrong answer. Practices that improve both are the same ones the operational excellence pillar recommends: trunk-based development, small batches, automated testing, and progressive delivery.
+
+| Signal in a Question | Metric It Points To | Typical GCP Answer |
+|----------------------|---------------------|--------------------|
+| "We deploy once a quarter" | Deployment frequency | Cloud Build + Cloud Deploy pipeline |
+| "Two weeks from merge to production" | Change lead time | Automated promotion with approval gates |
+| "One in four releases breaks something" | Change fail rate | Canary with automated rollback |
+| "It takes hours to get back to a good version" | Failed deployment recovery time | Cloud Deploy rollback, or blue/green traffic switch |
+
 **Exam tips:**
+- DORA metrics measure the **pipeline**; SLOs measure the **service**. A question about customer-visible reliability wants an SLO, not deployment frequency.
 - If a question mentions "toil" or "manual repetitive tasks," the answer is automation (Cloud Build, Cloud Deploy, Terraform, etc.).
 - Operational excellence questions often have a "cultural" best-answer (blameless post-mortems) over a purely technical one.
 - "Monitor first, then act" is a recurring theme -- you cannot optimize what you cannot measure.
 
 **Docs:**
 - [Well-Architected Framework: Operational Excellence](https://cloud.google.com/architecture/framework/operational-excellence)
+- [Operational excellence principles](https://cloud.google.com/architecture/framework/operational-excellence/principles)
+- [DORA research and metrics](https://dora.dev/)
+- [Four Keys on Google Cloud](https://cloud.google.com/blog/products/devops-sre/using-the-four-keys-to-measure-your-devops-performance)
 - [SRE Book: Eliminating Toil](https://sre.google/sre-book/eliminating-toil/)
 - [Google Cloud Architecture Framework](https://cloud.google.com/architecture/framework)
 
@@ -65,11 +103,14 @@ Cloud Monitoring is the central metrics, dashboards, and alerting platform in Go
 
 | Metric Type | Source | Example | Retention |
 |-------------|--------|---------|-----------|
-| **Built-in (system)** | Auto-collected from GCP services | `compute.googleapis.com/instance/cpu/utilization` | 5 years (6 weeks full-res, then downsampled) |
-| **Custom metrics** | Written via API or client libraries | `custom.googleapis.com/orders/per_minute` | 24 months |
-| **Prometheus metrics** | Scraped by GMP (Managed Service for Prometheus) | `http_requests_total` | 24 months in Monarch |
-| **External metrics** | From AWS, on-prem via agent | `external.googleapis.com/...` | 24 months |
-| **Log-based metrics** | Derived from Cloud Logging | Counter or distribution from log entries | 24 months |
+| **Built-in (major services)** | Compute Engine, GKE, Cloud Storage, BigQuery, Cloud SQL, load balancers | `compute.googleapis.com/instance/cpu/utilization` | 24 months (6 weeks at native resolution, then 10-minute samples) |
+| **Custom metrics** | Written via API or client libraries | `custom.googleapis.com/orders/per_minute` | 24 months (same 6-week then 10-minute schedule) |
+| **Prometheus and OTLP metrics** | Scraped by GMP (Managed Service for Prometheus) | `http_requests_total` | 24 months (1 week native, then 1-minute for 5 weeks, then 10-minute) |
+| **External, workload and agent metrics** | On-prem or third-party, via agent | `external.googleapis.com/...` | 24 months |
+| **All other Google Cloud metrics, plus Istio** | Services outside the list above | varies | 6 weeks |
+| **Log-based metrics** | Derived from Cloud Logging | Counter or distribution from log entries | **6 weeks** |
+
+**Exam trap:** metric retention tops out at **24 months**, never years beyond that, and **log-based metrics only keep 6 weeks**. If a requirement is "retain this signal for a year or more", the answer is to route the underlying logs to a **log bucket with a longer retention** or to BigQuery, not to rely on the metric.
 
 ```bash
 # There is no `gcloud monitoring metrics-descriptors` group. The GA groups under
@@ -203,7 +244,7 @@ gcloud monitoring uptime delete my-service-check
 Types of uptime checks:
 - **HTTP/HTTPS**: Check URL availability and response codes
 - **TCP**: Check port connectivity
-- **Custom**: Use Cloud Functions for complex health checks
+- **Custom**: Use Cloud Run functions for complex health checks
 
 Configuration options:
 - Check frequency: 1, 5, 10, or 15 minutes
@@ -283,7 +324,37 @@ Resource groups let you organize monitored resources for collective dashboards a
 # Groups are dynamic -- resources matching the filter are auto-included
 ```
 
+#### Metrics Scopes (Multi-Project Observability)
+
+A **metrics scope** defines which projects' time-series data a given project can chart, alert on and dashboard. This is the architect-level Cloud Monitoring topic: in a project-per-environment or project-per-team layout, every project starts isolated, and the metrics scope is the mechanism that produces a single pane of glass.
+
+| Term | Meaning |
+|------|---------|
+| **Metrics scope** | The set of resource containers whose metrics a project can read |
+| **Scoping project** | The project that hosts the metrics scope. It stores the dashboards, alerting policies, uptime checks and synthetic monitors |
+| **Monitored project** | A project whose metrics have been added to another project's scope |
+
+Key behaviours:
+
+- Every project is its own scoping project by default, with a metrics scope containing only itself.
+- A monitored project can belong to more than one metrics scope.
+- Time series carry a project identifying label, so you can filter and group by project inside the scoping project.
+- Adding a project to a scope grants **read** access to its metrics. It does not move or copy data, and it does not change where the metrics are billed.
+- Supported limit is **375 monitored projects** per metrics scope for performant queries. Up to 3,500 can be added, with degraded query performance, and the quota is increasable.
+
+The canonical pattern: create a dedicated observability project, add every environment project to its metrics scope, and build the cross-environment dashboards and alerts there.
+
+```bash
+# Metrics scope membership is managed in the console under Monitoring > Settings,
+# or through the Monitoring API v3 metricsScopes resource.
+# List the projects in the current project's metrics scope:
+curl -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  "https://monitoring.googleapis.com/v1/locations/global/metricsScopes/PROJECT_ID"
+```
+
 **Exam tips:**
+- "Dashboards across all environments in one place" = a **metrics scope** with a dedicated scoping project. It is not a log sink, not an aggregated export, and not a shared VPC concern.
+- A metrics scope only covers **metrics**. Cross-project log centralisation is a separate mechanism, an **aggregated sink** at folder or organization level routing into a central log bucket.
 - Know which metric type to use: built-in for GCP services, custom for business metrics, Prometheus for K8s workloads.
 - Uptime checks run from *Google's infrastructure*, not your project -- they check external availability from the internet.
 - Alerting policy duration ("for 5 minutes") prevents flapping -- a single spike does not trigger an alert.
@@ -298,6 +369,9 @@ Resource groups let you organize monitored resources for collective dashboards a
 - [Uptime checks](https://cloud.google.com/monitoring/uptime-checks)
 - [Alerting policies](https://cloud.google.com/monitoring/alerts)
 - [Custom metrics](https://cloud.google.com/monitoring/custom-metrics)
+- [Metrics scopes](https://cloud.google.com/monitoring/settings)
+- [Monitoring quotas and limits](https://cloud.google.com/monitoring/quotas)
+- [Metric data retention](https://cloud.google.com/monitoring/api/v3/latency-n-retention)
 
 ---
 
@@ -320,7 +394,7 @@ Cloud Logging is the centralized log management service. It ingests, stores, rou
 | **Admin Activity** | Resource config changes (create, delete, update) | Yes, always on | `_Required` bucket (400 days, immutable) | Cannot be disabled or exempted |
 | **System Event** | Google-initiated system actions | Yes, always on | `_Required` bucket (400 days) | Cannot be disabled |
 | **Data Access** | Read resource config, read/write user data | No (except BigQuery) | `_Default` bucket (30 days) | Can exempt specific users/groups |
-| **Policy Denied** | Security policy violations | Yes, always on | `_Default` bucket (30 days) | Can exempt specific users/groups |
+| **Policy Denied** | Security policy violations | Yes, always on | `_Default` bucket (30 days) | No principal exemption. The only way to stop them is a Log Router exclusion filter |
 
 ```bash
 # View Admin Activity audit logs
@@ -575,7 +649,7 @@ sudo systemctl status google-cloud-ops-agent
 
 Cloud Trace is a distributed tracing system that collects latency data from applications. It helps identify bottlenecks in microservice architectures.
 
-- Automatically collects traces from App Engine, Cloud Run, and Cloud Functions
+- Automatically collects traces from App Engine, Cloud Run, and Cloud Run functions
 - Requires instrumentation (OpenTelemetry) for GKE, GCE, and other platforms
 - Shows end-to-end request latency across service boundaries
 - Identifies slow RPCs, database calls, and external API calls
@@ -617,7 +691,7 @@ Supports: Go, Java, Node.js, Python
 
 Error Reporting aggregates and displays errors from cloud services, automatically grouping similar errors.
 
-- Automatically works with App Engine, Cloud Functions, Cloud Run
+- Automatically works with App Engine, Cloud Run, and Cloud Run functions
 - Requires Logging integration for GCE and GKE (errors in logs are auto-detected)
 - Groups errors by stack trace similarity
 - Tracks error count, affected users, first/last occurrence
@@ -636,7 +710,7 @@ gcloud beta error-reporting events list --service=my-service --limit=10
 - **Cloud Trace = latency** (distributed tracing across microservices). Use when a question asks about "slow requests" or "identifying bottlenecks."
 - **Cloud Profiler = resource usage** (CPU, memory). Use when a question asks about "high CPU" or "memory leaks" in production.
 - **Error Reporting = error grouping** (aggregate and deduplicate). Use when a question asks about "tracking production errors" or "new error types."
-- Trace is automatic for App Engine/Cloud Run/Cloud Functions. For GKE/GCE, you need OpenTelemetry.
+- Trace is automatic for App Engine, Cloud Run and Cloud Run functions. For GKE/GCE, you need OpenTelemetry.
 - Profiler has negligible overhead and is safe for production. This is a key exam differentiator vs traditional profiling.
 
 **Docs:**
@@ -774,7 +848,7 @@ gcloud monitoring snoozes create \
 
 **Docs:**
 - [SLO burn rate alerting](https://cloud.google.com/stackdriver/docs/solutions/slo-monitoring/alerting-on-budget-burn-rate)
-- [Alerting best practices](https://cloud.google.com/monitoring/alerts/alerting-best-practices)
+- [Alerting on SLO burn rate](https://cloud.google.com/stackdriver/docs/solutions/slo-monitoring/alerting-on-budget-burn-rate)
 - [Notification channels](https://cloud.google.com/monitoring/support/notification-options)
 - [Snooze policies](https://cloud.google.com/monitoring/alerts/snooze)
 
@@ -784,7 +858,7 @@ gcloud monitoring snoozes create \
 
 ### Cloud Deploy
 
-Cloud Deploy is a managed continuous delivery service for GKE, Cloud Run, and Anthos. It follows a pipeline model with explicit promotion between environments.
+Cloud Deploy is a managed continuous delivery service for GKE, Cloud Run, and GKE Enterprise (formerly Anthos) clusters. It follows a pipeline model with explicit promotion between environments.
 
 #### Core Concepts
 
@@ -855,46 +929,30 @@ gke:
 requireApproval: true
 ```
 
+The lifecycle in four commands:
+
 ```bash
-# Register the pipeline and targets
+# Register the pipeline and targets from clouddeploy.yaml
 gcloud deploy apply --file=clouddeploy.yaml --region=us-central1
 
-# Create a release (triggered by CI/CD or manually)
+# Create an immutable release, pinning the image
 gcloud deploy releases create release-001 \
   --delivery-pipeline=my-app-pipeline \
   --region=us-central1 \
-  --images=my-app=gcr.io/PROJECT/my-app:v1.2.3
+  --images=my-app=us-central1-docker.pkg.dev/PROJECT/my-repo/my-app:v1.2.3
 
-# Promote a release to the next stage
-gcloud deploy releases promote \
-  --release=release-001 \
-  --delivery-pipeline=my-app-pipeline \
-  --region=us-central1
+# Move it to the next stage
+gcloud deploy releases promote --release=release-001 \
+  --delivery-pipeline=my-app-pipeline --region=us-central1
 
-# Approve a pending rollout
-gcloud deploy rollouts approve rollout-001 \
-  --release=release-001 \
-  --delivery-pipeline=my-app-pipeline \
-  --to-target=staging \
-  --region=us-central1
-
-# Check rollout status
-gcloud deploy rollouts list \
-  --release=release-001 \
-  --delivery-pipeline=my-app-pipeline \
-  --region=us-central1
-
-# Rollback: create a new release pointing to the previous image
-gcloud deploy releases create rollback-001 \
-  --delivery-pipeline=my-app-pipeline \
-  --region=us-central1 \
-  --images=my-app=gcr.io/PROJECT/my-app:v1.2.2
-
-# Or rollback a specific rollout
+# Roll a target back to its previous successful release
 gcloud deploy targets rollback prod \
-  --delivery-pipeline=my-app-pipeline \
-  --region=us-central1
+  --delivery-pipeline=my-app-pipeline --region=us-central1
 ```
+
+**Rollback is native.** `gcloud deploy targets rollback` creates a rollback rollout from the target's previously successful release, and automation rules can trigger it without a human. Do not accept "the only way to roll back Cloud Deploy is to cut a new release with the old image" -- that is a workaround, not the mechanism.
+
+**Deploy verification and deploy analysis are different mechanisms.** `verify: true` runs a Skaffold `verify` job, an arbitrary container that asserts the deployment works. **Deploy analysis** instead reads telemetry from Google Cloud Observability, or another monitoring provider, to judge whether a canary phase should advance, usually wired to an `advanceRolloutRule` automation. A question naming one and describing the other is a trap.
 
 ### Canary Deployments
 
@@ -919,7 +977,7 @@ strategy:
 ```bash
 # Deploy new revision without sending traffic
 gcloud run deploy my-service \
-  --image=gcr.io/PROJECT/my-app:v2 \
+  --image=us-central1-docker.pkg.dev/PROJECT/my-repo/my-app:v2 \
   --no-traffic \
   --region=us-central1
 
@@ -948,57 +1006,10 @@ gcloud run services update-traffic my-service \
 
 Blue-green maintains two identical production environments. Traffic is switched all at once from blue (current) to green (new).
 
-**On GKE:**
+**On GKE:** run two Deployments that differ only by a `version: blue` / `version: green` label, each at full replica count, and put that label in the Service selector. The Service selector is the switch.
+
 ```yaml
-# Blue deployment (current production)
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: my-app-blue
-  labels:
-    app: my-app
-    version: blue
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: my-app
-      version: blue
-  template:
-    metadata:
-      labels:
-        app: my-app
-        version: blue
-    spec:
-      containers:
-        - name: my-app
-          image: gcr.io/PROJECT/my-app:v1
----
-# Green deployment (new version, deployed alongside blue)
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: my-app-green
-  labels:
-    app: my-app
-    version: green
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: my-app
-      version: green
-  template:
-    metadata:
-      labels:
-        app: my-app
-        version: green
-    spec:
-      containers:
-        - name: my-app
-          image: gcr.io/PROJECT/my-app:v2
----
-# Service pointing to blue (switch selector to green to cutover)
+# The only line that decides which environment serves traffic
 apiVersion: v1
 kind: Service
 metadata:
@@ -1006,14 +1017,16 @@ metadata:
 spec:
   selector:
     app: my-app
-    version: blue   # Change to "green" to switch traffic
+    version: blue   # change to "green" to cut over
   ports:
     - port: 80
       targetPort: 8080
 ```
 
 Cutover: `kubectl patch svc my-app-svc -p '{"spec":{"selector":{"version":"green"}}}'`
-Rollback: `kubectl patch svc my-app-svc -p '{"spec":{"selector":{"version":"blue"}}}'`
+Rollback: the same patch with `blue`. That symmetry is the point -- rollback is the same cost as the rollout, which is why blue-green wins whenever "instant rollback" is the stated requirement.
+
+The trade-off to name in an answer: **2x infrastructure for the duration of the cutover**, and no help at all with database schema changes, which still have to be backward-compatible across both versions.
 
 ### GKE Rolling Updates
 
@@ -1035,7 +1048,7 @@ spec:
     spec:
       containers:
         - name: my-app
-          image: gcr.io/PROJECT/my-app:v2
+          image: us-central1-docker.pkg.dev/PROJECT/my-repo/my-app:v2
           readinessProbe:
             httpGet:
               path: /healthz
@@ -1053,25 +1066,9 @@ spec:
 - `maxUnavailable=1, maxSurge=0`: No extra resources needed, but 1 pod always unavailable
 - Higher values = faster rollouts but more disruption
 
-```bash
-# Check rollout status
-kubectl rollout status deployment/my-app
+The architect-level point is that a rolling update's rollback is **another rolling update** (`kubectl rollout undo`), so it takes as long as the rollout did. That is why "instant rollback" in a requirement rules out rolling updates and points at blue-green or traffic-split canary.
 
-# Rollback to previous version
-kubectl rollout undo deployment/my-app
-
-# Rollback to a specific revision
-kubectl rollout undo deployment/my-app --to-revision=3
-
-# View rollout history
-kubectl rollout history deployment/my-app
-
-# Pause a rollout (for canary-like manual verification)
-kubectl rollout pause deployment/my-app
-
-# Resume a paused rollout
-kubectl rollout resume deployment/my-app
-```
+A readiness probe is not optional here: without one, Kubernetes counts a pod as available as soon as it starts, and the rollout marches on through a broken version.
 
 ### Deployment Strategy Comparison
 
@@ -1108,7 +1105,8 @@ GCP does not have a native feature flag service. Common approaches:
 - [Cloud Deploy overview](https://cloud.google.com/deploy/docs)
 - [Cloud Deploy canary deployments](https://cloud.google.com/deploy/docs/deployment-strategies/canary)
 - [Cloud Run traffic management](https://cloud.google.com/run/docs/rollouts-rollbacks-traffic-migration)
-- [GKE deployment strategies](https://cloud.google.com/kubernetes-engine/docs/concepts/deployment-strategies)
+- [Application deployment and testing strategies](https://cloud.google.com/architecture/application-deployment-and-testing-strategies)
+- [Updating apps on GKE](https://cloud.google.com/kubernetes-engine/docs/how-to/updating-apps)
 - [Kubernetes rolling updates](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#rolling-update-deployment)
 
 ---
@@ -1162,24 +1160,27 @@ A good runbook includes:
 6. **Root cause investigation**: How to identify the underlying issue
 
 Example runbook entry:
-```markdown
-## Alert: High Error Rate (>1% 5xx responses)
 
-### Diagnostics
+```text
+ALERT: High error rate (>1% 5xx responses)
+
+DIAGNOSTICS
 1. Check error rate dashboard: [link]
-2. Check recent deployments: `gcloud deploy releases list --delivery-pipeline=PIPELINE --region=REGION`
+2. Check recent deployments:
+   gcloud deploy releases list --delivery-pipeline=PIPELINE --region=REGION
 3. Check Cloud Logging for error details:
-   `gcloud logging read 'severity="ERROR" AND resource.type="k8s_container"' --limit=50`
-4. Check pod status: `kubectl get pods -n production`
+   gcloud logging read 'severity="ERROR" AND resource.type="k8s_container"' --limit=50
+4. Check pod status:
+   kubectl get pods -n production
 
-### Mitigation
-1. If caused by recent deployment: rollback
-   `gcloud deploy targets rollback prod --delivery-pipeline=PIPELINE --region=REGION`
-2. If caused by load spike: scale up
-   `kubectl scale deployment my-app --replicas=20 -n production`
-3. If caused by downstream dependency: enable circuit breaker / fallback
+MITIGATION
+1. Caused by a recent deployment: roll the target back
+   gcloud deploy targets rollback prod --delivery-pipeline=PIPELINE --region=REGION
+2. Caused by a load spike: scale up
+   kubectl scale deployment my-app --replicas=20 -n production
+3. Caused by a downstream dependency: enable circuit breaker / fallback
 
-### Escalation
+ESCALATION
 - On-call SRE: [PagerDuty rotation link]
 - Service owner: @team-lead
 - VP escalation (P1 only): @vp-engineering
@@ -1218,19 +1219,18 @@ Action Items:
 - [ ] Load test with production-scale connection counts (@carol, 2026-03-07)
 ```
 
-### Google Cloud Support Tiers
+### Google Cloud Customer Care Tiers
 
-| Feature | Standard | Enhanced | Premium |
-|---------|----------|----------|---------|
-| **Price** | $29/mo min | 3% of monthly spend ($500 min) | Contact sales (high) |
-| **Response time (P1)** | 4 hours | 1 hour | 15 minutes |
-| **Response time (P2)** | 8 hours | 4 hours | 2 hours |
-| **Channels** | Web/chat | Web/chat/phone | Web/chat/phone |
-| **TAM** | No | No | Yes (named) |
-| **Training** | No | No | Yes |
-| **Advisory services** | No | No | Yes |
-| **Third-party support** | No | No | Yes |
-| **Active Assist** | No | Recommendations | Recommendations + review |
+Support tier selection is a real exam answer, not trivia: questions framed as "customer success" or "the business needs faster incident response" often resolve to buying a tier rather than building anything.
+
+| Feature | Basic | Standard | Enhanced | Premium |
+|---------|-------|----------|----------|---------|
+| **Cost** | Included | Higher of $29/month or 3% of monthly spend | Higher of $100/month or a tiered % (10% to $10K, 7% to $80K, 5% to $250K, 3% above) | Higher of $15,000/month or a tiered % (10% to $150K, 7% to $500K, 5% to $1M, 3% above) |
+| **Published response SLO** | None | P2 within 4 hours, local business hours | **P1 within 1 hour**, 24/7 | **P1 within 15 minutes**, 24/7 |
+| **TAM** | No | No | No | Yes, named |
+| **Best fit** | Billing and docs only | Non-production, small workloads | Production workloads needing 24/7 P1 cover | Enterprise, mission-critical, needs an advocate inside Google |
+
+The two numbers that decide most questions: **Enhanced buys a 1-hour P1 response, Premium buys 15 minutes and a TAM.** Everything else follows from those.
 
 #### Technical Account Managers (TAMs)
 
@@ -1251,7 +1251,10 @@ Action Items:
 **Docs:**
 - [Incident response process](https://sre.google/sre-book/managing-incidents/)
 - [Post-mortem culture](https://sre.google/sre-book/postmortem-culture/)
-- [Google Cloud Support](https://cloud.google.com/support/docs/premium-support)
+- [Cloud Customer Care](https://cloud.google.com/support)
+- [Standard Support](https://cloud.google.com/support/docs/standard)
+- [Enhanced Support](https://cloud.google.com/support/docs/enhanced)
+- [Premium Support](https://cloud.google.com/support/docs/premium)
 - [Runbooks and playbooks](https://sre.google/workbook/on-call/)
 
 ---
@@ -1373,7 +1376,7 @@ resource "google_monitoring_slo" "availability" {
 - SLA is always **less stringent** than SLO. The buffer is intentional -- it gives the team room to detect and fix issues before contractual penalties kick in.
 - Not every service needs an SLA. SLOs are internal targets; SLAs are external commitments.
 - The exam may ask you to identify the correct SLI for a scenario: availability for uptime, latency for response time, freshness for data pipelines.
-- 99.9% ("three nines") = 43.8 minutes of downtime per month. 99.99% ("four nines") = 4.38 minutes. Know these numbers.
+- Downtime figures in this file use a **30-day month (43,200 minutes)**, which is the basis Cloud Monitoring rolling-window SLOs use. On that basis 99.9% = 43.2 min/month and 99.99% = 4.32 min/month. Some vendor tables use an average 30.44-day month and print 43.8 and 4.38; both are the same SLO, only the window differs. Pick one basis and stay on it inside a calculation.
 
 **Docs:**
 - [SLO monitoring in Cloud Monitoring](https://cloud.google.com/stackdriver/docs/solutions/slo-monitoring)
@@ -1476,6 +1479,47 @@ Key insight: **Being too reliable is wasteful.** If you never consume your error
 
 ---
 
+### Composing SLOs Across Dependent Services
+
+A service cannot be more available than the things it must call. This is the calculation the exam reaches for whenever a stem lists component SLAs and asks what the composite service can promise.
+
+**Serial dependencies (every component must work): multiply.**
+
+```
+Composite availability = A1 * A2 * ... * An
+```
+
+| Chain | Arithmetic | Composite |
+|-------|-----------|-----------|
+| ALB 99.99% + GKE regional 99.95% + Cloud SQL HA 99.95% | 0.9999 * 0.9995 * 0.9995 | ~99.89% |
+| Four components at 99.9% each | 0.999^4 | ~99.6% |
+| Ten components at 99.99% each | 0.9999^10 | ~99.9% |
+
+The result is always **lower than the weakest link**, which is the trap. Adding a dependency can only reduce availability, so "we added a caching tier and the SLO improved" is wrong unless the cache also removes a dependency from the critical path.
+
+**Redundant dependencies (any one is enough): multiply the failure rates.**
+
+```
+Composite unavailability = U1 * U2
+```
+
+Two independent 99.9% regions behind a global load balancer give 0.001 * 0.001 = 0.000001, so ~99.9999% -- but only if the failures are genuinely independent. A shared regional control plane, a shared database, or a single deployment pipeline pushing the same bad build to both makes the failures correlated and the arithmetic invalid.
+
+**Setting the internal SLO.** Work backwards: if the user-facing SLO is 99.9% and three internal services sit in series, each needs roughly 99.97% for the composite to clear the target with any margin left for the service's own code. That is why platform and shared services carry stricter SLOs than the products on top of them.
+
+**Exam tips:**
+- Serial = multiply availabilities. Parallel/redundant = multiply unavailabilities. Getting the two the wrong way round is the most common error on these items.
+- A composite SLA is **always worse than its worst component** in a serial chain. If an option shows a composite higher than every input, it is wrong on inspection.
+- Redundancy only pays off when the failures are independent. Look for a shared dependency in the stem before accepting the parallel arithmetic.
+- The *dependency's* SLA is a ceiling on what you can promise, so promising 99.99% on top of a 99.95% managed service is not achievable no matter how good your code is.
+
+**Docs:**
+- [Defining SLOs](https://cloud.google.com/architecture/defining-SLOs)
+- [Patterns for scalable and resilient apps](https://cloud.google.com/architecture/scalable-and-resilient-apps)
+- [SRE Workbook: Implementing SLOs](https://sre.google/workbook/implementing-slos/)
+
+---
+
 ### Capacity Planning
 
 Capacity planning ensures your infrastructure can handle current and future load.
@@ -1568,7 +1612,7 @@ kubectl autoscale deployment my-app --cpu-percent=60 --min=3 --max=20
 - [Compute Engine autoscaling](https://cloud.google.com/compute/docs/autoscaler)
 - [Predictive autoscaling](https://cloud.google.com/compute/docs/autoscaler/predictive-autoscaling)
 - [GKE autoscaling](https://cloud.google.com/kubernetes-engine/docs/concepts/cluster-autoscaler)
-- [Capacity planning](https://cloud.google.com/architecture/capacity-planning-and-management)
+- [Well-Architected Framework: Reliability](https://cloud.google.com/architecture/framework/reliability)
 
 ---
 
@@ -1588,10 +1632,12 @@ Chaos engineering is the practice of intentionally introducing failures to test 
 
 #### Fault Injection Testing on GCP
 
-**With Istio / Anthos Service Mesh:**
+**With Cloud Service Mesh** (the current name for both Anthos Service Mesh and Traffic Director), using the Istio API:
+
 ```yaml
-# VirtualService with fault injection
-apiVersion: networking.istio.io/v1alpha3
+# VirtualService with fault injection. The Istio networking API graduated to v1
+# in Istio 1.22; networking.istio.io/v1alpha3 is stale.
+apiVersion: networking.istio.io/v1
 kind: VirtualService
 metadata:
   name: my-service
@@ -1662,7 +1708,7 @@ Common Game Day scenarios:
 | **Litmus** | CNCF chaos engineering framework for Kubernetes |
 | **Chaos Mesh** | Kubernetes-native chaos engineering platform |
 | **Gremlin** | SaaS chaos engineering platform (commercial) |
-| **Pod fault injection** | Native Istio/ASM fault injection |
+| **Pod fault injection** | Native Cloud Service Mesh fault injection |
 | **Compute Engine simulate-maintenance** | Test live migration behavior |
 
 ```bash
@@ -1676,12 +1722,13 @@ gcloud compute instances simulate-maintenance-event INSTANCE_NAME \
 **Exam tips:**
 - Chaos engineering is about **proactive reliability** -- finding failures before users do.
 - PodDisruptionBudgets (PDBs) protect against over-aggressive chaos (and normal maintenance). Know `minAvailable` and `maxUnavailable`.
-- Istio/ASM fault injection is the GCP-native way to inject faults. No extra tools needed.
+- Cloud Service Mesh fault injection is the Google Cloud native way to inject faults. No extra tools needed. Anthos Service Mesh and Traffic Director were both folded into this one product name.
 - Game Days are the organizational practice; chaos engineering is the technical practice. Both are valid exam answers.
 - `simulate-maintenance-event` tests VM live migration behavior -- important for latency-sensitive workloads.
 
 **Docs:**
-- [Chaos engineering on Google Cloud](https://cloud.google.com/architecture/framework/reliability/test-recovery)
+- [Testing for recovery from failures](https://cloud.google.com/architecture/framework/reliability/perform-testing-for-recovery-from-failures)
+- [Cloud Service Mesh](https://cloud.google.com/service-mesh/docs/overview)
 - [Istio fault injection](https://istio.io/latest/docs/tasks/traffic-management/fault-injection/)
 - [PodDisruptionBudgets](https://kubernetes.io/docs/concepts/workloads/pods/disruptions/)
 - [Simulate maintenance events](https://cloud.google.com/compute/docs/instances/simulating-host-maintenance)
@@ -1693,7 +1740,7 @@ gcloud compute instances simulate-maintenance-event INSTANCE_NAME \
 #### Google Cloud Penetration Testing Policy
 
 Google Cloud **allows** penetration testing on your own resources without prior approval. Key rules:
-- You CAN pen-test your own VMs, containers, App Engine apps, Cloud Functions, etc.
+- You CAN pen-test your own VMs, containers, App Engine apps, Cloud Run functions, etc.
 - You CANNOT pen-test Google's underlying infrastructure
 - You MUST stay within your own project boundaries
 - No need to notify Google beforehand (unlike some other cloud providers)
@@ -1714,8 +1761,10 @@ Web Security Scanner is a built-in tool that scans App Engine, GKE, and Compute 
 ```
 
 Scan types:
-- **Managed scans**: Automatically scan App Engine and Cloud Run apps weekly
-- **Custom scans**: Configure target URLs, authentication, schedule
+- **Managed scans**: configured and run by Security Command Center once a week, on Premium and Enterprise tiers. They discover public web endpoints, send GET requests only, and use default ports (80/443) only
+- **Custom scans**: project-level, user-defined target URLs, authentication, schedule and non-default ports
+
+**Exam trap:** the supported targets are **App Engine, GKE and Compute Engine only**. Cloud Run is not supported by Web Security Scanner, so an option pairing the two is wrong.
 
 #### Security Command Center (SCC)
 
@@ -1845,8 +1894,8 @@ kubectl scale deployment locust-worker --replicas=20
 
 **Docs:**
 - [Distributed load testing on GKE](https://cloud.google.com/architecture/distributed-load-testing-using-gke)
-- [Load testing Cloud Run](https://cloud.google.com/run/docs/testing/load-testing)
-- [Performance testing best practices](https://cloud.google.com/architecture/framework/performance-optimization/testing)
+- [Distributed load testing using GKE](https://cloud.google.com/architecture/distributed-load-testing-using-gke)
+- [Well-Architected Framework: Performance Optimization](https://cloud.google.com/architecture/framework/performance-optimization)
 
 ---
 
@@ -1910,10 +1959,19 @@ gcloud container clusters update my-cluster \
   --remove-maintenance-exclusion=holiday-freeze
 ```
 
-Maintenance exclusion scopes:
-- `no_upgrades`: No control plane or node upgrades
-- `no_minor_upgrades`: Patch upgrades allowed, minor version upgrades blocked
-- `no_minor_or_node_upgrades`: Only control plane patch upgrades allowed
+Maintenance exclusion scopes, with the limits that actually get tested:
+
+| Scope | What It Blocks | Maximum Duration |
+|-------|----------------|------------------|
+| `no_upgrades` | All control plane and node upgrades | **90 days** |
+| `no_minor_upgrades` | Minor version upgrades; patches still apply | Until end of support for the minor version |
+| `no_minor_or_node_upgrades` | Minor upgrades and all node upgrades; control plane patches still apply | Until end of support for the minor version |
+
+Additional rules:
+
+- Exclusions must leave at least **48 hours of maintenance availability in any 92-day rolling window**, so a `no_upgrades` exclusion cannot be chained to block upgrades forever.
+- At most **three `no_upgrades` exclusions** per cluster, and up to **20 exclusions** in total.
+- Google's own recommendation is to keep `no_upgrades` under 30 days so security patches are not deferred.
 
 #### GKE Node Upgrade Strategies
 
@@ -1996,7 +2054,7 @@ VM Manager provides automated OS patch management for Compute Engine VMs.
 ```bash
 # Enable VM Manager (OS Config agent)
 gcloud compute project-info add-metadata \
-  --metadata=enable-os-config=TRUE
+  --metadata=enable-osconfig=TRUE
 
 # Create a patch deployment (recurring)
 gcloud compute os-config patch-deployments create weekly-patches \
@@ -2036,7 +2094,7 @@ gcloud compute os-config patch-jobs describe JOB_ID
 **Exam tips:**
 - **GKE release channels**: Regular is the default and recommended for most production. Stable is for regulated industries. Extended is for version pinning.
 - Maintenance windows define *when* upgrades can happen, not *if*. GKE will still auto-upgrade -- just within your window.
-- Maintenance exclusions cannot exceed 180 days for `no_upgrades` scope.
+- Maintenance exclusions with the `no_upgrades` scope cap at 90 days, and must leave 48 hours of maintenance availability in every 92-day rolling window.
 - **Blue-green node pool upgrade** is the safest GKE upgrade strategy but costs 2x during the upgrade window.
 - Cloud SQL HA instances failover during maintenance, reducing downtime. This is a common exam justification for HA configuration.
 - VM Manager / OS Config is the answer for "how to patch VMs at scale." Do not confuse with manual SSH + `apt-get upgrade`.
@@ -2049,7 +2107,8 @@ gcloud compute os-config patch-jobs describe JOB_ID
 - [GKE node upgrade strategies](https://cloud.google.com/kubernetes-engine/docs/concepts/node-pool-upgrade-strategies)
 - [Cloud SQL maintenance](https://cloud.google.com/sql/docs/mysql/maintenance)
 - [MIG rolling updates](https://cloud.google.com/compute/docs/instance-groups/rolling-out-updates-to-managed-instance-groups)
-- [VM Manager OS patch management](https://cloud.google.com/compute/docs/os-patch-management)
+- [VM Manager](https://cloud.google.com/compute/docs/vm-manager)
+- [Enabling the OS Config agent](https://cloud.google.com/compute/docs/manage-os)
 - [PodDisruptionBudgets](https://kubernetes.io/docs/concepts/workloads/pods/disruptions/#pod-disruption-budgets)
 
 ---
@@ -2066,6 +2125,8 @@ Question about observability?
 ├── "How to route logs to BigQuery?"       --> Log Router sink
 ├── "How to reduce logging costs?"         --> Exclusion filters on _Default sink
 ├── "How to monitor K8s with Prometheus?"  --> Managed Service for Prometheus (GMP)
+├── "One dashboard across many projects?"  --> Metrics scope with a dedicated scoping project
+├── "Central logs across an org?"          --> Aggregated sink at folder/org level
 └── "How to collect VM logs/metrics?"      --> Ops Agent
 
 Question about deployment?
@@ -2084,6 +2145,9 @@ Question about reliability?
 ├── "How to alert on reliability?"         --> SLO burn rate alerting
 ├── "How to test resilience?"              --> Chaos engineering / Game Days
 ├── "How to handle post-incident?"         --> Blameless post-mortem
+├── "Composite SLA of a serial chain?"     --> Multiply the availabilities
+├── "Availability of a redundant pair?"    --> Multiply the unavailabilities
+├── "How fast is our delivery improving?"  --> DORA metrics, not SLOs
 └── "How to upgrade GKE safely?"           --> Release channels + maintenance windows + PDBs
 
 Question about support?
@@ -2107,7 +2171,12 @@ Question about support?
 | "Blue-green is always better than canary" | Blue-green costs 2x. Canary is cheaper and catches issues early. Choose based on requirements. |
 | "You need Google permission for pen testing" | No prior approval needed for testing your own resources. |
 | "Cloud Trace and Cloud Profiler do the same thing" | Trace = distributed request latency across services. Profiler = CPU/memory within a single service. |
-| "Maintenance exclusions stop all upgrades forever" | Maximum 180 days for `no_upgrades` scope. Cannot indefinitely block. |
+| "Maintenance exclusions stop all upgrades forever" | `no_upgrades` caps at 90 days, and 48 hours of maintenance must stay available in every 92-day rolling window. |
 | "Ops Agent is only for logging" | Ops Agent handles BOTH logging AND metrics collection. It replaces both legacy agents. |
 | "Uptime checks run from your VMs" | They run from Google's global infrastructure, checking your service externally. |
 | "Feature freeze is a punishment" | It is a data-driven response to exhausted error budget, not punitive. |
+| "Log-based metrics are retained like other metrics" | Log-based metrics keep 6 weeks. Most Google Cloud and custom metrics keep 24 months. Longer horizons need a log bucket or BigQuery. |
+| "Web Security Scanner covers Cloud Run" | Supported targets are App Engine, GKE and Compute Engine only. |
+| "Policy Denied audit logs can exempt a principal" | No principal exemption exists. Only a Log Router exclusion filter suppresses them. |
+| "A composite SLA can beat its weakest component" | In a serial chain it never can. Availabilities multiply, so the result is always lower. |
+| "Cloud Deploy has no rollback, you re-release" | `gcloud deploy targets rollback` is native, and automation rules can fire it. |

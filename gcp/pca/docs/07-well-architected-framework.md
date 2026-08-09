@@ -54,15 +54,15 @@ The PCA exam tests your ability to **evaluate architecture trade-offs**. Almost 
 
 Operational Excellence focuses on running, monitoring, and continuously improving systems. Google Cloud's approach to this pillar is heavily influenced by **Site Reliability Engineering (SRE)** practices.
 
-**Core principles:**
+**Google's five published principles**, which is the wording an exam item may quote:
 
-1. **Define clear SLOs, SLIs, and SLAs** -- Measure what matters to users, not just infrastructure metrics
-2. **Automate everything possible** -- Reduce toil (repetitive, manual, automatable work) to free engineering time for innovation
-3. **Monitor proactively, not reactively** -- Use observability (metrics, logs, traces) to detect issues before users notice
-4. **Practice incident management** -- Establish clear on-call rotations, runbooks, escalation paths, and blameless post-mortems
-5. **Embrace change management** -- Use CI/CD pipelines, IaC, and progressive rollouts to deploy safely
-6. **Manage capacity proactively** -- Use autoscaling and quota management to handle demand fluctuations
-7. **Build for operability from day one** -- Design systems that are easy to deploy, debug, and maintain
+1. **Ensure operational readiness and performance using CloudOps** -- define SLOs, instrument for observability, test before launch, plan capacity
+2. **Manage incidents and problems** -- detect, respond, mitigate, then run retrospectives and close the preventive actions
+3. **Manage and optimize cloud resources** -- right-size, autoscale, and treat cost as an operational signal
+4. **Automate and manage change** -- IaC, CI/CD, progressive rollouts, and a change process that makes rollback cheap
+5. **Continuously improve and innovate** -- feed operational learning back into design
+
+The SRE vocabulary that sits underneath -- SLOs and error budgets, toil, blameless post-mortems, golden signals -- is supporting material, not the principle list. Section 6 covers it in depth.
 
 ### SLOs, SLIs, and SLAs Deep Dive
 
@@ -99,7 +99,7 @@ Error Budget   = 0.1% = ~43.2 minutes of downtime per 30 days
 | **Cloud Deploy** | Managed continuous delivery to GKE/Cloud Run | Delivery pipelines, approval gates, rollbacks |
 | **Cloud Build** | CI/CD build automation | Build triggers, custom builders, SLSA compliance |
 | **Artifact Registry** | Artifact/container image management | Vulnerability scanning, cleanup policies, remote repos |
-| **Service Mesh (Istio/Anthos)** | Traffic management, observability | Canary deployments, circuit breaking, mTLS |
+| **Cloud Service Mesh** | Traffic management, observability | Canary deployments, circuit breaking, mTLS. Absorbed both Anthos Service Mesh and Traffic Director |
 | **Cloud Scheduler** | Managed cron job service | HTTP/Pub/Sub/App Engine targets |
 | **Cloud Tasks** | Asynchronous task execution | Rate limiting, retry policies, task deduplication |
 | **Recommender** | AI-powered operational recommendations | Idle resource detection, rightsizing, security insights |
@@ -175,7 +175,7 @@ gcloud projects set-iam-policy my-project policy.json
 gcloud deploy releases create release-001 \
   --delivery-pipeline=my-pipeline \
   --region=us-central1 \
-  --images=my-app=gcr.io/my-project/my-app:v1.2.3
+  --images=my-app=us-central1-docker.pkg.dev/my-project/my-repo/my-app:v1.2.3
 
 # Promote a release to the next stage
 gcloud deploy releases promote \
@@ -219,13 +219,14 @@ Post-mortem template key sections:
 
 - **SLO vs SLA**: If a question asks about setting reliability targets that the engineering team uses internally, it is an **SLO**. If it involves a customer contract with financial penalties, it is an **SLA**. SLOs should always be stricter than SLAs.
 - **Error budget exhaustion**: When error budget is depleted, the correct action is to **freeze feature releases and focus on reliability** -- not to lower the SLO.
-- **Cloud Operations Suite**: Know that Cloud Monitoring, Cloud Logging, Cloud Trace, Cloud Profiler, and Error Reporting collectively form the **Cloud Operations Suite** (formerly Stackdriver).
+- **Google Cloud Observability**: Cloud Monitoring, Cloud Logging, Cloud Trace, Cloud Profiler and Error Reporting collectively form **Google Cloud Observability**, which was called the Cloud Operations Suite and, before that, Stackdriver.
 - **Log Router**: Questions about sending logs to different destinations (BigQuery for analysis, Cloud Storage for archival, Pub/Sub for streaming) test your knowledge of the **Log Router** with inclusion/exclusion filters.
 - **Audit logs**: Admin Activity logs are **always enabled and free**. Data Access logs must be **explicitly enabled** and can generate significant volume/cost.
 - **Managed Prometheus**: For GKE monitoring, Google recommends **Managed Service for Prometheus** -- it is the successor to legacy Stackdriver Kubernetes monitoring.
 - **Deployment strategy selection**: If the question emphasizes "minimize risk" or "gradual rollout," the answer is usually **canary deployment**. If it says "instant rollback," think **blue/green**.
 
 **Docs:** [Operational Excellence](https://cloud.google.com/architecture/framework/operational-excellence)
+**Docs:** [Operational excellence principles](https://cloud.google.com/architecture/framework/operational-excellence/principles)
 **Docs:** [Cloud Monitoring](https://cloud.google.com/monitoring/docs)
 **Docs:** [Cloud Logging](https://cloud.google.com/logging/docs)
 **Docs:** [Cloud Deploy](https://cloud.google.com/deploy/docs)
@@ -471,7 +472,7 @@ gcloud access-context-manager perimeters create my-perimeter \
 | Context-aware access | **Access Context Manager** | Conditional access based on context |
 | Micro-segmentation | **VPC Firewall Rules / Policies** | East-west traffic control |
 | Service identity | **Workload Identity** | Kubernetes pod identity |
-| mTLS | **Traffic Director / Anthos Service Mesh** | Service-to-service encryption |
+| mTLS | **Cloud Service Mesh** | Service-to-service encryption |
 
 ```bash
 # Enable IAP for a backend service (replaces VPN)
@@ -564,7 +565,7 @@ Global failure: Extremely rare             → Accept the risk or use multi-clou
 | **GKE Regional Cluster** | Control plane in 3 zones, nodes across zones | Pod rescheduling, node auto-repair |
 | **Cloud Run** | Automatically regional | Transparent zone failover |
 | **App Engine** | Automatically regional | Automatic scaling and healing |
-| **Cloud Functions** | Automatically regional | Transparent zone failover |
+| **Cloud Run functions** | Automatically regional | Transparent zone failover |
 
 #### Highly Available Storage and Databases
 
@@ -626,9 +627,12 @@ gcloud spanner instances create my-instance \
   --processing-units=1000 \
   --description="Multi-region North America"
 
-# nam14 = replicas in us-central1, us-central2, us-east1, us-east4
+# nam14 = read-write replicas in us-east4 (default leader) and northamerica-northeast1,
+#         with a witness replica in us-east1
 # Automatic failover, zero RPO, near-zero RTO
 ```
+
+Multi-region configs always follow the same shape: **two read-write regions plus a witness region**. The witness holds no data, it only votes in the quorum, which is what lets the configuration survive losing a read-write region without losing writes. An option describing a multi-region config as "N full copies across N regions" has the model wrong.
 
 #### RPO/RTO Calculation Guide
 
@@ -661,8 +665,8 @@ Cost: $     ← Backup & Restore (only storage costs in DR region)
 | **Chaos Monkey** (Netflix OSS) | Random instance termination | Run on GKE to kill pods |
 | **Litmus Chaos** | Kubernetes-native chaos | GKE, pod/node failures, network chaos |
 | **gcloud compute instances stop** | Zone failure simulation | Manually stop VMs in a zone |
-| **Network fault injection** | Latency, packet loss | Istio/Envoy fault injection, Traffic Director |
-| **Load testing** | Capacity limits | Cloud Load Testing (deprecated), Locust on GKE |
+| **Network fault injection** | Latency, packet loss | Cloud Service Mesh fault injection (Istio/Envoy) |
+| **Load testing** | Capacity limits | Locust or k6, run distributed on GKE. There is no Google-managed load testing service |
 
 ```bash
 # Simulate zone failure: stop all instances in a zone
@@ -712,7 +716,7 @@ Region A (us-central1)              Region B (us-east1)
 ### Exam Tips
 
 - **Cloud SQL HA is NOT multi-region**: Regional HA with a standby in a different zone is automatic failover within ONE region. Cross-region requires read replicas with manual promotion.
-- **Spanner multi-region configs**: Know the named configs -- `nam14` (North America), `eur6` (Europe), `nam-eur-asia1` (global). These provide zero RPO and automatic failover.
+- **Spanner multi-region configs**: know the named configs -- `nam3` and `nam14` (North America), `eur6` (Europe), `nam-eur-asia1` (global). Each has two read-write regions and a witness region, giving zero RPO and automatic failover. `nam14`: read-write in `us-east4` (default leader) and `northamerica-northeast1`, witness in `us-east1`. `eur6`: read-write in `europe-west4` (default leader) and `europe-west3`, witness in `europe-west6`.
 - **Cloud Storage classes and availability**: the SLA depends on **class and location together**, not class alone. Standard is 99.95% in multi-region or dual-region and 99.9% in a single region. Nearline, Coldline and Archive are 99.9% in multi-region or dual-region and 99.0% in a single region. Archive is NOT slower to read -- it has millisecond first-byte latency like the rest, and its cost is in retrieval charges plus a 365-day minimum storage duration.
 - **Global vs Regional Load Balancer**: If the question mentions multi-region backend or anycast IP, the answer is **global**. If it mentions data sovereignty or single-region, the answer is **regional**.
 - **GKE regional cluster**: The control plane runs in 3 zones automatically. Node pools can be single-zone or multi-zone. For HA, always use **regional clusters with multi-zone node pools**.
@@ -807,7 +811,7 @@ gcloud recommender recommendations list \
 | **Cloud Storage Lifecycle** | Automatic storage class transitions | Nearline (30d) → Coldline (90d) → Archive (365d) |
 | **Preemptible/Spot Node Pools** | Cost-effective GKE nodes | Ideal for batch processing, CI/CD runners |
 | **BigQuery Editions** | Capacity-based pricing with autoscaling | Standard, Enterprise, Enterprise Plus editions |
-| **Cloud Functions / Cloud Run** | Pay-per-invocation/request | Zero cost when idle |
+| **Cloud Run and Cloud Run functions** | Pay-per-request or per-invocation | Zero cost when idle |
 | **Committed Use Discounts** | Reserved capacity discounts | Resource-based and spend-based options |
 
 ### Architect-Level Considerations
@@ -863,10 +867,13 @@ gcloud sql instances patch my-instance \
 |-------------|------|
 | **Ingress** (data into GCP) | **Free** |
 | **Egress** to internet | $0.08-$0.23/GB (tiered, decreases with volume) |
-| **Egress** between regions (same continent) | $0.01/GB |
-| **Egress** between regions (intercontinental) | $0.02-$0.08/GB |
+| **Egress** between regions, North America to North America | $0.02/GiB |
+| **Egress** between regions, Asia to Asia | $0.08/GiB |
+| **Egress** between regions, North America to or from Europe | $0.05/GiB |
+| **Egress** between regions, to or from Australia or Indonesia | $0.10/GiB |
+| **Egress** between regions, to or from South America | $0.14/GiB |
 | **Egress** within same zone | Free (internal IPs) |
-| **Egress** within same region, different zones | $0.01/GB |
+| **Egress** within same region, different zones | $0.01/GiB |
 | **Private Google Access** | Free (within same region) |
 | **Cloud Interconnect** egress | $0.02/GB (vs $0.08-$0.23 for internet) |
 
@@ -876,6 +883,8 @@ gcloud sql instances patch my-instance \
 - Use **Cloud Interconnect** or **Partner Interconnect** for high-volume data transfer (lower egress rates)
 - Use **Transfer Appliance** for large one-time migrations (>20 TB)
 - Use **Cloud Storage Transfer Service** for scheduled cross-cloud or cross-region transfers
+
+**Docs:** [VPC network pricing](https://cloud.google.com/vpc/network-pricing) | [Inter-region data transfer rates](https://cloud.google.com/vpc/pricing-announce)
 
 #### Storage Cost Optimization
 
@@ -930,7 +939,7 @@ gcloud billing budgets create \
   --notifications-rule-pubsub-topic=projects/my-project/topics/budget-alerts
 
 # Note: Budgets DO NOT stop spending! They only alert.
-# To stop spending, use Pub/Sub + Cloud Functions to disable billing:
+# To stop spending, use Pub/Sub + Cloud Run functions to disable billing:
 # 1. Budget alert → Pub/Sub topic
 # 2. Cloud Function triggered by Pub/Sub
 # 3. Function calls billing API to disable billing on the project
@@ -938,11 +947,11 @@ gcloud billing budgets create \
 
 ### Exam Tips
 
-- **Budgets do NOT stop spending**: This is a classic exam trap. Budgets only send alerts. To actually stop spending, you must automate billing disabling via Cloud Functions triggered by budget Pub/Sub notifications.
+- **Budgets do NOT stop spending**: This is a classic exam trap. Budgets only send alerts. To actually stop spending, you must automate billing disabling via Cloud Run functions triggered by budget Pub/Sub notifications.
 - **SUDs are automatic**: You do NOT need to configure SUDs. They apply automatically when a VM runs for more than 25% of a month. CUDs require explicit commitment.
 - **CUD flexibility**: Resource-based CUDs can be shared across projects in the same billing account. They apply to the most expensive eligible VMs first (to maximize your savings).
 - **Spot VMs for batch**: If a question mentions batch processing, ML training, or CI/CD and asks for the cheapest option, **Spot VMs** are almost always correct. They are not suitable for serving live traffic.
-- **Serverless for variable workloads**: Cloud Functions and Cloud Run scale to zero, meaning you pay nothing when there is no traffic. For unpredictable or spiky workloads, serverless is the most cost-effective option.
+- **Serverless for variable workloads**: Cloud Run and Cloud Run functions scale to zero, meaning you pay nothing when there is no traffic. For unpredictable or spiky workloads, serverless is the most cost-effective option.
 - **Cloud Storage class trap**: Archive class is NOT slower to retrieve. It has the same latency as other classes. The cost difference is in storage price (lowest) vs retrieval price (highest) and minimum storage duration (365 days).
 - **BigQuery pricing**: On-demand = $6.25/TB scanned. Enterprise editions = capacity-based with autoscaling slots. For predictable, heavy query workloads, editions with commitments are cheaper.
 - **Data locality = cost savings**: Always co-locate compute and storage in the same region. Cross-region data transfer adds cost.
@@ -981,7 +990,7 @@ Performance optimization ensures that resources are used efficiently to meet sys
 | Full VM control, custom software | **Compute Engine** | Full OS access, any software stack |
 | Containerized microservices, high scale | **GKE Autopilot** | Managed Kubernetes, auto-scaling, auto-provisioning |
 | HTTP services, rapid scaling | **Cloud Run** | Container-based, scales to zero, per-request pricing |
-| Event-driven, lightweight functions | **Cloud Functions** | Function-based, per-invocation, auto-scaling |
+| Event-driven, lightweight functions | **Cloud Run functions** | Function-based, per-invocation, auto-scaling |
 | Legacy apps, minimal refactoring | **App Engine (Standard/Flexible)** | PaaS, managed runtime, auto-scaling |
 | ML training (large models) | **Compute Engine + GPUs/TPUs** or **Vertex AI Training** | Accelerator access, distributed training |
 | ML inference (serving) | **Vertex AI Endpoints** or **GKE + GPUs** | Auto-scaling inference, model versioning |
@@ -1009,7 +1018,7 @@ Performance optimization ensures that resources are used efficiently to meet sys
 | **Standard Network Tier** | Public internet routing | Higher latency, lower cost |
 | **Cloud Interconnect** | Dedicated/partner connections to GCP | 10-200 Gbps, private connectivity, lower latency |
 | **Cloud DNS** | Managed authoritative DNS | 100% SLA, anycast, DNSSEC support |
-| **Traffic Director** | Global traffic management for service mesh | Load balancing across regions, traffic splitting |
+| **Cloud Service Mesh** | Global traffic management for service mesh, the product Traffic Director became | Load balancing across regions, traffic splitting |
 | **Network Endpoint Groups (NEGs)** | Fine-grained load balancing targets | Container-native LB (bypasses kube-proxy for lower latency) |
 
 #### Database Performance
@@ -1113,7 +1122,7 @@ gcloud container clusters update my-cluster \
 | **GKE Cluster Autoscaler** | Kubernetes nodes | Pending pods that cannot be scheduled | Node pool capacity |
 | **GKE Node Auto-provisioning (NAP)** | Kubernetes node pools | Workload requirements | Automatic node pool creation |
 | **Cloud Run** | Container instances | Concurrent requests | HTTP services |
-| **Cloud Functions** | Function instances | Incoming events | Event-driven workloads |
+| **Cloud Run functions** | Function instances | Incoming events | Event-driven workloads |
 | **Bigtable Autoscaler** | Bigtable nodes | CPU utilization, storage utilization | Time-series, IoT data |
 | **Spanner Autoscaler** | Processing units | CPU utilization | Globally distributed DB |
 
@@ -1235,7 +1244,7 @@ Sustainability is about minimizing the environmental impact of cloud workloads. 
 |---------|-------------------|--------|
 | **Carbon Footprint Dashboard** | Gross and market-based carbon emissions per project, region, service | Visibility into environmental impact |
 | **Active Assist Sustainability Recommendations** | Identifies workloads that could be moved to lower-carbon regions | Actionable region migration suggestions |
-| **Cloud Run / Cloud Functions** | Scale to zero | Zero energy when idle |
+| **Cloud Run and Cloud Run functions** | Scale to zero | Zero energy when idle |
 | **GKE Autopilot** | Efficient bin-packing of pods | Less wasted node capacity |
 | **Autoscaling (all services)** | Match capacity to demand | No idle over-provisioning |
 | **Cloud Storage Lifecycle Policies** | Automatic data deletion and class transitions | Reduced storage footprint |
@@ -1273,7 +1282,7 @@ Candidate regions:
 
 **Pattern 1: Serverless-First Architecture (Maximize Scale-to-Zero)**
 ```
-Cloud Run (scale to zero) → Cloud Functions (event processing) → BigQuery (serverless analytics)
+Cloud Run (scale to zero) → Cloud Run functions (event processing) → BigQuery (serverless analytics)
                          ↓
                     Firestore (serverless database)
 
@@ -1392,10 +1401,10 @@ Answer: B
 | "real-time analytics" | BigQuery streaming, Bigtable, Pub/Sub + Dataflow |
 | "batch processing, cost-sensitive" | Batch with Spot VMs, Dataflow Flex Templates |
 | "ML training at scale" | Vertex AI Training + GPUs/TPUs, distributed training |
-| "unpredictable traffic" | Cloud Run, Cloud Functions, App Engine auto-scaling |
+| "unpredictable traffic" | Cloud Run, Cloud Run functions, App Engine autoscaling |
 | "hybrid connectivity" | Cloud Interconnect (high bandwidth) or HA VPN (lower bandwidth) |
 | "legacy application" | App Engine Flexible, Compute Engine, or GKE with lift-and-shift containers |
-| "multi-cloud" | Anthos, BigQuery Omni, GKE Enterprise multi-cloud |
+| "multi-cloud" | GKE Enterprise multi-cloud, BigQuery Omni, Cloud Service Mesh |
 | "CI/CD pipeline" | Cloud Build + Cloud Deploy + Artifact Registry |
 | "secrets management" | Secret Manager (NOT KMS -- KMS is for encryption keys) |
 
@@ -1483,7 +1492,7 @@ T - Technology: Is this the right service for the job? (Decision tree)
 
 | Pillar | One-Liner | Key GCP Services | Top Exam Trap |
 |--------|-----------|-------------------|---------------|
-| **Operational Excellence** | Run it, monitor it, improve it | Cloud Ops Suite, Cloud Deploy, Cloud Build | SLO != SLA; error budgets drive release decisions |
+| **Operational Excellence** | Run it, monitor it, improve it | Google Cloud Observability, Cloud Deploy, Cloud Build | SLO != SLA; error budgets drive release decisions |
 | **Security** | Protect everything, trust nothing | IAM, VPC-SC, KMS, SCC, Binary Auth | VPC-SC != Firewall; Org Policy != IAM |
 | **Reliability** | Design for failure at every layer | Global LB, Spanner, GKE regional, Cloud SQL HA | Cloud SQL HA is NOT multi-region; RPO=0 needs sync replication |
 | **Cost Optimization** | Pay only for what you need | Recommender, Spot VMs, CUDs, lifecycle policies | Budgets do NOT stop spending; Archive is NOT slow |

@@ -93,7 +93,7 @@ spec:
   uniformBucketLevelAccess: true
 ```
 
-**Config Sync** -- GitOps tool for GKE. It syncs Kubernetes manifests from a Git repo to your clusters. Pairs with Policy Controller for guardrails.
+**Config Sync** -- GitOps tool for GKE, part of GKE Enterprise (formerly Anthos). It syncs Kubernetes manifests from a Git repo to your clusters. Pairs with Policy Controller for guardrails.
 
 ```bash
 # Enable Config Sync on a GKE fleet membership
@@ -112,7 +112,7 @@ gcloud container fleet config-management status
 > - Rolling updates with `maxUnavailable=0` ensure zero downtime.
 > - Cloud Run traffic splitting is revision-based and instant (no new deployment needed).
 
-**Docs:** [MIG rolling updates](https://cloud.google.com/compute/docs/instance-groups/rolling-out-updates-to-managed-instance-groups) | [Cloud Run traffic management](https://cloud.google.com/run/docs/rollouts-rollbacks-traffic-migration) | [Config Controller](https://cloud.google.com/anthos-config-management/docs/concepts/config-controller-overview) | [Config Sync](https://cloud.google.com/anthos-config-management/docs/config-sync-overview)
+**Docs:** [MIG rolling updates](https://cloud.google.com/compute/docs/instance-groups/rolling-out-updates-to-managed-instance-groups) | [Cloud Run traffic management](https://cloud.google.com/run/docs/rollouts-rollbacks-traffic-migration) | [Config Controller](https://cloud.google.com/kubernetes-engine/enterprise/config-controller/docs/overview) | [Config Sync](https://cloud.google.com/kubernetes-engine/enterprise/config-sync/docs/overview) | [GKE Enterprise](https://cloud.google.com/kubernetes-engine/enterprise/docs/concepts/overview)
 
 ---
 
@@ -156,17 +156,33 @@ gcloud apigee deployments list \
   --organization=my-org
 ```
 
-**Apigee tiers:**
+**Apigee pricing models.** Two ways to buy, and they are not tiers of each other:
 
-| Tier | Use Case |
-|------|----------|
-| **Apigee X** | Full enterprise, VPC-peered, private networking |
-| **Apigee hybrid** | Control plane on GCP, runtime on-prem or other cloud |
-| **Apigee Integrated** | Pay-as-you-go, simpler setup, good for getting started |
+| Model | How It Bills | Notes |
+|-------|-------------|-------|
+| **Subscription** | Annual commitment, three tiers | Standard, Enterprise, Enterprise Plus |
+| **Pay-as-you-go** | Per API call and per gateway node-hour | No commitment; good for variable or starting workloads |
+
+**Subscription tiers,** by entitlement:
+
+| Tier | Annual Standard Proxy Calls | Active Environments | Proxy Deployment Units | Hybrid Entitlement |
+|------|-----------------------------|---------------------|------------------------|--------------------|
+| **Standard** | Up to 1.25 billion | 3 | 250 | No |
+| **Enterprise** | Up to 7.5 billion | 6 | 500 | Yes |
+| **Enterprise Plus** | Up to 75 billion | 12 | 1,500 | Yes |
+
+Advanced API Security and Monetization are add-ons purchasable on any tier.
+
+**Deployment options** (a separate choice from the pricing model):
+
+| Option | Where the Runtime Lives |
+|--------|-------------------------|
+| **Apigee** (formerly Apigee X) | Google-managed runtime in Google Cloud, VPC-peered or Private Service Connect |
+| **Apigee hybrid** | Management plane in Google Cloud, runtime in your own Kubernetes cluster (on-prem or another cloud) |
 
 #### API Gateway (Serverless, Simpler)
 
-API Gateway is a fully managed, serverless gateway for Cloud Functions, Cloud Run, and App Engine backends. Simpler than Apigee, no developer portal or monetization.
+API Gateway is a fully managed, serverless gateway for Cloud Run, Cloud Run functions, and App Engine backends. Simpler than Apigee, no developer portal or monetization.
 
 ```bash
 # Create an API config from an OpenAPI spec
@@ -213,7 +229,7 @@ gcloud endpoints services describe my-api.endpoints.my-project.cloud.goog
 | **Rate limiting** | Advanced (spike arrest, quotas, per-developer) | Basic (per-gateway) | Basic |
 | **Analytics** | Rich dashboard, custom reports | Cloud Logging/Monitoring | Cloud Logging/Monitoring |
 | **Protocol** | REST, SOAP, GraphQL | REST (OpenAPI) | REST (OpenAPI), gRPC |
-| **Backend** | Any HTTP backend | Cloud Functions, Cloud Run, App Engine | Any (deployed as sidecar) |
+| **Backend** | Any HTTP backend | Cloud Run, Cloud Run functions, App Engine | Any (deployed as sidecar) |
 | **Pricing** | Most expensive (subscription) | Pay-per-call (cheap) | Free (you pay for ESP compute) |
 | **Hybrid/multi-cloud** | Yes (Apigee hybrid) | No | No |
 | **API versioning** | Built-in revision management | Via API configs | Via service configs |
@@ -235,12 +251,13 @@ gcloud endpoints services describe my-api.endpoints.my-project.cloud.goog
 
 > **Exam tips:**
 > - **Apigee** = enterprise, external developers, monetization, developer portal. If the question mentions "third-party developers" or "partner API program," pick Apigee.
-> - **API Gateway** = simplest option for serverless (Cloud Functions / Cloud Run) backends. Pay-per-call.
+> - **API Gateway** = simplest option for serverless (Cloud Run / Cloud Run functions) backends. Pay-per-call.
 > - **Cloud Endpoints** = gRPC support, sidecar proxy (ESP/ESPv2). Free service -- you pay for the compute running the proxy.
 > - If the question mentions "SOAP" or "XML transformation," Apigee is the only option with mediation capabilities.
-> - Apigee hybrid = runtime on-prem, control plane on GCP. Used for regulated industries or multi-cloud.
+> - Apigee hybrid = runtime in your own Kubernetes cluster, management plane on Google Cloud. Used for regulated industries or multi-cloud. Hybrid entitlement comes with Enterprise and Enterprise Plus, not Standard.
+> - Trap: **Apigee X is not a tier**, it is the old name for the Google-managed deployment. Tiers are Standard / Enterprise / Enterprise Plus, and pay-as-you-go is a separate pricing model, not a tier.
 
-**Docs:** [Apigee](https://cloud.google.com/apigee/docs) | [API Gateway](https://cloud.google.com/api-gateway/docs) | [Cloud Endpoints](https://cloud.google.com/endpoints/docs) | [Choosing an API management product](https://cloud.google.com/api-gateway/docs/choose-api-management)
+**Docs:** [Apigee](https://cloud.google.com/apigee/docs) | [Apigee subscription entitlements](https://cloud.google.com/apigee/docs/api-platform/reference/subscription-entitlements) | [Apigee pricing](https://cloud.google.com/apigee/pricing) | [API Gateway](https://cloud.google.com/api-gateway/docs) | [Cloud Endpoints](https://cloud.google.com/endpoints/docs) | [Choosing a Cloud Endpoints option](https://cloud.google.com/endpoints/docs/choose-endpoints-option)
 
 ---
 
@@ -267,8 +284,9 @@ kubectl apply -f locust-worker.yaml
 | **Locust** | Python-based, scriptable | GKE, Compute Engine |
 | **JMeter** | Java-based, GUI + CLI | Compute Engine, Cloud Build |
 | **k6** | JavaScript-based, modern | Cloud Build, Compute Engine |
-| **Cloud Load Testing** (deprecated) | Was GCP-native | Use Locust or k6 instead |
-| **Fortio** | Istio's load testing tool | GKE (especially with Istio) |
+| **Fortio** | Service mesh load testing tool | GKE (especially with Cloud Service Mesh) |
+
+There is no Google-managed load testing product. Google's published pattern is distributed load testing on GKE with Locust or a similar open-source tool. Any option naming a "Cloud Load Testing" service is a distractor.
 
 #### Testing in CI/CD Pipelines (Cloud Build)
 
@@ -292,17 +310,17 @@ steps:
         sleep 5
         PUBSUB_EMULATOR_HOST=localhost:8085 pytest tests/integration/ -v
 
-  # Build container
+  # Build container. Container Registry is shut down -- images go to Artifact Registry.
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/my-app:$COMMIT_SHA', '.']
+    args: ['build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/my-repo/my-app:$COMMIT_SHA', '.']
 
   # Push container
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/my-app:$COMMIT_SHA']
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/my-repo/my-app:$COMMIT_SHA']
 
   # Deploy to staging
   - name: 'gcr.io/cloud-builders/gcloud'
-    args: ['run', 'deploy', 'my-app-staging', '--image', 'gcr.io/$PROJECT_ID/my-app:$COMMIT_SHA', '--region', 'us-central1']
+    args: ['run', 'deploy', 'my-app-staging', '--image', 'us-central1-docker.pkg.dev/$PROJECT_ID/my-repo/my-app:$COMMIT_SHA', '--region', 'us-central1']
 
   # Smoke tests against staging
   - name: 'curlimages/curl'
@@ -323,7 +341,7 @@ Contract testing validates that an API provider meets the expectations of its co
 > - Contract testing is the exam-relevant answer when asked "how to test microservice APIs independently."
 > - Canary deployments + automated rollback = the GCP-recommended progressive delivery approach.
 
-**Docs:** [Cloud Build](https://cloud.google.com/build/docs) | [Cloud Build triggers](https://cloud.google.com/build/docs/automating-builds/create-manage-triggers) | [Testing overview](https://cloud.google.com/architecture/devops/devops-tech-test-automation)
+**Docs:** [Cloud Build](https://cloud.google.com/build/docs) | [Cloud Build triggers](https://cloud.google.com/build/docs/automating-builds/create-manage-triggers) | [Distributed load testing using GKE](https://cloud.google.com/architecture/distributed-load-testing-using-gke) | [Testing overview](https://cloud.google.com/architecture/devops/devops-tech-test-automation)
 
 ---
 
@@ -369,45 +387,33 @@ gcloud database-migration migration-jobs promote my-migration \
   --region=us-central1
 ```
 
-#### Migrate to Containers (Migrate for Anthos)
+#### Migrate to Containers
 
 Converts VM-based workloads into containers running on GKE. Useful for modernizing legacy apps without rewriting.
 
-```bash
-# Install Migrate to Containers on a processing cluster
-gcloud container clusters get-credentials my-processing-cluster --zone=us-central1-a
-migctl setup install
+The architecture changed in May 2024. The console UI, `migctl`, and the CRDs that ran migrations through a **processing cluster** were removed. Migrations now run from the **Migrate to Containers CLI** (`m2c`) on a local Linux or Windows machine, and the cluster is only the deployment target.
 
-# Add a migration source (e.g., vSphere, AWS, Azure, or Compute Engine)
-migctl source create my-ce-source --type=compute-engine
+The four-step flow:
 
-# Generate a migration plan
-migctl migration create my-migration --source=my-ce-source --vm-id=my-vm
+| Step | `m2c` Command | What It Produces |
+|------|---------------|------------------|
+| 1. Copy | `m2c copy` | The source VM's file system, pulled locally over gcloud or SSH |
+| 2. Analyze | `m2c analyze` | A modernization plan describing the detected workload |
+| 3. Edit | (edit the plan by hand) | Adjusted container config, volumes, exposed ports |
+| 4. Generate | `m2c generate` | Dockerfile, container image build context, and Kubernetes manifests |
 
-# Review and customize the migration plan
-migctl migration get-plan my-migration > plan.yaml
-# Edit plan.yaml (adjust container config, data volumes, etc.)
-migctl migration update my-migration --plan-file=plan.yaml
+`m2c migrate-data` moves data from the local machine into PersistentVolumeClaims on the connected cluster. Nothing in this flow uses `migctl` any more -- if an option or a command in a question mentions `migctl` or a processing cluster, it is stale.
 
-# Execute the migration (generates container artifacts)
-migctl migration generate-artifacts my-migration
+#### Migrate to VMs
 
-# Deploy generated artifacts to target GKE cluster
-kubectl apply -f deployment_spec.yaml
-```
+Migrate VMs from on-premises (VMware, AWS, Azure) to Compute Engine with minimal downtime. Uses continuous replication. This is the successor to Migrate for Compute Engine (M4CE), whose v4.11 left support on 2024-04-30. Migration Center is a separate product and is not the same lineage.
 
-#### Migrate to VMs (Migrate for Compute Engine)
+Key concepts:
 
-Migrate VMs from on-premises (VMware, AWS, Azure) to Compute Engine with minimal downtime. Uses continuous replication.
-
-```bash
-# Migrate to VMs uses the Google Cloud Console or the Migrate connector
-# Key concepts:
-# - Source: VMware vSphere, AWS EC2, Azure VMs, physical servers
-# - Replication: Continuous block-level replication
-# - Test clone: Create a test VM without disrupting the source
-# - Cutover: Final migration, source VM is shut down
-```
+- **Source:** VMware vSphere, AWS EC2, Azure VMs, physical servers
+- **Replication:** continuous block-level replication while the source keeps running
+- **Test clone:** create a test VM from replicated data without disrupting the source
+- **Cutover:** final migration, source VM is shut down
 
 #### Migration Center (Assessment and Planning)
 
@@ -498,10 +504,12 @@ bq mk --transfer_run --run_time='2026-02-15T00:00:00Z' projects/my-project/locat
 
 Datastream provides serverless change data capture (CDC) and replication. Streams changes from:
 
-- **Sources:** MySQL, PostgreSQL, Oracle, SQL Server
-- **Destinations:** BigQuery, Cloud Storage, Cloud SQL (PostgreSQL)
+- **Sources:** MySQL, PostgreSQL (including AlloyDB), Oracle, SQL Server, MongoDB, Spanner, plus SaaS sources such as Salesforce and Workday
+- **Destinations:** BigQuery, Cloud Storage, Apache Iceberg tables
 
 Use case: real-time replication to BigQuery for analytics.
+
+Exam trap: **Cloud SQL and Spanner are not Datastream destinations.** Reaching them means landing in Cloud Storage and using a Dataflow template to load onward.
 
 ```bash
 # Create a Datastream connection profile
@@ -549,10 +557,10 @@ gcloud datastream streams create my-stream \
 > - **Storage Transfer Service** = cloud-to-cloud or on-prem-to-GCS file transfers. NOT for database migration.
 > - **BigQuery Data Transfer Service** = scheduled data loading INTO BigQuery from external sources. Not for real-time.
 > - **Migration Center** = assessment and planning ONLY. It does not perform the actual migration.
-> - **Migrate to Containers** generates Docker artifacts from VMs -- it does NOT require code changes.
+> - **Migrate to Containers** generates Docker artifacts from VMs -- it does NOT require code changes. Runs from the local `m2c` CLI, not `migctl`.
 > - **Transfer Appliance** = physical device for petabyte-scale offline transfers when network bandwidth is insufficient.
 
-**Docs:** [Database Migration Service](https://cloud.google.com/database-migration/docs) | [Migrate to Containers](https://cloud.google.com/migrate/containers/docs) | [Migrate to VMs](https://cloud.google.com/migrate/compute-engine/docs) | [Migration Center](https://cloud.google.com/migration-center/docs) | [Storage Transfer Service](https://cloud.google.com/storage-transfer-service/docs) | [BigQuery Data Transfer Service](https://cloud.google.com/bigquery/docs/transfer-service-overview) | [Datastream](https://cloud.google.com/datastream/docs)
+**Docs:** [Database Migration Service](https://cloud.google.com/database-migration/docs) | [Migrate to Containers](https://cloud.google.com/migrate/containers/docs) | [Migrate to Containers CLI reference](https://cloud.google.com/migrate/containers/docs/m2c-cli-reference-linux) | [Migrate to VMs](https://cloud.google.com/migrate/virtual-machines/docs) | [Migration Center](https://cloud.google.com/migration-center/docs) | [Storage Transfer Service](https://cloud.google.com/storage-transfer/docs/overview) | [BigQuery Data Transfer Service](https://cloud.google.com/bigquery/docs/transfer-service-overview) | [Datastream](https://cloud.google.com/datastream/docs)
 
 ---
 
@@ -618,8 +626,8 @@ Cloud Shell is a free, browser-based terminal with a persistent 5 GB home direct
 
 - `gcloud`, `gsutil`, `bq`, `kubectl`, `terraform`, `docker`, `git`, `python`, `java`, `go`, `node`
 - Authenticated automatically with your logged-in account
-- Ephemeral VM (Debian-based, `e2-small`), resets after 120 minutes of inactivity
-- Home directory persists across sessions (5 GB limit)
+- Ephemeral Debian-based VM; the session ends after **40 minutes** of inactivity
+- Home directory persists across sessions (5 GB limit), but is **deleted after 120 days** without accessing Cloud Shell
 
 ```bash
 # Cloud Shell is accessed via the console (top-right terminal icon)
@@ -642,9 +650,11 @@ cloudshell edit ~/my-file.py
 
 **Cloud Shell limitations:**
 
-- 50 hours/week usage limit
+- 50 hours/week usage quota
 - No GPU, limited CPU/RAM
-- Sessions timeout after 20 minutes of idle (terminal) or 120 minutes (VM)
+- Session ends after **40 minutes** of inactivity
+- **12-hour** maximum session length, then the session terminates regardless of activity
+- `$HOME` is **deleted after 120 days** of not using Cloud Shell
 - Not for production workloads -- development and admin tasks only
 - 5 GB home directory limit
 
@@ -723,8 +733,8 @@ gcloud workstations ssh my-workstation \
 |---------|------------|-------------------|
 | **Cost** | Free | Paid (Compute Engine pricing) |
 | **Persistence** | 5 GB home dir only | Full VM disk persists |
-| **Machine type** | Fixed (e2-small) | Configurable (any machine type) |
-| **Idle timeout** | 20 min (terminal), 120 min (VM) | Configurable |
+| **Machine type** | Fixed, not configurable | Configurable (any machine type) |
+| **Idle timeout** | 40 min inactivity, 12 h session cap | Configurable |
 | **Custom images** | No | Yes (bring your own container image) |
 | **GPU** | No | Yes |
 | **Use case** | Quick admin tasks, tutorials | Full development environment, teams |
@@ -733,11 +743,12 @@ gcloud workstations ssh my-workstation \
 > **Exam tips:**
 > - Cloud Shell = free, quick, ephemeral. Cloud Workstations = paid, persistent, customizable.
 > - Cloud Shell's 5 GB home directory persists, but the VM environment resets. Anything installed outside `$HOME` is lost.
+> - Cloud Shell numbers worth memorising: 40 min inactivity timeout, 12 h session cap, 50 h/week quota, 5 GB `$HOME`, `$HOME` deleted after 120 days unused.
 > - Cloud Code is the IDE plugin (VS Code/IntelliJ). Cloud Shell Editor is the browser-based IDE.
 > - Cloud Workstations can connect to private VPC networks -- Cloud Shell cannot.
 > - If the question mentions "team development environment" or "custom IDE configuration," the answer is Cloud Workstations.
 
-**Docs:** [Cloud Shell](https://cloud.google.com/shell/docs) | [Cloud Code](https://cloud.google.com/code/docs) | [Cloud Workstations](https://cloud.google.com/workstations/docs)
+**Docs:** [Cloud Shell](https://cloud.google.com/shell/docs) | [Cloud Shell limitations](https://cloud.google.com/shell/docs/limitations) | [Cloud Code](https://cloud.google.com/code/docs) | [Cloud Workstations](https://cloud.google.com/workstations/docs)
 
 ---
 
@@ -789,128 +800,29 @@ gcloud ... --verbosity=debug  # Debug output
 gcloud ... --impersonate-service-account=SA@PROJECT.iam.gserviceaccount.com
 ```
 
-#### gsutil (Cloud Storage)
+#### Service-Specific CLIs
+
+The exam does not test flag recall for these. It tests which tool owns which surface, and which tool a script or runbook should standardise on.
+
+| CLI | Surface | Architect-Level Point |
+|-----|---------|-----------------------|
+| `gcloud storage` | Cloud Storage | The current tool. Faster than `gsutil` on large transfers because it parallelises by default |
+| `gsutil` | Cloud Storage | Legacy. Leaves the CLI bundle in March 2027, so new automation should target `gcloud storage` |
+| `bq` | BigQuery | Datasets, tables, loads, extracts, and `--transfer_config` for BigQuery Data Transfer Service |
+| `cbt` | Bigtable | Separate component (`gcloud components install cbt`), schema and row-level operations only |
+| `kubectl` | GKE workloads | Credentials come from `gcloud container clusters get-credentials`, which writes the kubeconfig entry |
 
 ```bash
-# Copy files
-gsutil cp local-file.txt gs://my-bucket/
-gsutil cp gs://my-bucket/file.txt .
-gsutil cp -r local-dir/ gs://my-bucket/dir/  # Recursive
+# gcloud storage covers the common data-movement cases
+gcloud storage cp -r local-dir/ gs://my-bucket/dir/
+gcloud storage rsync -r local-dir/ gs://my-bucket/dir/
+gcloud storage buckets update gs://my-bucket --versioning
 
-# Parallel composite upload (large files)
-gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp large-file.tar.gz gs://my-bucket/
-
-# Sync directories
-gsutil rsync -r local-dir/ gs://my-bucket/dir/
-gsutil rsync -d -r gs://source-bucket/ gs://dest-bucket/  # -d deletes extra files in dest
-
-# List and manage
-gsutil ls gs://my-bucket/
-gsutil ls -l gs://my-bucket/  # Long listing with sizes
-gsutil du -s gs://my-bucket/  # Total bucket size
-
-# ACLs and IAM
-gsutil iam get gs://my-bucket/
-gsutil iam ch user:dev@example.com:objectViewer gs://my-bucket/
-
-# Lifecycle and versioning
-gsutil versioning set on gs://my-bucket/
-gsutil lifecycle set lifecycle.json gs://my-bucket/
-
-# Multi-threaded operations
-gsutil -m cp -r large-dir/ gs://my-bucket/  # -m enables multi-threading
-gsutil -m rsync -r source/ gs://my-bucket/dest/
+# Get GKE credentials, then kubectl works against the cluster
+gcloud container clusters get-credentials my-cluster --region=us-central1
 ```
 
-> **Note:** `gsutil` is gradually being replaced by `gcloud storage` commands, but `gsutil` is still widely used and exam-relevant.
-
-```bash
-# gcloud storage equivalents (newer, faster)
-gcloud storage cp local-file.txt gs://my-bucket/
-gcloud storage ls gs://my-bucket/
-gcloud storage rsync local-dir/ gs://my-bucket/dir/
-```
-
-#### bq CLI (BigQuery)
-
-```bash
-# Run a query
-bq query --use_legacy_sql=false 'SELECT * FROM `my-project.my_dataset.my_table` LIMIT 10'
-
-# Create a dataset
-bq mk --dataset my-project:my_dataset
-
-# Create a table
-bq mk --table my-project:my_dataset.my_table schema.json
-
-# Load data
-bq load --source_format=CSV my_dataset.my_table gs://my-bucket/data.csv schema.json
-bq load --autodetect --source_format=NEWLINE_DELIMITED_JSON my_dataset.my_table gs://my-bucket/data.jsonl
-
-# Export data
-bq extract my_dataset.my_table gs://my-bucket/export/data-*.csv
-
-# List datasets, tables, jobs
-bq ls
-bq ls my_dataset
-bq ls --jobs --all
-
-# Show table details
-bq show my_dataset.my_table
-bq show --schema my_dataset.my_table
-```
-
-#### cbt CLI (Bigtable)
-
-```bash
-# Install cbt
-gcloud components install cbt
-
-# Configure cbt
-echo project=my-project > ~/.cbtrc
-echo instance=my-bigtable-instance >> ~/.cbtrc
-
-# List tables
-cbt ls
-
-# Create a table and column family
-cbt createtable my-table
-cbt createfamily my-table cf1
-
-# Read/write data
-cbt set my-table row1 cf1:col1=value1
-cbt read my-table
-
-# Count rows
-cbt count my-table
-
-# Delete
-cbt deleterow my-table row1
-cbt deletetable my-table
-```
-
-#### kubectl (GKE)
-
-```bash
-# Get credentials for a GKE cluster
-gcloud container clusters get-credentials my-cluster --zone=us-central1-a
-
-# Common kubectl commands
-kubectl get pods
-kubectl get services
-kubectl get deployments
-kubectl get nodes
-kubectl describe pod POD_NAME
-kubectl logs POD_NAME
-kubectl exec -it POD_NAME -- /bin/bash
-kubectl apply -f manifest.yaml
-kubectl delete -f manifest.yaml
-kubectl scale deployment my-app --replicas=5
-kubectl rollout status deployment/my-app
-kubectl rollout undo deployment/my-app
-kubectl top pods  # Resource usage (requires metrics-server)
-kubectl top nodes
-```
+> **Exam tip:** a question that contrasts `gsutil` with `gcloud storage` is asking which one to build new automation on. That is `gcloud storage`. A question that names `gsutil signurl` is testing something else: signing a URL that way needs a downloaded service account key, so the correct answer is `gcloud storage sign-url --impersonate-service-account`.
 
 #### SDK Client Libraries
 
@@ -1121,11 +1033,11 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "~> 5.0"
+      version = "~> 7.0"
     }
     google-beta = {
       source  = "hashicorp/google-beta"
-      version = "~> 5.0"
+      version = "~> 7.0"
     }
   }
 }
@@ -1259,7 +1171,7 @@ resource "google_compute_instance" "my_vm" {
 }
 ```
 
-**Terraform Cloud / Terraform Enterprise:**
+**HCP Terraform / Terraform Enterprise** (HCP Terraform is the current name for what was Terraform Cloud):
 
 - Remote execution (runs Terraform in the cloud, not locally)
 - State management with built-in locking and versioning
@@ -1668,7 +1580,7 @@ resource "google_cloud_run_v2_service" "default" {
 
   template {
     containers {
-      image = "gcr.io/${var.project_id}/my-app:latest"
+      image = "us-central1-docker.pkg.dev/${var.project_id}/my-repo/my-app:latest"
 
       ports {
         container_port = 8080
@@ -1723,7 +1635,7 @@ resource "google_cloud_run_v2_service_iam_member" "public" {
 
 #### Policy Validation
 
-**Sentinel (Terraform Cloud/Enterprise):**
+**Sentinel (HCP Terraform / Terraform Enterprise):**
 
 ```python
 # Sentinel policy: Ensure all GCE instances use approved machine types
@@ -1806,39 +1718,51 @@ kubectl apply -f storage-bucket.yaml
 kubectl describe storagebucket my-bucket
 ```
 
-**Deployment Manager (legacy, avoid for new projects):**
+**Infrastructure Manager (Google's managed Terraform):**
 
-Deployment Manager is Google's native IaC tool using YAML/Jinja2/Python templates. It is legacy and not recommended for new projects. Use Terraform instead.
+Infrastructure Manager (Infra Manager) runs *your* Terraform configuration as a managed Google Cloud service. You do not run `terraform apply` yourself and you do not own a state bucket: Infra Manager creates a Cloud Build run that performs `init`, `validate`, `plan` and `apply`, and stores the resulting Terraform state and logs in a Cloud Storage bucket it manages. It is the named successor to Deployment Manager.
 
-```yaml
-# deployment.yaml (Deployment Manager)
-resources:
-  - name: my-vm
-    type: compute.v1.instance
-    properties:
-      zone: us-central1-a
-      machineType: zones/us-central1-a/machineTypes/e2-medium
-      disks:
-        - deviceName: boot
-          type: PERSISTENT
-          boot: true
-          autoDelete: true
-          initializeParams:
-            sourceImage: projects/debian-cloud/global/images/family/debian-12
-      networkInterfaces:
-        - network: global/networks/default
-```
+The config source can be a Cloud Storage object, a public Git repository, or your local machine. Infra Manager executes it under a **service account you nominate**, which is what makes it the answer when a question asks for Terraform runs with no long-lived developer credentials and a per-deployment audit trail.
+
+| Concept | What It Is |
+|---------|-----------|
+| **Deployment** | The unit of managed infrastructure, holding the current state |
+| **Revision** | One apply of a deployment. Each revision keeps its own config, resource list, logs and state file |
+| **Preview** | A plan-only run showing the effect of a change before it is applied |
+| **Resource drift** | Detected difference between the live resources and the last applied revision |
 
 ```bash
-# Deploy with Deployment Manager
-gcloud deployment-manager deployments create my-deployment --config=deployment.yaml
+# Apply a deployment from a Cloud Storage source
+gcloud infra-manager deployments apply projects/PROJECT/locations/us-central1/deployments/my-deployment \
+  --service-account=projects/PROJECT/serviceAccounts/infra-manager-sa@PROJECT.iam.gserviceaccount.com \
+  --gcs-source=gs://my-config-bucket/terraform/ \
+  --input-values=project_id=PROJECT,region=us-central1
 
-# Update
-gcloud deployment-manager deployments update my-deployment --config=deployment-v2.yaml
+# Apply from a public Git repository
+gcloud infra-manager deployments apply projects/PROJECT/locations/us-central1/deployments/my-deployment \
+  --service-account=projects/PROJECT/serviceAccounts/infra-manager-sa@PROJECT.iam.gserviceaccount.com \
+  --git-source-repo=https://github.com/example/infra \
+  --git-source-directory=envs/prod \
+  --git-source-ref=main
 
-# Delete
-gcloud deployment-manager deployments delete my-deployment
+# Preview a change before applying it
+gcloud infra-manager previews create projects/PROJECT/locations/us-central1/previews/my-preview \
+  --deployment=projects/PROJECT/locations/us-central1/deployments/my-deployment \
+  --service-account=projects/PROJECT/serviceAccounts/infra-manager-sa@PROJECT.iam.gserviceaccount.com
+
+# Inspect history, and the drift a preview detected
+gcloud infra-manager revisions list --deployment=my-deployment --location=us-central1
+gcloud infra-manager resource-drifts list --preview=my-preview --location=us-central1
+
+# Tear down the managed resources
+gcloud infra-manager deployments delete projects/PROJECT/locations/us-central1/deployments/my-deployment
 ```
+
+Constraints worth knowing: the configuration must not declare its own `backend` block (Infra Manager owns the state), Terraform `provisioners` are not supported, and the Terraform version comes from the set Infra Manager supports (`gcloud infra-manager terraform-versions list`) rather than being pinned freely.
+
+**Deployment Manager (end of support, do not use):**
+
+Deployment Manager is Google's original native IaC service, using YAML with Jinja2 or Python templates. It reached end of support on 2026-03-31 and new users are blocked from 2026-06-30. Google's stated migration path is Infrastructure Manager or Terraform. Treat it as a distractor on the exam: the only correct answer involving it is "migrate off it".
 
 **Pulumi (third-party, multi-cloud):**
 
@@ -1846,16 +1770,16 @@ Pulumi uses general-purpose programming languages (Python, Go, TypeScript, Java)
 
 #### IaC Comparison Table
 
-| Feature | Terraform | Deployment Manager | Config Connector | Pulumi |
-|---------|-----------|-------------------|-----------------|--------|
-| **Language** | HCL | YAML/Jinja2/Python | YAML (K8s CRDs) | Python, Go, TS, Java |
-| **State** | Managed (local/remote) | GCP-managed | Kubernetes etcd | Managed (Pulumi Cloud) |
-| **Multi-cloud** | Yes | No (GCP only) | No (GCP only) | Yes |
-| **Status** | Recommended | Legacy | Active (K8s teams) | Active |
-| **Community** | Largest | Small | Growing | Growing |
-| **GCP support** | Comprehensive | Full | Comprehensive | Comprehensive |
-| **GitOps** | Via CI/CD | No | Native (K8s) | Via CI/CD |
-| **Best for** | Most teams | (don't use) | K8s-native teams | Dev teams who prefer code |
+| Feature | Terraform (self-run) | Infrastructure Manager | Config Connector | Pulumi | Deployment Manager |
+|---------|----------------------|------------------------|------------------|--------|--------------------|
+| **Language** | HCL | HCL (your Terraform config) | YAML (K8s CRDs) | Python, Go, TS, Java | YAML/Jinja2/Python |
+| **Who runs it** | You (laptop or CI) | Google, via Cloud Build | Config Connector in GKE | You or Pulumi Cloud | Google |
+| **State** | You own it (GCS backend) | Google-managed bucket, per revision | Kubernetes etcd | Managed (Pulumi Cloud) | Google-managed |
+| **Identity used** | Whatever the runner has | A service account you nominate | Workload Identity in the cluster | Whatever the runner has | Caller's credentials |
+| **Multi-cloud** | Yes | No (Google Cloud only) | No (Google Cloud only) | Yes | No |
+| **Status** | Recommended | Recommended, Google-managed | Active (K8s teams) | Active | End of support 2026-03-31 |
+| **GitOps** | Via CI/CD | Native Git source, or via CI/CD | Native (K8s) | Via CI/CD | No |
+| **Best for** | Teams with existing CI/CD | Teams who want Terraform without owning runners or state | K8s-native teams | Dev teams who prefer code | Nothing new |
 
 > **Exam tips:**
 > - **Terraform is the default answer** for IaC on the PCA exam. If the question doesn't mention Kubernetes-native, pick Terraform.
@@ -1865,13 +1789,14 @@ Pulumi uses general-purpose programming languages (Python, Go, TypeScript, Java)
 > - **`terraform state rm`** removes a resource from state WITHOUT deleting the actual resource. Use when you want to stop managing a resource.
 > - **CFT modules** are the Google-recommended Terraform modules. If the question says "Google best practices" or "opinionated modules," pick CFT.
 > - **Config Connector** = Kubernetes-native IaC. If the question says "manage GCP resources with kubectl" or "Kubernetes-style declarative management," pick Config Connector.
-> - **Deployment Manager** is legacy. The exam may include it as a distractor. If the question asks for the "recommended" approach, pick Terraform.
+> - **Infrastructure Manager** is the answer when the requirement is Terraform *without* the team owning runners, state buckets or long-lived credentials: it runs the config under a nominated service account and keeps state and logs per revision. Also the answer to "what replaces Deployment Manager".
+> - **Deployment Manager** hit end of support on 2026-03-31 and is closed to new users. It is only ever a distractor, or the thing being migrated away from.
 > - **Workspaces vs directories:** Workspaces are simpler but less visible. Separate directories per environment are recommended for production setups.
-> - **Sentinel** = policy as code for Terraform Cloud/Enterprise. **OPA/Gatekeeper** = open-source alternative.
+> - **Sentinel** = policy as code for HCP Terraform / Terraform Enterprise. **OPA/Gatekeeper** = open-source alternative.
 > - `terraform plan -out=plan.tfplan` then `terraform apply plan.tfplan` is the safest workflow (ensures you apply exactly what you reviewed).
 > - Always enable **versioning on the state bucket** so you can recover from state corruption.
 
-**Docs:** [Terraform Google Provider](https://registry.terraform.io/providers/hashicorp/google/latest/docs) | [Cloud Foundation Toolkit](https://cloud.google.com/docs/terraform/blueprints/terraform-blueprints) | [Config Connector](https://cloud.google.com/config-connector/docs/overview) | [Deployment Manager](https://cloud.google.com/deployment-manager/docs) | [Terraform best practices on GCP](https://cloud.google.com/docs/terraform/best-practices-for-terraform)
+**Docs:** [Terraform Google Provider](https://registry.terraform.io/providers/hashicorp/google/latest/docs) | [Infrastructure Manager](https://cloud.google.com/infrastructure-manager/docs/overview) | [`gcloud infra-manager`](https://cloud.google.com/sdk/gcloud/reference/infra-manager) | [Cloud Foundation Toolkit](https://cloud.google.com/docs/terraform/blueprints/terraform-blueprints) | [Config Connector](https://cloud.google.com/config-connector/docs/overview) | [Deployment Manager deprecation](https://cloud.google.com/deployment-manager/docs/deprecations) | [Terraform best practices on GCP](https://cloud.google.com/docs/terraform/best-practices-for-terraform)
 
 ---
 
@@ -1921,7 +1846,7 @@ curl "https://www.googleapis.com/discovery/v1/apis/compute/v1/rest"
 # ADC resolution order:
 # 1. GOOGLE_APPLICATION_CREDENTIALS environment variable (path to service account key JSON)
 # 2. gcloud auth application-default credentials (~/.config/gcloud/application_default_credentials.json)
-# 3. Attached service account (on GCE, GKE, Cloud Run, Cloud Functions)
+# 3. Attached service account (on GCE, GKE, Cloud Run, Cloud Run functions)
 # 4. Compute Engine default service account
 
 # Set ADC for local development
@@ -1961,72 +1886,28 @@ client = storage.Client(credentials=credentials)
 
 #### Rate Limiting and Error Handling
 
-```python
-# Python: Exponential backoff with google-cloud libraries
-# Most client libraries handle retries automatically
+Cloud Client Libraries already implement the correct behaviour, so the architect-level decision is whether to use them rather than how to hand-roll the loop.
 
-# Manual retry with exponential backoff
-import time
-import random
+| Failure | Correct Response | Who Implements It |
+|---------|------------------|-------------------|
+| `429 RESOURCE_EXHAUSTED` (rate quota) | Exponential backoff with jitter, then retry | Cloud Client Library, via `google.api_core.retry` |
+| `503 UNAVAILABLE` | Same, retry is safe for idempotent calls | Cloud Client Library |
+| `403` allocation quota exceeded | Do not retry, request a quota increase | You |
+| Long result sets | Follow `nextPageToken` until absent | Cloud Client Library iterators |
+
+```python
+# The retry policy is configuration, not code you write
 from google.api_core import exceptions, retry
 
-# Using the built-in retry decorator
-@retry.Retry(
-    initial=1.0,        # Initial delay in seconds
-    maximum=60.0,       # Maximum delay
-    multiplier=2.0,     # Delay multiplier
-    deadline=300.0,     # Total timeout
+retry_policy = retry.Retry(
+    initial=1.0, maximum=60.0, multiplier=2.0, deadline=300.0,
     predicate=retry.if_exception_type(
-        exceptions.ServiceUnavailable,
-        exceptions.TooManyRequests,
+        exceptions.ServiceUnavailable, exceptions.TooManyRequests
     ),
 )
-def make_api_call():
-    # Your API call here
-    pass
-
-# Manual exponential backoff pattern
-def call_with_backoff(func, max_retries=5):
-    for attempt in range(max_retries):
-        try:
-            return func()
-        except exceptions.TooManyRequests:
-            if attempt == max_retries - 1:
-                raise
-            delay = (2 ** attempt) + random.uniform(0, 1)
-            time.sleep(delay)
 ```
 
-**Pagination:**
-
-```python
-# Most list operations return paginated results
-from google.cloud import storage
-
-client = storage.Client()
-
-# Client libraries handle pagination automatically with iterators
-blobs = client.list_blobs('my-bucket', prefix='data/')
-for blob in blobs:  # Automatically paginates
-    print(blob.name)
-
-# Manual pagination with page tokens (REST API)
-import requests
-
-url = "https://storage.googleapis.com/storage/v1/b/my-bucket/o"
-params = {"maxResults": 100}
-headers = {"Authorization": f"Bearer {access_token}"}
-
-while True:
-    response = requests.get(url, params=params, headers=headers)
-    data = response.json()
-    for item in data.get("items", []):
-        print(item["name"])
-    page_token = data.get("nextPageToken")
-    if not page_token:
-        break
-    params["pageToken"] = page_token
-```
+> **Exam tip:** an option describing a hand-written retry or page-token loop is usually the wrong answer. The right one is "use the Cloud Client Library", which does both. Retrying a **403 allocation quota** error is always wrong: allocation quotas are hard limits, only rate quotas refill.
 
 #### API Quotas and Limits
 
@@ -2035,9 +1916,9 @@ while True:
 gcloud compute project-info describe --project=my-project --format="table(quotas.metric,quotas.usage,quotas.limit)"
 
 # Request a quota increase
-# Console: IAM & Admin > Quotas > Select quota > Edit Quotas
-# Or via gcloud:
-gcloud services quota update \
+# Console: IAM & Admin > Quotas & System Limits > select quota > Edit
+# The gcloud path is alpha only, so do not expect it as a correct exam answer:
+gcloud alpha services quota update \
   --service=compute.googleapis.com \
   --consumer=projects/my-project \
   --metric=compute.googleapis.com/cpus \
@@ -2085,77 +1966,18 @@ pip install google-cloud-monitoring     # Cloud Monitoring
 pip install google-cloud-secret-manager # Secret Manager
 ```
 
-```python
-# Pub/Sub: Publish and subscribe
-from google.cloud import pubsub_v1
-from concurrent.futures import TimeoutError
-
-# Publisher
-publisher = pubsub_v1.PublisherClient()
-topic_path = publisher.topic_path("my-project", "my-topic")
-
-future = publisher.publish(topic_path, b"My message", attribute1="value1")
-print(f"Published: {future.result()}")
-
-# Subscriber
-subscriber = pubsub_v1.SubscriberClient()
-subscription_path = subscriber.subscription_path("my-project", "my-sub")
-
-def callback(message):
-    print(f"Received: {message.data}")
-    message.ack()
-
-streaming_pull_future = subscriber.subscribe(subscription_path, callback=callback)
-try:
-    streaming_pull_future.result(timeout=60)
-except TimeoutError:
-    streaming_pull_future.cancel()
-    streaming_pull_future.result()
-```
+The shape is the same in every language and every service: construct a client with no explicit credentials so it picks up ADC, then call the resource method.
 
 ```python
-# Secret Manager: Access secrets
-from google.cloud import secretmanager
+# One pattern, three services
+from google.cloud import storage, pubsub_v1, secretmanager
 
-client = secretmanager.SecretManagerServiceClient()
-name = f"projects/my-project/secrets/my-secret/versions/latest"
-response = client.access_secret_version(request={"name": name})
-secret_value = response.payload.data.decode("UTF-8")
+storage.Client()                                  # ADC
+pubsub_v1.PublisherClient()                       # ADC
+secretmanager.SecretManagerServiceClient()        # ADC
 ```
 
-```go
-// Go: Cloud Storage example
-package main
-
-import (
-    "context"
-    "fmt"
-    "io"
-
-    "cloud.google.com/go/storage"
-)
-
-func readObject(bucket, object string) ([]byte, error) {
-    ctx := context.Background()
-    client, err := storage.NewClient(ctx)  // Uses ADC
-    if err != nil {
-        return nil, fmt.Errorf("storage.NewClient: %w", err)
-    }
-    defer client.Close()
-
-    rc, err := client.Bucket(bucket).Object(object).NewReader(ctx)
-    if err != nil {
-        return nil, fmt.Errorf("Object.NewReader: %w", err)
-    }
-    defer rc.Close()
-
-    data, err := io.ReadAll(rc)
-    if err != nil {
-        return nil, fmt.Errorf("io.ReadAll: %w", err)
-    }
-    return data, nil
-}
-```
+The architect-level point is what the client picks up *from the environment*: on Compute Engine, GKE, Cloud Run and Cloud Run functions the attached service account is used with no configuration, which is why an attached service account beats any credential the code carries.
 
 #### Google API Client Libraries (Lower-Level)
 
@@ -2253,9 +2075,10 @@ Need to migrate data?
 └── Need assessment first → Migration Center
 
 Need Infrastructure as Code?
-├── General purpose (recommended) → Terraform
+├── General purpose, team already has CI/CD → Terraform
+├── Want Terraform but not the runners or state → Infrastructure Manager
 ├── Kubernetes-native team → Config Connector
-├── Existing Deployment Manager → Migrate to Terraform
+├── Existing Deployment Manager → Migrate to Infrastructure Manager or Terraform
 └── Prefer real programming languages → Pulumi
 
 Need local development/testing?
@@ -2268,7 +2091,8 @@ Need to authenticate?
 ├── GCP workload → Attached service account (ADC)
 ├── Local development → gcloud auth application-default login
 ├── External workload (AWS/Azure/GitHub) → Workload Identity Federation
-└── CI/CD pipeline → Service account with key (or WIF)
+├── CI/CD outside Google Cloud → Workload Identity Federation, repository-scoped attribute condition
+└── Human needs a service account's access → Impersonation, never a downloaded key
 ```
 
 ---
@@ -2282,6 +2106,7 @@ Need to authenticate?
 - [ ] Can you explain ADC resolution order?
 - [ ] Do you know which services have emulators and how to start them?
 - [ ] Can you distinguish Cloud Shell vs Cloud Workstations?
-- [ ] Do you know when to use Config Connector vs Terraform?
+- [ ] Do you know when to use Config Connector vs Terraform vs Infrastructure Manager?
+- [ ] Can you say what replaced Deployment Manager, and what replaced `migctl`?
 - [ ] Can you explain Workload Identity Federation vs service account keys?
 - [ ] Do you know the difference between Cloud Client Libraries and Google API Client Libraries?
