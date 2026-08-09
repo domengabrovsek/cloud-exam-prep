@@ -1,553 +1,671 @@
 # Case Study Questions
 
-> **Exam context:** The PCA exam includes 4 published case studies. Two appear on each exam. 20-30% of questions reference case studies. Each question provides the case study context, so you don't need to memorize details, but familiarity saves time.
+> **Rebuilt from the official case study PDFs on 2026-08-09.** The previous set was written against a fabricated version of `docs/08-case-studies.md` and tested facts that do not exist: Oracle PL/SQL for a company with no Oracle, a petabyte Transfer Appliance move for a library already in Cloud Storage, IBM z/OS COBOL volumes for a case that names no mainframe vendor.
 >
-> See [docs/08-case-studies.md](../docs/08-case-studies.md) for full case study analysis.
+> Every stem below quotes or closely paraphrases a **real** requirement. Where a number appears, it is either from the source or clearly labelled as an assumption the question is making.
 
-**Total questions: 20**
+**Total questions: 20** (5 multi-select, 25%)
+
+> **How the real exam works.** Case study questions are 20-30% of the exam. Two of the four cases appear, viewable in a split screen. The official case studies contain **almost no numbers** (across all four there is one: EHR's 99.9% availability), so the exam tests requirement-to-service matching and elimination against stated constraints, not arithmetic.
+>
+> These questions are built the same way. For most of them, two options stay plausible until you apply one specific stated requirement. Find that requirement.
+
+See [docs/08-case-studies.md](../docs/08-case-studies.md) for the source material.
 
 ---
 
 ## EHR Healthcare (Questions 1-5)
 
-> **Case context:** EHR Healthcare provides electronic health record software. They're migrating from a colocation facility to Google Cloud. Key themes: HIPAA compliance, containerized + Windows workloads, Active Directory integration, 99.9% SLA, hybrid connectivity, healthcare APIs.
+> **Case context:** SaaS electronic health record software for multi-national medical offices, hospitals and insurance providers. Moving off colocation because a data center lease is expiring. Customer-facing apps are web-based and many are already containerized on Kubernetes. Data is in MySQL, MS SQL Server, Redis and MongoDB. Legacy file- and API-based integrations with insurance providers are hosted on-premises with **no plan to move them**. Users are managed in Microsoft Active Directory. Monitoring is open-source, and **alerts are sent by email and are often ignored**.
 
-### Q1. EHR Healthcare runs a mix of containerized Linux services and legacy Windows-based applications in their colocation facility. The containerized services use Kubernetes, while the Windows applications depend on .NET Framework 4.x and cannot be refactored in the near term. Which migration approach best meets EHR Healthcare's requirements?
+### Q1.
 
-A) Migrate all workloads to GKE using Windows Server node pools for .NET apps and Linux node pools for containerized services. Use Migrate to Containers for the Windows applications.
+EHR Healthcare states a technical requirement to "maintain legacy interfaces to insurance providers with connectivity to both on-premises systems and cloud providers". The case also states these legacy integrations are scheduled for replacement over several years, with no plan to upgrade or move them at this time. What should the architect propose?
 
-B) Migrate containerized services to GKE Autopilot. Use Migrate to Virtual Machines to move Windows workloads to Compute Engine instances. Establish a phased refactoring plan for the Windows apps.
+A) Refactor the legacy file- and API-based integrations into Cloud Run services so they can be decommissioned from the data center along with everything else.
 
-C) Rewrite all Windows applications as Linux containers before migration, then deploy everything to GKE Standard with Linux node pools only.
+B) Establish Dedicated Interconnect to the remaining on-premises environment, and use Cross-Cloud Interconnect or Network Connectivity Center to reach the other cloud providers, leaving the integrations in place.
 
-D) Migrate all workloads to Cloud Run. Use Cloud Run's Windows container support for the .NET Framework applications.
+C) Re-host the integrations on Compute Engine using Migrate to Virtual Machines, then expose them through Apigee.
+
+D) Replicate the integration data into BigQuery nightly so cloud workloads can read it without connecting to the on-premises systems.
 
 <details>
 <summary>Answer</summary>
 
 **Correct: B)**
 
-GKE Autopilot is the best fit for the already-containerized Linux services -- it reduces operational overhead and aligns with EHR's goal of managed infrastructure. The Windows .NET Framework 4.x applications cannot run in Linux containers and cannot be easily refactored, so Migrate to Virtual Machines (moving them as-is to Compute Engine) is the pragmatic first step. This gives EHR a clear lift-and-shift path for Windows while modernizing the container workloads.
+The case is unusually explicit that these systems stay where they are. The requirement is *connectivity to* them, not migration of them, so the whole question is a network design problem: a secure high-performance path to on-premises, plus reachability to other cloud providers.
 
-- **A is wrong:** While GKE does support Windows Server node pools, Migrate to Containers for Windows has significant limitations with .NET Framework 4.x apps that depend on full Windows Server features. Also, GKE Autopilot (not Standard) better meets the managed-infrastructure goal, and Autopilot does not support Windows node pools.
-- **C is wrong:** Rewriting all Windows applications before migration contradicts the requirement that they "cannot be refactored in the near term." This would delay the migration significantly.
-- **D is wrong:** Cloud Run does not support Windows containers. It only supports Linux-based containers.
+- **A is wrong** -- it directly contradicts "no plan to upgrade or move these systems at the current time". A refactor is the largest possible violation of that constraint.
+- **C is wrong** -- less drastic than A, but still a migration. Re-hosting moves the systems, which the case rules out.
+- **D is wrong** -- nightly replication changes an integration into a stale copy. The insurance providers' interfaces are live file and API integrations, and a batch mirror does not maintain them. It also silently introduces a data freshness problem the case never asked for.
 
-**Exam tip:** When a case study mentions both containerized and legacy VM workloads, the answer almost always involves a split strategy -- GKE for containers, Compute Engine for VMs that can't be containerized yet. Look for "cannot be refactored" as the signal.
+**Exam tip:** when a case says a system is staying put, every option that moves, rewrites or replaces it is eliminated regardless of technical merit. Read for "no plan to", "cannot be", "must remain" -- these phrases are put there to do exactly this work.
+
+Docs: https://cloud.google.com/network-connectivity/docs/interconnect and https://cloud.google.com/network-connectivity/docs/network-connectivity-center
+
 </details>
 
 ---
 
-### Q2. EHR Healthcare must ensure their Google Cloud environment meets HIPAA compliance requirements for storing and processing electronic health records. The security team requires encryption key control, comprehensive audit logging, and guardrails that prevent accidental deployment of resources outside compliant configurations. Which combination of services should the architect implement? (Choose TWO.)
+### Q2.
 
-A) Enable Assured Workloads for Healthcare to create a compliant environment with organizational policy guardrails, and configure Cloud Audit Logs with Data Access logs exported to a locked Cloud Storage bucket.
+EHR Healthcare requires "a minimum 99.9% availability for all customer-facing systems" and wants to decrease infrastructure administration costs. Which deployment approach meets the requirement at the lowest cost and operational burden?
 
-B) Use Google-managed encryption keys (GMEK) for all storage services and rely on Access Transparency logs for compliance auditing.
+A) Multi-region active-active GKE clusters behind a global external Application Load Balancer, with Spanner multi-region for state.
 
-C) Configure Cloud Key Management Service (CMEK) for all data-at-rest encryption so EHR Healthcare controls key rotation, access policies, and key destruction schedules.
+B) A regional GKE cluster with nodes across three zones, behind a global external Application Load Balancer, with Cloud SQL configured for regional high availability.
 
-D) Deploy all resources into a single project with VPC Service Controls and use default encryption with no additional key management.
+C) A zonal GKE cluster with a regional managed instance group as a warm standby in a second region.
 
-E) Use Customer-Supplied Encryption Keys (CSEK) for all services to maintain maximum control over encryption keys.
+D) Two single-zone GKE clusters in the same region with DNS round-robin between them.
+
+<details>
+<summary>Answer</summary>
+
+**Correct: B)**
+
+99.9% is three nines, which is roughly 43 minutes of downtime a month. A regional deployment across three zones achieves that: a zone failure is survived, and the regional control plane and regional Cloud SQL HA remove the single points of failure. This is the cheapest configuration that clears the stated bar.
+
+- **A is wrong** -- it works, but it is built for four or five nines. The case asks for 99.9% and separately asks to decrease infrastructure administration costs, so multi-region active-active with Spanner is over-engineering that fails the cost requirement. This is the most commonly chosen wrong answer on this style of question.
+- **C is wrong** -- a zonal cluster has a single-zone control plane, so a zone failure takes the cluster out. A cross-region warm standby does not compensate for a fragile primary, and it adds cost.
+- **D is wrong** -- DNS round-robin is not failover. Clients cache DNS, and unhealthy endpoints keep receiving traffic. Two single-zone clusters also means two single points of failure rather than one resilient deployment.
+
+**Exam tip:** match the architecture to the stated number, not to the most robust option available. 99.9% is regional multi-zone. 99.99% starts to need multi-region. When a case pairs an availability target with a cost-reduction goal, the answer is the cheapest configuration that clears the target.
+
+Docs: https://cloud.google.com/kubernetes-engine/docs/concepts/regional-clusters and https://cloud.google.com/sql/docs/mysql/high-availability
+
+</details>
+
+---
+
+### Q3.
+
+EHR Healthcare's executive statement attributes past outages to "misconfigured systems, inadequate capacity to manage spikes in traffic, and inconsistent monitoring practices". The case separately notes that alerts are currently sent via email and are often ignored, and requires "centralized visibility and proactive action on system performance and usage". Which two actions best address this? (Choose TWO.)
+
+A) Define SLOs for customer-facing services and alert on error budget burn rate through a paging channel, rather than alerting on every threshold breach.
+
+B) Increase the frequency of the existing email alerts so issues are noticed sooner.
+
+C) Adopt infrastructure as code with policy enforcement so environments are provisioned consistently rather than configured by hand.
+
+D) Route all logs to a single Cloud Logging bucket in one project and grant every engineer access to query it.
+
+E) Replace the open-source monitoring stack with Cloud Monitoring, keeping the existing alert definitions unchanged.
 
 <details>
 <summary>Answer</summary>
 
 **Correct: A) and C)**
 
-EHR Healthcare's HIPAA requirements demand both organizational guardrails and encryption key control. **Assured Workloads for Healthcare** provides the compliance boundary -- it enforces organizational policies that restrict resource locations, disable non-compliant services, and ensure data residency. Combined with **Cloud Audit Logs** (including Data Access logs), this creates the audit trail HIPAA mandates. **CMEK** via Cloud KMS gives EHR control over encryption keys -- they can manage rotation schedules, set IAM policies on keys, and control key lifecycle, which is a common HIPAA requirement for covered entities.
+Two distinct causes are named in the stem, and each answer addresses one. Ignored alerts are a signal-to-noise problem, and the fix is fewer, more meaningful alerts tied to user-visible impact: SLO burn-rate alerting, delivered somewhere that demands acknowledgement. Misconfigured systems are a provisioning problem, and the fix is removing manual configuration from the path.
 
-- **B is wrong:** GMEK (Google-managed keys) means Google controls the keys. HIPAA-regulated organizations typically require customer-managed keys for demonstrable control. Access Transparency logs show when Google accesses data but are not a substitute for Cloud Audit Logs.
-- **D is wrong:** A single project with default encryption provides no key control and no compliance guardrails. VPC Service Controls help with data exfiltration prevention but do not replace Assured Workloads for compliance posture.
-- **E is wrong:** CSEK requires EHR to supply keys with every API call and manage their own key storage infrastructure. This adds significant operational complexity and risk (lost keys = lost data). CSEK is also not supported by all Google Cloud services, making it impractical as a blanket strategy. CMEK provides the right balance of control and manageability.
+- **B is wrong** -- more of a signal that is already being ignored makes the problem worse. Alert fatigue is caused by volume, so increasing volume deepens it.
+- **D is wrong** -- centralizing logs is useful and is a separate stated requirement, but access to logs is passive. The case asks for *proactive* action, and a queryable log bucket does not notify anyone.
+- **E is wrong** -- this is the trap. Changing the monitoring product while carrying the same alert definitions across reproduces the ignored alerts on a new platform. The tool is not the problem; the alerting philosophy is.
 
-**Exam tip:** For healthcare/HIPAA questions, the winning trio is Assured Workloads + CMEK + Cloud Audit Logs (with Data Access enabled). CSEK is a distractor -- it's overkill and operationally fragile for most organizations.
+**Exam tip:** "alerts are ignored" is never solved by more alerts or by a different alerting product. It is solved by alerting on symptoms users feel, which means SLOs and burn rates. Watch for options that swap the tool while preserving the behaviour.
+
+Docs: https://cloud.google.com/stackdriver/docs/solutions/slo-monitoring and https://sre.google/workbook/alerting-on-slos/
+
 </details>
 
 ---
 
-### Q3. EHR Healthcare requires hybrid connectivity between their colocation facility and Google Cloud during the multi-year migration. The connection must support the 99.9% uptime SLA, handle consistent 5 Gbps throughput for health record synchronization, and comply with HIPAA data-in-transit requirements. Which connectivity design should the architect recommend?
+### Q4.
 
-A) Configure two Dedicated Interconnect connections in the same metro with ECMP routing. Encrypt traffic at the application layer using TLS for all health record transfers.
+EHR Healthcare stores data in MySQL, MS SQL Server, Redis and MongoDB, and wants to decrease infrastructure administration costs. Which managed service mapping is most appropriate?
 
-B) Set up a single Partner Interconnect connection with 10 Gbps capacity and configure Cloud VPN as a backup. Use MACsec on the Interconnect link.
+A) Cloud SQL for MySQL and SQL Server; Memorystore for Redis Cluster; Firestore in Enterprise edition for MongoDB.
 
-C) Deploy redundant HA VPN gateways with multiple tunnels across two regions. Use BGP for dynamic routing and rely on IPsec encryption provided by the VPN tunnels.
+B) Cloud SQL for MySQL and SQL Server; Memorystore for Redis Cluster; Bigtable for MongoDB.
 
-D) Provision four Dedicated Interconnect connections, two in each of two metro areas, with the two in each metro landing in different edge availability domains, for a 99.99% SLA. Add a Cloud HA VPN overlay on top of the Interconnect for encrypted transit and as a failover path.
+C) AlloyDB for MySQL and SQL Server; Memorystore for Redis Cluster; Firestore in Enterprise edition for MongoDB.
 
-<details>
-<summary>Answer</summary>
-
-**Correct: D)**
-
-This design addresses all three requirements. The 99.99% SLA has a specific topology: **four** connections, two per metro across two metros, with the pair in each metro landing in separate edge availability domains. Anything less tops out at 99.9%. At 5 Gbps consistent throughput, Dedicated Interconnect (10 Gbps minimum per connection) carries the load easily. The HA VPN overlay running over the Interconnect provides IPsec encryption in transit and doubles as an encrypted failover path.
-
-- **A is wrong:** Two connections in a single metro is the 99.9% topology, not 99.99%, and it leaves the whole metro as a failure domain. More critically, application-layer TLS alone may not satisfy the data-in-transit requirement at the network level -- a VPN overlay or MACsec is the stronger answer.
-- **B is wrong:** A single Partner Interconnect is a single point of failure and does not meet the 99.9% SLA on its own. MACsec availability depends on the partner/location and is not guaranteed.
-- **C is wrong:** HA VPN maxes out at ~3 Gbps per tunnel. While multiple tunnels can aggregate throughput, achieving consistent 5 Gbps with headroom requires many tunnels and is operationally complex. Dedicated Interconnect is the right choice for this throughput level.
-
-**Exam tip:** When you see consistent throughput above 3 Gbps + high availability + encryption in transit, the answer is Dedicated Interconnect + HA VPN overlay. VPN alone can't handle the throughput; Interconnect alone doesn't encrypt. The combo solves both.
-</details>
-
----
-
-### Q4. EHR Healthcare uses on-premises Active Directory (AD) to manage user identities for over 2,000 employees. During the migration to Google Cloud, they need to maintain a single source of identity truth while enabling employees to access both on-premises and Google Cloud resources with their existing credentials. The solution must support group-based access control in Google Cloud IAM. What should the architect recommend?
-
-A) Deploy Google Cloud Directory Sync (GCDS) to synchronize AD users and groups to Cloud Identity. Configure AD Federation Services (AD FS) with SAML 2.0 for single sign-on to Google Cloud. Map AD security groups to Google Cloud IAM roles.
-
-B) Manually create Google Cloud accounts for all users in Cloud Identity. Configure each user with a separate password and use Cloud IAM to replicate the AD group structure.
-
-C) Deploy Managed Microsoft AD in Google Cloud and establish a trust relationship with the on-premises AD forest. Use Managed AD as the sole identity provider for Google Cloud IAM.
-
-D) Migrate all users from Active Directory to Google Workspace accounts. Decommission the on-premises AD and use Google Workspace as the identity provider for all environments.
+D) Compute Engine instances running all four database engines, so the existing operational tooling is preserved.
 
 <details>
 <summary>Answer</summary>
 
 **Correct: A)**
 
-GCDS + AD FS is the standard pattern for integrating on-premises Active Directory with Google Cloud while keeping AD as the single source of truth. GCDS performs one-way synchronization of users and groups from AD to Cloud Identity (no passwords are synced). AD FS handles federated authentication via SAML 2.0, so users sign in with their existing AD credentials. Synchronized AD security groups can be referenced in Google Cloud IAM policy bindings for group-based RBAC.
+Each engine maps to the managed service that speaks its protocol. Cloud SQL supports both MySQL and SQL Server. Memorystore for Redis Cluster is the managed Redis. Firestore Enterprise edition provides MongoDB compatibility, which makes it the managed target for a MongoDB workload.
 
-- **B is wrong:** Manually creating 2,000+ accounts is not scalable, introduces identity drift, and requires users to manage separate passwords. This violates the single-source-of-truth requirement.
-- **C is wrong:** Managed Microsoft AD is designed for AD-dependent workloads running on Google Cloud (e.g., Windows VMs that need domain join). It does not serve as an identity provider for Google Cloud IAM -- you still need Cloud Identity for IAM. It's a complementary service, not a replacement for GCDS + federation.
-- **D is wrong:** Decommissioning on-premises AD during an active multi-year migration would break on-premises workloads that depend on AD. This also violates the requirement to maintain AD as the source of truth.
+- **B is wrong** -- Bigtable is a wide-column store with no MongoDB compatibility and a completely different data model and API. Migrating MongoDB to Bigtable means rewriting the data access layer, which contradicts the cost and effort goal.
+- **C is wrong** -- AlloyDB is PostgreSQL-compatible. It is not a MySQL target and definitely not a SQL Server target, so this option fails on two of the four engines.
+- **D is wrong** -- self-managing four database engines on Compute Engine preserves exactly the administration burden the case wants to decrease.
 
-**Exam tip:** AD integration on the PCA exam almost always follows the GCDS + SAML federation pattern. Managed Microsoft AD is a distractor -- it's for Windows workloads that need AD domain services, not for IAM identity federation.
+**Exam tip:** the same four databases (MySQL, MS SQL Server, Redis, MongoDB) appear in both EHR Healthcare and Cymbal Retail. Learn the managed mapping once and it covers two cases. The MongoDB answer is the one people miss: Firestore Enterprise edition, not Bigtable and not Cloud SQL.
+
+Docs: https://cloud.google.com/sql/docs and https://cloud.google.com/firestore/docs/enterprise/overview
+
 </details>
 
 ---
 
-### Q5. EHR Healthcare requires a disaster recovery strategy for their patient record system. The business mandates an RPO of 1 hour and an RTO of 15 minutes. The primary deployment runs on GKE in us-central1 with Cloud SQL for PostgreSQL as the database. Which DR architecture meets these requirements?
+### Q5.
 
-A) Configure Cloud SQL cross-region read replicas in us-east1 with automatic failover promotion. Deploy a standby GKE cluster in us-east1 using Multi Cluster Ingress. Use Cloud DNS routing policies for automated failover.
+EHR Healthcare wants to "increase ability to provide insights into healthcare trends" and to "make predictions and generate reports on industry trends based on provider data". Users are managed via Microsoft Active Directory, and the company operates multi-nationally. Which approach best fits?
 
-B) Take daily Cloud SQL exports to a Cloud Storage bucket in a separate region. In the event of a disaster, import the backup to a new Cloud SQL instance and redeploy the GKE workloads from CI/CD.
+A) Export provider data to Cloud Storage and give analysts direct object access, running analysis locally in notebooks.
 
-C) Enable Cloud SQL point-in-time recovery (PITR) and store automated backups in a multi-region Cloud Storage bucket. Rely on GKE Autopilot in the primary region to self-heal from failures.
+B) Consolidate provider data in BigQuery, use BigQuery ML for trend prediction, and federate Active Directory into Cloud Identity so existing groups drive dataset access.
 
-D) Use Cloud Spanner instead of Cloud SQL for automatic multi-region replication with zero RPO. Deploy GKE clusters in three regions with global load balancing.
+C) Build a data lake on Bigtable and run Dataproc jobs for trend analysis, managing analyst access with individual IAM bindings.
+
+D) Keep provider data in the operational databases and run reporting queries against read replicas, granting analysts database logins.
 
 <details>
 <summary>Answer</summary>
 
-**Correct: A)**
+**Correct: B)**
 
-Cloud SQL cross-region read replicas provide continuous asynchronous replication (typically seconds of lag, well within the 1-hour RPO). When the primary fails, the replica can be promoted to a standalone primary. A pre-provisioned standby GKE cluster in us-east1 (warm standby) with Multi Cluster Ingress enables rapid traffic shifting, meeting the 15-minute RTO. Cloud DNS routing policies (failover routing) automate the DNS cutover.
+BigQuery is the warehouse for cross-provider analysis, BigQuery ML lets the prediction work happen without moving data or standing up a separate ML platform, and federating Active Directory means access is granted to groups the company already maintains rather than to individuals. That last point matters at multi-national scale.
 
-- **B is wrong:** Daily exports give a maximum RPO of 24 hours, far exceeding the 1-hour requirement. Importing a backup and redeploying GKE workloads from CI/CD would take well over 15 minutes, failing the RTO requirement.
-- **C is wrong:** PITR and backups in multi-region storage can meet the RPO, but "self-heal in the primary region" does not protect against a regional outage. If us-central1 goes down, there is no standby region to fail over to, so the RTO cannot be met.
-- **D is wrong:** While Cloud Spanner would provide excellent multi-region availability, migrating from Cloud SQL for PostgreSQL to Spanner is a significant application rewrite (different data model, different query patterns). The question asks about DR architecture for the existing system, not a database re-platforming project. This option is disproportionate to the stated requirements.
+- **A is wrong** -- raw object access plus local notebooks scatters regulated data onto analyst machines, which sits badly with "maintain regulatory compliance", and it provides no query layer for trend analysis.
+- **C is wrong** -- Bigtable is designed for high-throughput key-based access, not ad-hoc analytical queries across providers. Per-user IAM bindings also do not scale and contradict the existing Active Directory group model.
+- **D is wrong** -- running analytics against replicas of operational databases couples reporting to the transactional schema and leaves the data siloed per database engine, which is the opposite of the cross-provider view the requirement asks for.
 
-**Exam tip:** Match DR tier to RPO/RTO. Daily backups = RPO in hours/days. Cross-region replicas = RPO in seconds/minutes. For RTO under 30 minutes, you need a warm or hot standby, not a rebuild-from-scratch approach. If the exam offers Spanner as a "just switch databases" answer, check whether the case study supports a major migration effort.
+**Exam tip:** when a case mentions an existing directory (Active Directory here), the identity answer is federation into Cloud Identity with group-based IAM, not recreating users or binding individuals. Look for the option that reuses the identity source the company already runs.
+
+Docs: https://cloud.google.com/bigquery/docs/bqml-introduction and https://cloud.google.com/architecture/identity/federating-gcp-with-active-directory-introduction
+
 </details>
 
 ---
 
 ## Cymbal Retail (Questions 6-10)
 
-> **Case context:** Cymbal Retail is implementing gen AI for catalog enrichment, conversational commerce, and product discovery. Key themes: Oracle migration, microservices, AI agents, search, API-first, scaling for peak events.
+> **Case context:** An **online** retailer with a large product catalog. Existing environment is a mix of on-premises and cloud, with Kubernetes clusters running containerized apps, databases in MySQL, MS SQL Server, Redis and MongoDB, legacy **SFTP and ETL batch** integrations, a custom web app doing **keyword queries against relational tables** for product browsing, an **IVR** system, and **call center agents who manually enter orders**. Monitoring is Grafana, Nagios and Elastic. Stated cost goal is to reduce **call center staffing** and **data-center hosting** costs.
 
-### Q6. Cymbal Retail wants to use generative AI to automatically enrich product catalog entries with improved descriptions, extracted attributes, and generated tags. The catalog contains 5 million SKUs and is updated daily with 10,000-50,000 new or modified items. The enrichment pipeline must be cost-effective and handle variable throughput. Which architecture should the architect design?
+### Q6.
 
-A) Deploy a custom fine-tuned open-source LLM on a GKE cluster with GPU node pools. Build a Pub/Sub-triggered pipeline that processes catalog updates through the model in real time. Store enriched data in Firestore.
+Cymbal Retail's technical requirements include a "Human-in-the-Loop (HITL) Review" capability: a user interface for associates to review and manage gen AI-generated content, allowing them to approve, reject, or modify suggestions before updating the product catalog. Which design satisfies this?
 
-B) Use Vertex AI batch prediction with Gemini models. Trigger a daily Cloud Workflow that extracts changed catalog entries from the source database, submits them as a batch prediction job, and writes enriched results back to AlloyDB. Use Pub/Sub to handle intra-day updates with online predictions.
+A) Generate attributes and descriptions with Gemini on Vertex AI and write them directly to the catalog, with a nightly report of what changed so associates can correct errors afterwards.
 
-C) Call the Gemini API directly from the catalog management application for each product update synchronously. Cache results in Memorystore to avoid duplicate processing.
+B) Generate attributes and descriptions with Gemini on Vertex AI into a staging store, surface them in a review application where associates approve, reject or edit each suggestion, and write only approved content to the catalog.
 
-D) Export the entire catalog to BigQuery nightly, run a Vertex AI batch prediction across all 5 million SKUs, and overwrite the catalog database with enriched results each morning.
+C) Generate attributes and descriptions with Gemini on Vertex AI and use a confidence threshold to auto-publish high-confidence results, routing only low-confidence results to associates.
 
-<details>
-<summary>Answer</summary>
-
-**Correct: B)**
-
-This architecture balances cost and freshness. Vertex AI batch prediction with Gemini handles the bulk of daily enrichment cost-effectively (batch pricing is significantly cheaper than online prediction). Cloud Workflows orchestrates the pipeline. For intra-day updates (new products that need immediate enrichment), Pub/Sub triggers online predictions -- this hybrid approach ensures new items are enriched quickly without running expensive real-time inference for the entire catalog. AlloyDB is a strong choice as it aligns with the Oracle-to-PostgreSQL migration path.
-
-- **A is wrong:** Hosting and managing a custom LLM on GKE with GPUs introduces significant operational overhead (GPU provisioning, model serving, scaling). For catalog enrichment using standard capabilities (descriptions, attributes, tags), Gemini via Vertex AI is more cost-effective and easier to manage than self-hosted models.
-- **C is wrong:** Synchronous API calls for each product update would be slow for bulk operations, expensive at 10,000-50,000 daily updates, and would make the catalog application dependent on API latency and availability. Memorystore caching doesn't help because each product's enrichment is unique.
-- **D is wrong:** Reprocessing all 5 million SKUs nightly is extremely wasteful and expensive when only 10,000-50,000 change daily. Overwriting the entire catalog also risks data loss if the batch job fails midway.
-
-**Exam tip:** When you see "variable throughput" + "cost-effective" in an AI pipeline question, the answer usually combines batch processing for bulk work with online/streaming for real-time needs. Pure real-time is expensive; pure batch is stale.
-</details>
-
----
-
-### Q7. Cymbal Retail is migrating from Oracle Database to Google Cloud. The application uses complex PL/SQL stored procedures, Oracle-specific features (partitioning, materialized views), and handles 50,000 transactions per second during peak holiday events. The team wants to minimize application code changes. Which database migration strategy should the architect recommend?
-
-A) Migrate to AlloyDB for PostgreSQL using the Database Migration Service (DMS). Refactor PL/SQL stored procedures to PL/pgSQL. Use AlloyDB's columnar engine for analytical queries and its PostgreSQL compatibility for transactional workloads.
-
-B) Migrate directly to Cloud Spanner for unlimited horizontal scaling. Rewrite all stored procedures as application-level logic in microservices.
-
-C) Use Bare Metal Solution to run Oracle Database on Google Cloud infrastructure. Maintain existing PL/SQL and Oracle features while gaining Google Cloud network proximity.
-
-D) Migrate to Cloud SQL for PostgreSQL Enterprise Plus. Use pgLoader for automated schema and data migration. Deploy read replicas for peak scaling.
-
-<details>
-<summary>Answer</summary>
-
-**Correct: A)**
-
-AlloyDB for PostgreSQL is Google's answer for Oracle migrations that need high transactional throughput with minimal code changes. It is PostgreSQL-compatible, so PL/SQL procedures can be converted to PL/pgSQL (many constructs map directly). AlloyDB supports PostgreSQL-native partitioning and materialized views, covering the Oracle features mentioned. Its architecture (disaggregated compute/storage, columnar engine) handles high transaction rates and mixed workloads. DMS provides a managed migration path with minimal downtime.
-
-- **B is wrong:** Spanner requires a complete rewrite of the data model (no stored procedures, different SQL dialect, interleaved tables). While it scales horizontally, the requirement to "minimize application code changes" makes this a poor fit. Rewriting all PL/SQL logic into microservices is a massive effort.
-- **C is wrong:** Bare Metal Solution keeps Oracle running but does not achieve the goal of migrating to a cloud-native database. It maintains Oracle licensing costs and the operational model of managing Oracle. It's a valid interim step but not a migration strategy.
-- **D is wrong:** Cloud SQL for PostgreSQL Enterprise Plus has a 64 TB storage limit and a throughput ceiling that may not handle 50,000 TPS during peak events. AlloyDB's disaggregated architecture is specifically designed for this performance tier. Cloud SQL read replicas help with read scaling but not write-heavy transactional workloads.
-
-**Exam tip:** Oracle migration questions on the PCA almost always point to AlloyDB when the requirements mention high throughput + stored procedures + minimize changes. Spanner is wrong if they say "minimize code changes." Bare Metal Solution is wrong if the goal is cloud-native migration.
-</details>
-
----
-
-### Q8. Cymbal Retail wants to build a conversational AI shopping assistant that can answer product questions, check inventory, process returns, and make personalized recommendations. The assistant must integrate with existing backend APIs (inventory, orders, CRM) and support both web chat and voice channels. Which architecture should the architect design?
-
-A) Build a custom chatbot using Dialogflow CX with hand-crafted intents and training phrases for each product category. Connect to backend systems using webhook fulfillment. Deploy separate bots for web and voice.
-
-B) Use Vertex AI Agent Builder to create a conversational agent grounded in the product catalog and connected to backend APIs via tools (function calling). Use Vertex AI Search for product discovery. Deploy to web and voice channels using Agent Builder's multi-channel integration.
-
-C) Deploy a fine-tuned Gemini model on Vertex AI Endpoints. Build custom orchestration logic to route queries to backend APIs. Implement conversation management and channel routing in a custom application layer.
-
-D) Use a third-party chatbot platform hosted on GKE. Integrate with Google Cloud APIs for NLU processing and connect to backend services through a custom API gateway.
+D) Have associates write prompts individually for each product so that generation is already human-directed, then publish the output automatically.
 
 <details>
 <summary>Answer</summary>
 
 **Correct: B)**
 
-Vertex AI Agent Builder is purpose-built for this use case. It provides: (1) conversational agents powered by Gemini with grounding in enterprise data (the product catalog), (2) tool/function-calling capabilities to integrate with backend APIs (inventory, orders, CRM), (3) Vertex AI Search for product discovery and recommendations, and (4) built-in multi-channel deployment. This is the most integrated, least-custom-code approach on Google Cloud.
+The requirement names three actions the associate must be able to take before the catalog is updated: approve, reject, modify. Only a staging store plus a review UI, with publication gated on approval, provides all three at the right point in the flow.
 
-- **A is wrong:** Dialogflow CX with hand-crafted intents is the previous generation approach. For a product catalog with potentially millions of items, manually crafting intents and training phrases per category is not scalable. Agent Builder with Gemini can understand product queries generatively without exhaustive intent definitions.
-- **C is wrong:** Building custom orchestration, conversation management, and channel routing is significant undifferentiated engineering effort. This approach works but violates the principle of using managed services. It also requires managing model endpoints, scaling, and updates manually.
-- **D is wrong:** A third-party chatbot platform adds licensing costs, another vendor dependency, and operational complexity. Google Cloud's native Agent Builder provides all the required capabilities without needing external tooling.
+- **A is wrong** -- review after publication is not review before publication. The requirement explicitly says "before updating the product catalog", and a nightly correction report means wrong content was live in the meantime.
+- **C is wrong** -- this is the most attractive distractor because it sounds efficient and is a reasonable production pattern. But it means high-confidence content reaches the catalog with no human approval, which fails the stated requirement. A stated HITL requirement is not satisfied by partial automation.
+- **D is wrong** -- directing the generation is not reviewing the output. The associate still never approves, rejects or modifies the result, and prompting per product also defeats the automation goal the case is built on.
 
-**Exam tip:** For 2024+ PCA exam questions about conversational AI or agents, Vertex AI Agent Builder is almost always the answer. Dialogflow CX is still valid but is positioned for structured/deterministic conversations. If the question mentions "generative," "grounded in enterprise data," or "function calling," it's Agent Builder.
+**Exam tip:** a stated human-review requirement eliminates every fully or partially automatic publishing path, however well engineered. When you see "approve, reject, or modify" in a requirement, look for the option with an explicit gate, and treat confidence-threshold auto-publishing as a trap.
+
+Docs: https://cloud.google.com/vertex-ai/generative-ai/docs/learn/overview
+
 </details>
 
 ---
 
-### Q9. Cymbal Retail exposes product catalog, inventory, and pricing APIs to over 200 partner integrations (mobile apps, marketplaces, comparison engines). They need API versioning, rate limiting per partner, usage analytics, a developer portal, and monetization capabilities. Which API management approach should the architect implement?
+### Q7.
 
-A) Deploy Kong API Gateway on GKE. Build a custom developer portal using Cloud Run. Implement rate limiting with Redis on Memorystore and track usage in BigQuery.
+Cymbal Retail's current product browsing is "a custom-built web application which allows customers to browse the product catalog by querying the relational databases for names and categories of products". They require automated product discovery that processes customer requests expressed in natural language and returns highly relevant results. What should the architect propose?
 
-B) Use Apigee API Management. Define API products with quota policies per partner tier. Enable the integrated developer portal for self-service API key management. Use Apigee Analytics for usage tracking and Apigee Monetization for partner billing.
+A) Add full-text indexes to the relational databases and extend the existing web application to parse natural language into SQL predicates.
 
-C) Use Cloud Endpoints with ESP (Extensible Service Proxy) deployed alongside each microservice. Implement API keys for partner identification and Cloud Armor for rate limiting.
+B) Adopt Vertex AI Search for commerce (the retail discovery product the case refers to as Discovery AI), and integrate it with conversational agents in the website and mobile app.
 
-D) Place a Cloud Load Balancer with Cloud Armor rate-limiting rules in front of the APIs. Use Identity Platform for partner API key management and export access logs to BigQuery for analytics.
+C) Move the product catalog into BigQuery and expose a natural language interface over it for customers.
+
+D) Deploy an open-source search engine on GKE and tune keyword relevance ranking with synonym dictionaries.
 
 <details>
 <summary>Answer</summary>
 
 **Correct: B)**
 
-Apigee is Google Cloud's full-lifecycle API management platform and directly addresses every requirement: API product packaging with versioning, quota/rate-limiting policies configurable per partner tier, a built-in developer portal for self-service onboarding and key management, comprehensive analytics dashboards, and a monetization module for usage-based partner billing. With 200+ partner integrations, Apigee's enterprise-grade API management is the right tool.
+The case names the product discovery capability directly, and the requirement is semantic retrieval driven by natural language, not better keyword matching. A retail-specific discovery product also brings relevance tuning, merchandising controls and personalization that a general search index does not.
 
-- **A is wrong:** Kong on GKE would work technically but requires building and maintaining the developer portal, analytics pipeline, and monetization system separately. This is significant operational overhead compared to Apigee's integrated platform.
-- **C is wrong:** Cloud Endpoints is a lightweight API gateway suitable for simpler use cases. It lacks a developer portal, monetization, advanced analytics, and the granular per-partner quota management that Apigee provides. Cloud Armor rate limiting is IP-based, not per-API-key or per-partner.
-- **D is wrong:** This cobbles together multiple services that don't form a coherent API management platform. Cloud Load Balancer + Cloud Armor can do basic rate limiting but can't handle API versioning, developer portals, per-partner quotas, or monetization.
+- **A is wrong** -- full-text indexing improves keyword matching against the same relational structure. The stated problem is that keyword queries over names and categories do not surface relevant products, so making those queries faster does not address relevance.
+- **C is wrong** -- BigQuery is an analytical warehouse. Putting a customer-facing, low-latency product lookup in front of it is a poor fit, and it does not provide retail relevance ranking.
+- **D is wrong** -- this is a defensible engineering answer and the closest wrong option, but it rebuilds a managed capability, adds operational burden, and synonym dictionaries are still keyword matching. It also works against the stated goal of reducing data-center and operational cost.
 
-**Exam tip:** If an exam question mentions developer portal, API monetization, or per-partner rate limiting, the answer is Apigee. Cloud Endpoints is for simpler API proxying. The more "enterprise API program" the requirements sound, the more Apigee is the answer.
+**Exam tip:** "natural language" plus "highly relevant results" in a retail context points at the managed retail search product, not at improving an existing keyword index. More generally, when a case describes why the current approach fails, the correct answer usually changes the approach rather than optimising it.
+
+Docs: https://cloud.google.com/solutions/retail-product-discovery
+
 </details>
 
 ---
 
-### Q10. Cymbal Retail experiences 10x traffic spikes during flash sales and holiday events (Black Friday, Singles Day). The microservices architecture on GKE must scale from a baseline of 500 pods to 5,000 pods within minutes, while minimizing idle infrastructure costs during normal periods. Which scaling strategy should the architect implement? (Choose TWO.)
+### Q8.
 
-A) Use GKE Autopilot mode, which automatically provisions nodes as pods are scheduled, and configure Horizontal Pod Autoscaler (HPA) with custom metrics from Cloud Monitoring tied to request latency and queue depth.
+Cymbal Retail wants to reduce call center staffing costs. Today an IVR routes calls to agents, and agents manually enter orders when a customer cannot complete a transaction themselves. Which two actions most directly address the stated cost goal? (Choose TWO.)
 
-B) Pre-provision a fixed pool of 5,000-pod-capacity nodes year-round to ensure immediate availability during traffic spikes.
+A) Deploy conversational agents with natural language understanding that can complete transactions end to end, on both the website and mobile app.
 
-C) Use GKE Standard with Cluster Autoscaler and configure node pool overprovisioning using priority-based pod scheduling (pause/placeholder pods). Combine with HPA on CPU and custom metrics.
+B) Extend the conversational agent to the telephony channel so calls are handled without transferring to an agent for common intents.
 
-D) Deploy all microservices to Cloud Run instead of GKE to leverage its automatic scaling from zero to thousands of instances.
+C) Add more IVR menu options so calls are routed to the correct department more accurately.
 
-E) Use Committed Use Discounts (CUDs) for baseline capacity and configure GKE node auto-provisioning (NAP) with Spot VMs for burst capacity above the baseline. Combine with HPA and VPA for pod-level scaling.
+D) Move the call center telephony infrastructure from on-premises to Compute Engine.
 
-<details>
-<summary>Answer</summary>
-
-**Correct: A) and E)**
-
-**A)** GKE Autopilot removes node management entirely -- Google provisions and scales the underlying nodes automatically as pods demand compute. HPA with custom metrics (request latency, queue depth) ensures pods scale based on actual business load rather than just CPU, which is critical for retail workloads where traffic patterns differ from CPU patterns.
-
-**E)** CUDs for baseline capacity (the 500-pod steady state) lock in significant cost savings (~50-57% discount). NAP with Spot VMs for burst capacity handles the 10x spikes cost-effectively -- Spot VMs are up to 91% cheaper and are appropriate for stateless microservice replicas where individual pod preemption is tolerable. Combining HPA (horizontal) and VPA (vertical right-sizing) optimizes resource efficiency at the pod level.
-
-- **B is wrong:** Maintaining 10x capacity year-round wastes enormous infrastructure spend. The whole point is to minimize idle costs during normal periods.
-- **C is wrong:** While technically valid, overprovisioning with pause pods is a GKE Standard workaround for node startup latency. Autopilot (option A) handles this more elegantly. This answer is not wrong per se, but it's less optimal than A + E.
-- **D is wrong:** Migrating an entire microservices architecture from GKE to Cloud Run is a significant re-architecture effort. Cloud Run has concurrency and timeout limitations that may not suit all microservice patterns (e.g., long-running background processing, stateful services, custom networking).
-
-**Exam tip:** For GKE scaling questions, look for the combination of pod-level scaling (HPA/VPA) + node-level scaling (Autopilot or NAP) + cost optimization (CUDs for baseline, Spot for burst). The exam loves questions that test whether you understand scaling at multiple layers.
-</details>
-
----
-
-## Altostrat Media (Questions 11-15)
-
-> **Case context:** Altostrat Media manages a large media library. Key themes: petabyte migration, AI content analysis, automated transcoding, GKE platform, CDN, storage optimization, content moderation.
-
-### Q11. Altostrat Media needs to migrate 2.5 petabytes of video assets from their on-premises data center to Google Cloud. Their internet connection is 10 Gbps, but it's shared with production traffic and only 2 Gbps can be allocated to migration. The migration must complete within 90 days. Which migration strategy should the architect recommend?
-
-A) Use gsutil rsync with parallel composite uploads over the existing 10 Gbps connection, running transfers during off-peak hours to avoid impacting production.
-
-B) Order multiple Transfer Appliance units (TA-480 or TA-300). Ship the first batch while preparing subsequent loads. Use Storage Transfer Service for incremental synchronization of new/changed files during and after appliance transfers.
-
-C) Provision a 10 Gbps Dedicated Interconnect for the migration and use Storage Transfer Service to transfer data at line rate. Decommission the Interconnect after migration.
-
-D) Use Storage Transfer Service over the existing internet connection at 2 Gbps, throttled to avoid production impact. Enable resumable transfers for reliability.
-
-<details>
-<summary>Answer</summary>
-
-**Correct: B)**
-
-At 2 Gbps available bandwidth, transferring 2.5 PB would take approximately 116 days (2.5 PB / 2 Gbps = ~11.6M seconds = ~134 days at wire speed, ~116 days accounting for protocol overhead), exceeding the 90-day window. Transfer Appliance is designed for this scale: each TA-480 holds up to 480 TB, so approximately 6 appliances would cover the full dataset. Shipping, loading, and ingestion of appliances can be parallelized (load one while another ships). Storage Transfer Service handles delta sync for files created/modified during the physical transfer period, ensuring the migration lands up-to-date.
-
-- **A is wrong:** At 2 Gbps effective bandwidth, 2.5 PB cannot be transferred in 90 days even with optimized transfers. gsutil is also not the recommended tool for petabyte-scale migrations -- Storage Transfer Service or Transfer Appliance is preferred.
-- **C is wrong:** Even a 10 Gbps Dedicated Interconnect would take ~23 days to transfer 2.5 PB at wire speed (theoretical; actual throughput would be lower). While this could meet the timeline, provisioning a Dedicated Interconnect takes 4-8 weeks for physical cross-connect setup, which could consume most of the 90-day window. The cost of Interconnect for a one-time migration is also not justified.
-- **D is wrong:** 2 Gbps cannot transfer 2.5 PB within 90 days (as calculated above). Resumable transfers help with reliability but don't solve the bandwidth limitation.
-
-**Exam tip:** Use this rule of thumb: at 1 Gbps, you can transfer ~10 TB/day. So 2 Gbps moves ~20 TB/day, and 2.5 PB / 20 TB = 125 days -- over the 90-day limit. When network transfer exceeds the deadline, the answer is Transfer Appliance. Always check the math.
-</details>
-
----
-
-### Q12. Altostrat Media wants to build an automated pipeline that analyzes uploaded video content to extract metadata: scene detection, object recognition, celebrity identification, speech-to-text transcription, content moderation (detecting inappropriate content), and generating searchable tags. Which architecture should the architect design?
-
-A) Use Video Intelligence API for scene detection, object tracking, and content moderation. Use Speech-to-Text API for transcription. Build a Cloud Functions pipeline triggered by Cloud Storage uploads that orchestrates these API calls and stores structured metadata in BigQuery. Use Vertex AI for celebrity identification with a custom model.
-
-B) Train a single custom TensorFlow model on Vertex AI that handles all video analysis tasks (scene detection, object recognition, speech-to-text, content moderation). Deploy it on GPU-equipped Compute Engine instances.
-
-C) Use FFmpeg on Compute Engine to extract frames, then send frames to Vision API for image analysis. Use a third-party transcription service for speech-to-text. Store results in Cloud SQL.
-
-D) Upload all videos to YouTube and use the YouTube Content ID and auto-captioning systems. Export the metadata back to Google Cloud via the YouTube Data API.
-
-<details>
-<summary>Answer</summary>
-
-**Correct: A)**
-
-This architecture uses purpose-built Google Cloud AI APIs for each analysis task, which is the most efficient and accurate approach. Video Intelligence API natively supports shot/scene detection, object tracking, label detection, and explicit content detection. Speech-to-Text API handles transcription with high accuracy across languages. Cloud Functions provides event-driven orchestration triggered by GCS uploads. BigQuery is ideal for storing and querying structured metadata at scale. For celebrity identification (face recognition of known individuals), a custom Vertex AI model is appropriate since Video Intelligence API's face detection doesn't identify specific people.
-
-- **B is wrong:** Training a single custom model for all these diverse tasks (scene detection, OCR, speech-to-text, content moderation) would be enormously complex, expensive, and would likely underperform compared to Google's pre-trained, specialized APIs. This is reinventing the wheel.
-- **C is wrong:** Extracting frames with FFmpeg and using Vision API loses temporal/video context that Video Intelligence API understands (scene transitions, object tracking across frames). A third-party transcription service adds unnecessary vendor dependency when Speech-to-Text API is native. Cloud SQL is not ideal for large-scale metadata querying.
-- **D is wrong:** YouTube Content ID is a copyright-detection system, not a general-purpose content analysis pipeline. Using YouTube as a processing intermediary introduces terms-of-service concerns, latency, and a dependency on a consumer platform for enterprise media workflows.
-
-**Exam tip:** For media analysis pipelines on the PCA exam, the answer typically chains pre-built AI APIs (Video Intelligence, Speech-to-Text, Vision) rather than custom models. Custom ML is only the answer when the use case is truly unique (e.g., recognizing specific proprietary objects). Look for Cloud Functions or Workflows as the orchestrator.
-</details>
-
----
-
-### Q13. Altostrat Media stores video content across multiple storage tiers. Their library includes: frequently accessed recent content (last 30 days), occasionally accessed catalog content (30 days - 2 years), and archival master copies that may never be accessed again but must be retained for 10 years. They want to minimize storage costs while maintaining access SLAs. Which storage strategy should the architect implement?
-
-A) Store all content in Standard storage class and use Object Lifecycle Management to transition to Nearline after 30 days, Coldline after 365 days, and Archive after 730 days. Enable Object Versioning for master copies with a 10-year retention policy using Bucket Lock.
-
-B) Store all content in Multi-Regional Standard storage to ensure the fastest access times. Delete content older than 2 years to reduce costs.
-
-C) Use Standard storage for recent content, manually move files to Coldline after 30 days using a scheduled Cloud Function, and use Archive storage with Object Retention Lock for master copies.
-
-D) Store everything in Nearline storage to balance cost and access. Use Autoclass to automatically adjust storage classes based on access patterns.
-
-<details>
-<summary>Answer</summary>
-
-**Correct: A)**
-
-This strategy correctly maps each content tier to the appropriate storage class with automated lifecycle transitions. Standard for the active 30-day window, Nearline for 30-day to 1-year content (minimum 30-day storage, fits the "occasionally accessed" pattern), Coldline for 1-2 year content (minimum 90-day storage, lower cost for rare access), and Archive for 2+ year retention (minimum 365-day storage, lowest cost for master copies). Object Lifecycle Management automates these transitions without manual intervention. Bucket Lock with a retention policy ensures master copies cannot be deleted for 10 years, meeting the compliance requirement.
-
-- **B is wrong:** Multi-Regional Standard for all content is the most expensive option. Deleting content older than 2 years violates the 10-year retention requirement for master copies.
-- **C is wrong:** Manually moving files with a Cloud Function reimplements Object Lifecycle Management poorly. The 30-day-to-Coldline transition skips Nearline, which would be more cost-effective for content accessed occasionally (Coldline has higher retrieval costs). Also, Object Retention Lock is per-object, which is harder to manage than a bucket-level retention policy.
-- **D is wrong:** Nearline has a minimum 30-day storage charge, so using it for frequently accessed recent content (which changes daily) incurs unnecessary early-deletion fees. While Autoclass can optimize storage classes, it works based on observed access patterns, which means it may not transition archival content to Archive class quickly enough if it's never accessed -- and it doesn't enforce retention policies.
-
-**Exam tip:** Storage lifecycle questions follow a predictable pattern: Standard (hot) -> Nearline (30d) -> Coldline (90d) -> Archive (365d). Key details to watch: minimum storage durations, retrieval costs, and whether the question mentions compliance/retention (which needs Bucket Lock). Autoclass is a valid answer when access patterns are unpredictable, but not when the patterns are clearly defined.
-</details>
-
----
-
-### Q14. Altostrat Media runs their video transcoding pipeline on GKE. The pipeline processes uploaded videos into multiple output formats (4K, 1080p, 720p, HLS adaptive streams). Jobs are CPU and memory intensive, with variable load -- 200 jobs/hour during business hours but 2,000+ jobs/hour during content release events. Each job takes 5-30 minutes depending on resolution. Which GKE architecture should the architect design?
-
-A) Use GKE Standard with a dedicated CPU-optimized node pool (c3-highcpu-* machines). Configure Kueue for job queuing and fair scheduling. Set up Horizontal Pod Autoscaler on a custom metric (jobs-in-queue) and Cluster Autoscaler with Spot VM node pools for burst capacity. Use a separate small node pool with on-demand instances for the queue controller and monitoring.
-
-B) Deploy transcoding pods on GKE Autopilot with Burstable pod configurations. Set resource requests to minimum values to pack more pods per node.
-
-C) Run all transcoding on a fixed pool of GPU-enabled nodes (a2-highgpu) for maximum processing speed. Pre-provision enough nodes to handle peak load at all times.
-
-D) Use Cloud Run jobs for all transcoding, triggered by Pub/Sub messages when new videos are uploaded. Configure maximum concurrency to handle peak events.
-
-<details>
-<summary>Answer</summary>
-
-**Correct: A)**
-
-This architecture addresses all requirements. CPU-optimized machines (c3-highcpu) match the compute-intensive transcoding workload. Kueue provides Kubernetes-native job queuing with priority scheduling and resource quotas -- essential for managing 2,000+ concurrent jobs during peaks. HPA on a custom queue-depth metric scales pods based on actual work backlog rather than CPU utilization (which may be high even at low job counts). Cluster Autoscaler with Spot VM node pools provides cost-effective burst capacity for the stateless, fault-tolerant transcoding jobs (if a Spot VM is preempted, the job is re-queued). A small on-demand node pool for control plane components ensures reliability.
-
-- **B is wrong:** Autopilot with minimal resource requests would lead to resource contention and job failures. Transcoding requires predictable CPU and memory allocation -- underprovisioning resources causes jobs to be OOMKilled or run extremely slowly. Autopilot also doesn't support Spot VMs for cost optimization.
-- **C is wrong:** Video transcoding is CPU-intensive, not GPU-intensive (GPUs are for ML training, rendering, not standard video encoding). A2 GPU instances are extremely expensive and would be wasted on CPU-bound ffmpeg/transcoding workloads. Pre-provisioning for peak load year-round wastes resources during the 200 jobs/hour baseline.
-- **D is wrong:** Cloud Run jobs have a maximum timeout of 60 minutes and limited CPU/memory configurations. While they could handle shorter transcoding tasks, 4K transcoding can be extremely resource-intensive. Cloud Run also lacks the fine-grained job scheduling, priority queuing, and resource management that Kueue provides for a high-volume transcoding pipeline.
-
-**Exam tip:** For batch/job-processing workloads on GKE, look for Kueue (job queuing), custom metrics HPA (queue depth, not just CPU), and Spot VMs (for fault-tolerant, stateless jobs). GPU nodes are a distractor unless the workload explicitly requires ML inference or GPU-accelerated rendering.
-</details>
-
----
-
-### Q15. Altostrat Media serves video content to global audiences across 60+ countries. They need to minimize video start time (target: under 2 seconds), reduce buffering for adaptive bitrate streams, protect premium content from unauthorized access, and optimize delivery costs for their highest-traffic regions (North America, Europe, Asia-Pacific). Which content delivery architecture should the architect implement?
-
-A) Deploy Compute Engine instances with Nginx caching proxies in each Google Cloud region closest to the target audiences. Use Cloud DNS geolocation routing to direct users to the nearest proxy.
-
-B) Use Cloud CDN with Media CDN for video-specific delivery. Configure origin shielding to reduce origin load. Use signed URLs with expiring tokens for content protection. Deploy cache-fill regions aligned with traffic patterns (NA, EU, APAC). Enable HTTP/3 (QUIC) for improved streaming performance.
-
-C) Use a third-party CDN (e.g., Akamai, Cloudflare) exclusively, with Cloud Storage as the origin. Manage cache purging and signed URLs through the third-party CDN's API.
-
-D) Serve all content directly from multi-regional Cloud Storage buckets (US, EU, ASIA). Enable Cloud Storage's built-in CDN caching and use signed URLs for access control.
-
-<details>
-<summary>Answer</summary>
-
-**Correct: B)**
-
-Media CDN is Google Cloud's purpose-built CDN for large-scale media delivery. It provides: (1) a massive edge network optimized for video streaming with sub-2-second start times, (2) origin shielding that consolidates cache-fill requests to protect the origin (critical for high-traffic content releases), (3) signed URLs and signed cookies for premium content protection with expiring tokens, (4) configurable cache-fill regions to optimize cost and performance for target geographies, and (5) HTTP/3 (QUIC) support that reduces connection setup time and improves streaming over lossy networks. This is the correct Google Cloud-native solution for global media delivery.
-
-- **A is wrong:** Self-managed Nginx caching proxies require significant operational effort (patching, scaling, cache management, TLS termination) and cannot match the edge footprint and optimization of a purpose-built CDN. Google's CDN has thousands of edge points-of-presence; deploying VMs in ~30 regions provides far fewer cache locations.
-- **C is wrong:** While third-party CDNs are technically capable, this goes against the case study context of building on Google Cloud. It also adds vendor complexity, separate billing, and lacks the native integration with Cloud Storage origins that Media CDN provides (such as dual-token authentication, cache-fill optimization).
-- **D is wrong:** Cloud Storage does not have built-in CDN caching. Multi-regional storage provides redundancy, not edge caching. Serving directly from Cloud Storage would result in high latency for users far from storage regions and high egress costs. There is no CDN layer in this architecture.
-
-**Exam tip:** For media/video delivery on Google Cloud, the answer is Media CDN (not standard Cloud CDN, which is better for web applications). Key differentiators of Media CDN: origin shielding, HTTP/3 support, massive edge capacity for video. If the question mentions "video," "streaming," or "media delivery," look for Media CDN specifically.
-</details>
-
----
-
-## KnightMotives Automotive (Questions 16-20)
-
-> **Case context:** KnightMotives is building connected/autonomous vehicle platform. Key themes: IoT at scale, edge AI, EU data residency (GDPR), mainframe modernization, dealer tools, data monetization.
-
-### Q16. KnightMotives needs to ingest telemetry data from 2 million connected vehicles worldwide. Each vehicle sends sensor data (GPS, engine diagnostics, driving behavior, camera feeds) every 5 seconds, resulting in approximately 400,000 messages per second at peak. The data must be processed in real time for driver safety alerts and stored for batch analytics. Which data ingestion architecture should the architect design?
-
-A) Use Cloud IoT Core to register and authenticate vehicles, then route telemetry to Pub/Sub. Process safety-critical streams with Dataflow (streaming mode) for real-time alerts. Land raw data in Cloud Storage (Parquet format) via Dataflow for batch analytics in BigQuery.
-
-B) Have vehicles send data directly to Pub/Sub using service account key authentication. Use Dataflow for stream processing and write results to Bigtable for time-series queries and BigQuery for analytics.
-
-C) Deploy MQTT brokers on GKE in multiple regions. Vehicles connect via MQTT and data is forwarded to Pub/Sub. Use Dataflow streaming pipelines for real-time alert processing. Store raw telemetry in Bigtable for time-series access and aggregated data in BigQuery for analytics. Authenticate devices using mTLS certificates managed by Certificate Authority Service.
-
-D) Use Apache Kafka on Compute Engine for message ingestion. Process data with Spark Streaming on Dataproc. Store results in HDFS on a Dataproc cluster for batch analytics.
-
-<details>
-<summary>Answer</summary>
-
-**Correct: C)**
-
-Cloud IoT Core was retired in August 2023, so option A is no longer valid. The recommended pattern is MQTT brokers (such as HiveMQ or EMQX) on GKE with regional deployments for global coverage. Vehicles connect via standard MQTT protocol with mTLS certificate authentication managed by Certificate Authority Service (CAS) -- this provides device identity at scale. Pub/Sub handles the massive message volume (400K msgs/sec is well within its capacity). Dataflow streaming pipelines process safety-critical events in real time. Bigtable is ideal for high-throughput time-series telemetry storage (fast writes, efficient range scans by vehicle ID + timestamp). BigQuery handles analytical queries on aggregated data.
-
-- **A is wrong:** Cloud IoT Core was deprecated in August 2023 and fully shut down. It is no longer available. Any answer referencing Cloud IoT Core on a current exam is automatically incorrect.
-- **B is wrong:** Distributing service account keys to 2 million vehicles is a massive security risk. If a key is compromised, revoking it affects all vehicles using that key. Per-device service accounts at this scale is impractical. mTLS certificate-based authentication (as in option C) is the industry standard for IoT device identity.
-- **D is wrong:** Self-managed Kafka and HDFS on Compute Engine/Dataproc introduces significant operational overhead compared to managed Pub/Sub and Cloud Storage/BigQuery. Spark Streaming has higher latency than Dataflow for real-time alerting. HDFS is not a durable, scalable analytics storage tier.
-
-**Exam tip:** Cloud IoT Core was sunset in 2023. If you see it as an answer option on the exam, it is WRONG. The current pattern is MQTT brokers on GKE + Pub/Sub + Dataflow. Also remember: Bigtable for high-throughput time-series writes, BigQuery for analytics.
-</details>
-
----
-
-### Q17. KnightMotives collects vehicle telemetry data from EU-based vehicles and must comply with GDPR requirements. Personal data (driver location, driving behavior, vehicle identification) must remain in the EU, processing must occur in EU regions, and drivers must be able to exercise their right to erasure. KnightMotives also needs SOC 2 compliance for their platform. Which architecture ensures compliance? (Choose TWO.)
-
-A) Configure Assured Workloads for EU Regions to enforce data residency. Create an organization policy constraint (`gcp.resourceLocations`) restricting EU vehicle data projects to `europe-west1`, `europe-west3`, and `europe-west4`. Use CMEK with Cloud KMS keys in EU regions for encryption.
-
-B) Use VPC Service Controls to create a perimeter around EU data projects, preventing data exfiltration to non-EU services or projects. Implement crypto-shredding by encrypting each driver's personal data with a unique CMEK key -- when a driver requests erasure, destroy the key via Cloud KMS, rendering the data unrecoverable.
-
-C) Store EU data in a US multi-region BigQuery dataset with row-level security that restricts EU data access to EU-based employees only.
-
-D) Implement data residency by tagging resources with `location: eu` labels and creating alerting policies that notify when data is created outside EU regions.
-
-E) Use Data Loss Prevention (DLP) API to scan all data for personal information and automatically move it to EU regions if found in non-EU locations.
+E) Train agents to handle calls faster using scripted workflows.
 
 <details>
 <summary>Answer</summary>
 
 **Correct: A) and B)**
 
-**A)** Assured Workloads for EU Regions provides the foundational compliance framework -- it enforces organizational policies that restrict resource deployment to approved EU regions. The `gcp.resourceLocations` constraint is the enforcement mechanism that prevents accidental deployment of resources in non-EU regions. CMEK with EU-based Cloud KMS keys ensures encryption keys never leave the EU.
+The cost is agent headcount, so the lever is reducing the number of interactions that need an agent. A handles the root cause on the self-service side: customers currently call because they cannot complete transactions themselves, so an agent that completes transactions removes the call entirely. B handles the calls that still happen, resolving common intents in the telephony channel without a transfer.
 
-**B)** VPC Service Controls prevent data from being copied or accessed from outside the defined perimeter, which is critical for GDPR data residency (preventing API-level data exfiltration, not just network-level). Crypto-shredding is the recommended approach for GDPR right-to-erasure at scale: rather than finding and deleting every copy of a driver's data across all storage systems, you encrypt their data with a unique key and destroy the key when erasure is requested. This is cryptographically equivalent to deletion and is explicitly recognized as a valid erasure method under GDPR.
+- **C is wrong** -- better routing sends the call to the right agent faster. It still consumes an agent, so it does not reduce staffing.
+- **D is wrong** -- this reduces data-center hosting cost, which is a real stated goal, but the question asks specifically about call center staffing. Moving telephony to the cloud does not remove a single agent interaction.
+- **E is wrong** -- faster handling improves throughput per agent but is a process change, not the AI-driven transformation the case is built around, and the case gives no handling-time problem to solve.
 
-- **C is wrong:** Storing EU data in a US multi-region dataset violates GDPR data residency requirements regardless of access controls. Row-level security controls who can query the data, not where the data physically resides.
-- **D is wrong:** Labels are metadata tags and have no enforcement capability. They cannot prevent data from being created in the wrong region. Alerting after the fact is not a compliance control -- it's reactive, not preventive.
-- **E is wrong:** DLP API can identify personal information, but automatically moving data between regions after creation is not a reliable compliance strategy. The data would temporarily reside in the wrong region, which itself is a GDPR violation. Compliance must be enforced at creation time, not after the fact.
+**Exam tip:** when a case states a cost goal, check which cost. Cymbal names two separately: call center staffing and data-center hosting. An option that reduces the other one is a well-designed distractor, not a wrong answer in general.
 
-**Exam tip:** GDPR/data residency questions require preventive controls, not detective ones. The stack is: Assured Workloads (compliance framework) + org policy constraints (enforcement) + VPC Service Controls (exfiltration prevention) + CMEK (encryption control) + crypto-shredding (right to erasure). If an option uses labels, alerting, or after-the-fact remediation, it's wrong.
+Docs: https://cloud.google.com/products/conversational-agents
+
 </details>
 
 ---
 
-### Q18. KnightMotives needs to run AI inference models inside vehicles for real-time autonomous driving decisions (object detection, path planning, hazard avoidance). The models must function without network connectivity, update over-the-air (OTA) when connectivity is available, and the edge-to-cloud pipeline must support model versioning and A/B testing. Which architecture should the architect design?
+### Q9.
 
-A) Run inference models on the vehicle's onboard computing unit using TensorFlow Lite or ONNX Runtime. Use Vertex AI Model Registry for model versioning. Deploy updated models via an OTA pipeline that stages models in Cloud Storage, validates checksums, and uses a phased rollout controller (canary/A-B) that tracks vehicle cohorts in Spanner. Vehicles report inference telemetry to Pub/Sub for centralized model performance monitoring.
+Cymbal Retail requires image generation and enhancement: producing different product image variations from a base image such as various colors, plus background changes, product color adjustments, and the addition of text overlays. Which approach fits?
 
-B) Use Distributed Cloud Edge appliances installed in each vehicle for running Kubernetes-based inference workloads. Manage model deployments using GKE fleet management with Anthos Config Management for versioning.
+A) Imagen on Vertex AI for generation and editing, with the outputs routed through the human review workflow before catalog publication.
 
-C) Stream all sensor data to the cloud over 5G and run inference in Vertex AI Endpoints with auto-scaling. Cache the last known predictions locally for temporary offline operation.
+B) Cloud Vision API to analyse supplier images and extract attributes, with a design team producing variants manually.
 
-D) Deploy Coral Edge TPUs in each vehicle connected to a vehicle gateway. Use IoT Core to push model updates and monitor device health remotely.
+C) Gemini on Vertex AI to generate textual descriptions of the desired variants, which suppliers then use to provide new photography.
+
+D) A GKE-hosted image processing pipeline using open-source libraries for colour transforms and text compositing.
 
 <details>
 <summary>Answer</summary>
 
 **Correct: A)**
 
-Autonomous driving decisions require on-device inference with zero latency tolerance -- the models must run locally on the vehicle's embedded computing hardware. TensorFlow Lite and ONNX Runtime are standard frameworks for edge inference, optimized for the constrained compute available in automotive platforms. Vertex AI Model Registry provides centralized version control for models. The OTA pipeline using Cloud Storage + checksums + phased rollouts is the automotive industry standard pattern for safety-critical software updates. Spanner tracking vehicle cohorts enables global, consistent A/B test management. Telemetry flowing back to Pub/Sub closes the feedback loop for model improvement.
+The requirement is generative and editing work on images: variants from a base image, background replacement, colour adjustment, text overlay. Imagen covers generation and editing. Routing through the review workflow is required because the same case mandates human approval before catalog updates.
 
-- **B is wrong:** Distributed Cloud Edge is designed for on-premises datacenter or factory floor deployments, not for installation inside individual vehicles. The hardware form factor, power requirements, and cost per unit make this impractical for 2 million vehicles. Also, running full Kubernetes in a vehicle adds unnecessary complexity and resource overhead for inference-only workloads.
-- **C is wrong:** Streaming sensor data to the cloud for inference is fundamentally incompatible with autonomous driving. Network latency (even on 5G) and connectivity gaps make cloud-dependent inference unsafe for real-time driving decisions. Caching "last known predictions" is meaningless for dynamic driving scenarios where conditions change every millisecond.
-- **D is wrong:** Cloud IoT Core was retired in 2023. Additionally, Coral Edge TPUs are designed for low-power edge inference (cameras, sensors) but may not have sufficient compute capacity for the full autonomous driving stack (object detection + path planning + hazard avoidance simultaneously).
+- **B is wrong** -- Cloud Vision analyses existing images; it does not generate or edit them. Manual variant production is the manual effort the case exists to remove.
+- **C is wrong** -- this produces text, not images, and pushes the work back onto suppliers. The requirement is for Cymbal to generate the variations.
+- **D is wrong** -- deterministic image processing can do colour transforms and text compositing, but not generative background replacement or plausible new product variants, and it adds infrastructure to run and maintain.
 
-**Exam tip:** For edge AI / autonomous systems, the answer always involves local inference on the device with cloud-managed model lifecycle (versioning, A/B testing, OTA updates, telemetry). If an option suggests streaming data to the cloud for real-time safety-critical decisions, it's wrong. Also, remember that Cloud IoT Core is retired.
+**Exam tip:** Cymbal's gen AI requirements split across two modalities. Text and attributes are Gemini; images are Imagen. People revise the text half and forget images entirely, which makes this an easy question to lose. Also note that the human review gate applies to both.
+
+Docs: https://cloud.google.com/vertex-ai/generative-ai/docs/image/overview
+
 </details>
 
 ---
 
-### Q19. KnightMotives operates legacy mainframe systems (IBM z/OS) that run core manufacturing execution, supply chain, and dealer parts inventory applications. The systems process 500,000 COBOL transactions daily. The company wants to modernize these workloads to Google Cloud while minimizing risk and business disruption. Which modernization strategy should the architect recommend?
+### Q10.
 
-A) Perform a complete rewrite of all COBOL applications in Java microservices using Vertex AI Code generation. Deploy on GKE and use AlloyDB as the replacement for the mainframe databases. Execute a big-bang cutover during a planned downtime window.
+Cymbal Retail requires that all customer data, including product information and interactions with virtual agents, is handled securely and complies with relevant industry regulations. Which two controls most directly address the risk introduced by the new conversational and generative AI surfaces? (Choose TWO.)
 
-B) Use a phased approach: first, use Dual Run to operate mainframe transactions simultaneously on the mainframe and Google Cloud, validating output parity. Convert COBOL to Java using automated refactoring tools (e.g., Google Cloud Mainframe Modernization). Deploy modernized services on GKE with Cloud SQL for PostgreSQL. Migrate workloads incrementally using the strangler fig pattern with Apigee as the API facade.
+A) Screen prompts and model responses for prompt injection, jailbreak attempts and unsafe content before they reach or leave the model.
 
-C) Use a mainframe emulator running on Compute Engine (bare metal) to lift-and-shift the z/OS environment to Google Cloud. Maintain COBOL code and gradually refactor over time.
+B) Inspect and de-identify sensitive customer data in prompts and responses, so personal information is not persisted in logs or sent to the model unnecessarily.
 
-D) Migrate mainframe data to BigQuery using batch exports. Rewrite all business logic as BigQuery stored procedures and scheduled queries. Use Looker for transaction processing interfaces.
+C) Enable uniform bucket-level access on the Cloud Storage buckets holding product images.
+
+D) Apply VPC Service Controls around the analytics project to prevent data exfiltration to external projects.
+
+E) Require multi-factor authentication for the associates using the review interface.
+
+<details>
+<summary>Answer</summary>
+
+**Correct: A) and B)**
+
+The question narrows to the risk the AI surfaces introduce, and there are two: the model can be manipulated through its input, and customer data can flow into prompts, responses and logs. Model Armor addresses the first. Sensitive Data Protection addresses the second.
+
+- **C is wrong** -- a sound storage control, and worth having, but it is about bucket ACL consistency and has nothing to do with conversational or generative AI surfaces.
+- **D is wrong** -- VPC Service Controls is a strong exfiltration control and a reasonable part of the overall design, but it protects the perimeter around services rather than the content of prompts and responses. The question asks specifically about the new AI surfaces.
+- **E is wrong** -- MFA protects the associate accounts, which is good practice, but the review interface is an internal tool. It does not address customer data flowing through the model.
+
+**Exam tip:** for gen AI security questions, separate the two risk classes. Manipulating the model through input is Model Armor. Sensitive data in prompts, responses and logs is Sensitive Data Protection. General cloud security controls in the option list are usually correct statements that do not answer the question asked.
+
+Docs: https://cloud.google.com/security-command-center/docs/model-armor-overview and https://cloud.google.com/sensitive-data-protection/docs
+
+</details>
+
+---
+
+## Altostrat Media (Questions 11-15)
+
+> **Case context:** A media company whose content platform is **already running on Google Cloud**: GKE for the platform, Cloud Storage for the media library, BigQuery as the warehouse, Cloud Run functions for event-driven transcoding and metadata extraction. Legacy on-premises systems remain only for **content ingestion and archival**. Identity is Google Identity plus third-party providers. Monitoring is Cloud Monitoring plus Prometheus, with **alerts primarily delivered via email**. The executive statement says "**reliability and cost management are our top priorities**".
+
+### Q11.
+
+Altostrat Media requires "scalable, performant Kubernetes environments both on-premises and in the cloud" and separately requires modernized CI/CD for containerized deployments "with a centralized management platform". Which approach meets both?
+
+A) Run GKE in Google Cloud and a self-managed Kubernetes distribution on-premises, with separate CI/CD pipelines and separate policy definitions for each.
+
+B) Register both the Google Cloud and on-premises clusters into a GKE Enterprise fleet, apply configuration and policy through Config Sync and Policy Controller, and promote releases with Cloud Deploy.
+
+C) Migrate the on-premises ingestion workloads into GKE in Google Cloud so only one Kubernetes environment needs to be managed.
+
+D) Use Cloud Run for all workloads to remove Kubernetes management entirely, keeping the on-premises systems as they are.
 
 <details>
 <summary>Answer</summary>
 
 **Correct: B)**
 
-This phased approach minimizes risk for mission-critical manufacturing systems. **Dual Run** validates that the modernized application produces identical results to the mainframe -- this is critical for 500,000 daily transactions where errors have real-world manufacturing and supply chain impact. Automated COBOL-to-Java refactoring tools reduce the effort compared to a manual rewrite. The **strangler fig pattern** allows incremental migration (one capability at a time) rather than a risky big-bang cutover. Apigee as an API facade routes traffic between mainframe and cloud services during the transition, enabling gradual traffic shifting.
+The phrase "both on-premises and in the cloud" plus "centralized management platform" is the signature of a fleet question. GKE Enterprise registers clusters wherever they run, Config Sync applies configuration from a common source of truth, Policy Controller enforces guardrails consistently, and Cloud Deploy handles promotion across targets.
 
-- **A is wrong:** A complete AI-generated rewrite of 500,000-transaction-per-day COBOL applications is extremely high risk. AI code generation can assist but cannot guarantee functional parity for complex COBOL business logic with decades of embedded rules. A big-bang cutover for manufacturing execution systems risks production line shutdowns if anything goes wrong.
-- **C is wrong:** Mainframe emulators on Compute Engine maintain the COBOL dependency and do not achieve modernization. This approach also requires expensive bare-metal instances and specialized mainframe emulation licensing. It's a lateral move, not a modernization.
-- **D is wrong:** BigQuery is an analytics data warehouse, not a transaction processing system. Rewriting OLTP business logic as BigQuery stored procedures is architecturally inappropriate -- BigQuery is optimized for analytical queries, not high-frequency transactional workloads. Looker is a BI tool, not a transaction processing interface.
+- **A is wrong** -- it delivers Kubernetes in both places but explicitly rejects the centralized management the requirement asks for. Divergent policy across environments is the problem, not the solution.
+- **C is wrong** -- it satisfies the CI/CD half by eliminating the on-premises half, which contradicts a stated requirement for Kubernetes to run on-premises as well.
+- **D is wrong** -- Cloud Run is a reasonable platform, but the requirement names Kubernetes environments in both locations. Removing Kubernetes does not satisfy a requirement for Kubernetes.
 
-**Exam tip:** Mainframe modernization on the PCA exam follows the low-risk pattern: Dual Run (validate parity) + automated refactoring (COBOL to Java) + strangler fig (incremental migration) + API facade (traffic routing). Big-bang rewrites and mainframe emulators are always wrong for mission-critical systems. If you see "minimize risk" in the question, the answer involves phased migration.
+**Exam tip:** "consistent across on-premises and cloud", "centralized management", "fleet" and "single source of truth for configuration" all point at GKE Enterprise with Config Sync. Options that solve the problem by removing one of the two environments are eliminating a requirement, not meeting it.
+
+Docs: https://cloud.google.com/kubernetes-engine/enterprise/docs/concepts/overview and https://cloud.google.com/kubernetes-engine/enterprise/config-sync/docs/overview
+
 </details>
 
 ---
 
-### Q20. KnightMotives wants to monetize anonymized vehicle telemetry data by offering analytics products to urban planners, insurance companies, and road infrastructure agencies. The platform must ensure driver privacy (no re-identification possible), provide self-service analytics for external customers, and support usage-based billing. Which architecture should the architect design?
+### Q12.
 
-A) Export raw telemetry data to a shared BigQuery dataset. Grant external customers the `bigquery.dataViewer` role. Track query usage with Cloud Monitoring and send manual invoices.
+Altostrat Media requires AI-powered detection of harmful content, and separately requires that "AI systems are auditable and their decisions can be explained". Which two elements should the design include? (Choose TWO.)
 
-B) Build a data clean room using Analytics Hub. Apply k-anonymity and differential privacy transformations using the DLP API and BigQuery privacy-preserving functions before publishing datasets. Create Analytics Hub listings with data sharing agreements. Use BigQuery capacity-based pricing with per-subscriber billing. Expose pre-built dashboards via Looker for customers who don't need raw data access.
+A) Feature attributions on model predictions so a reviewer can see which inputs drove a classification decision.
 
-C) Anonymize data by removing the vehicle VIN from telemetry records. Store in Cloud Storage and share via signed URLs with expiring tokens. Build a custom billing system on Cloud Run.
+B) Logging of model inputs, outputs and model version for each decision, retained so that a past decision can be reconstructed.
 
-D) Use Pub/Sub to stream raw telemetry to customer-owned Google Cloud projects in real time. Customers process their own data and pay for their own Pub/Sub and Dataflow usage.
+C) A higher confidence threshold on the classifier so that only unambiguous decisions are acted upon.
+
+D) A larger foundation model, on the basis that stronger models make fewer classification errors.
+
+E) Human moderation of every piece of content before publication.
+
+<details>
+<summary>Answer</summary>
+
+**Correct: A) and B)**
+
+Explainability and auditability are two different obligations. Explainability means being able to say why a decision was made, which is what feature attributions provide. Auditability means being able to reconstruct a decision after the fact, which requires the inputs, the output and the model version to have been recorded.
+
+- **C is wrong** -- a confidence threshold changes which decisions are acted on. It says nothing about why a decision was made and leaves it just as opaque.
+- **D is wrong** -- accuracy and explainability are independent. Larger models are typically harder to explain, not easier, so this arguably moves away from the requirement.
+- **E is wrong** -- full human moderation would sidestep the need to explain automated decisions, but the case asks for AI-powered detection at media-library scale, and reviewing everything by hand contradicts that. Note the contrast with Cymbal, where human review *is* an explicit requirement.
+
+**Exam tip:** Altostrat is the only case that demands explainability, which makes Vertex Explainable AI a case-specific answer worth remembering. Distinguish it from accuracy: an option offering a better or more confident model is answering a different question.
+
+Docs: https://cloud.google.com/vertex-ai/docs/explainable-ai/overview
+
+</details>
+
+---
+
+### Q13.
+
+Altostrat Media requires optimizing cloud storage costs for a growing media library, while maintaining high availability and scalability. Access patterns across the library vary and are not known in advance for new content. What should the architect recommend?
+
+A) Enable Autoclass on the media buckets so objects move between storage classes automatically based on observed access patterns.
+
+B) Apply a lifecycle rule moving all objects to Nearline after 30 days, Coldline after 90 days and Archive after 365 days.
+
+C) Move the entire media library to Archive storage, since most content is accessed rarely after publication.
+
+D) Keep everything in Standard storage and reduce cost by enabling object versioning with a short retention window.
+
+<details>
+<summary>Answer</summary>
+
+**Correct: A)**
+
+Autoclass exists for exactly this situation: variable and unpredictable access patterns, where you do not want to hand-tune policy per content type. It transitions objects on observed access, moves them back to Standard when they are read again, and has no retrieval charges for the transitions it manages.
+
+- **B is wrong** -- a fixed age-based ladder is reasonable when access patterns are predictable, but here they are not. Content that becomes popular after 90 days would sit in Coldline incurring retrieval charges on every read, which can cost more than the storage saved.
+- **C is wrong** -- Archive has a 365-day minimum storage duration and the highest retrieval cost. A media library that serves user requests would pay heavily on reads, and early deletion of any object incurs the remaining minimum duration charge.
+- **D is wrong** -- versioning increases storage consumed by keeping noncurrent versions. It is a data protection feature, not a cost reduction one.
+
+**Exam tip:** unpredictable or unknown access patterns is the Autoclass signal. Known, predictable ageing is the lifecycle-rule signal. And remember Archive is not slow to read, its problem is retrieval cost and the 365-day minimum duration, which is a distinct trap from latency.
+
+Docs: https://cloud.google.com/storage/docs/autoclass
+
+</details>
+
+---
+
+### Q14.
+
+Altostrat Media wants to automatically generate concise summaries of media content and extract rich metadata from media assets using NLP and computer vision. Their platform already uses Cloud Run functions for event-driven tasks such as metadata extraction. What is the most appropriate way to add these capabilities?
+
+A) Extend the existing event-driven Cloud Run functions to call Gemini on Vertex AI for summarization, and Speech-to-Text and Video Intelligence for transcription and visual metadata, triggered when new content lands in Cloud Storage.
+
+B) Build a scheduled batch job on Dataproc that reprocesses the entire media library nightly to regenerate summaries and metadata.
+
+C) Train custom summarization and object detection models from scratch on the media library using Vertex AI custom training.
+
+D) Move media processing to GKE with GPU node pools and run open-source models for summarization and vision tasks.
+
+<details>
+<summary>Answer</summary>
+
+**Correct: A)**
+
+The case already establishes the pattern: Cloud Run functions handling event-driven tasks including metadata extraction, over a library in Cloud Storage. Extending that path with managed AI services fits the existing architecture, scales per object, and processes content once as it arrives.
+
+- **B is wrong** -- reprocessing the whole library nightly is wasteful and directly opposes "cost management is a top priority". It also delays metadata for new content by up to a day.
+- **C is wrong** -- custom training is expensive and slow when managed models already cover summarization, transcription and visual metadata. Nothing in the case suggests a domain-specific need that pre-trained models cannot meet.
+- **D is wrong** -- self-hosting models on GPU nodes adds infrastructure and cost to a company that has named cost management a top priority and already prefers serverless for this exact workload.
+
+**Exam tip:** when a case describes its existing architecture, the best answer usually extends it rather than introducing a parallel one. Altostrat's event-driven Cloud Run functions over Cloud Storage is stated in the source, so an option that matches that shape is likely correct.
+
+Docs: https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/overview and https://cloud.google.com/video-intelligence/docs
+
+</details>
+
+---
+
+### Q15.
+
+Altostrat Media's executive statement names reliability and cost management as their top priorities, and the case notes alerts are primarily delivered by email. The architect must improve reliability of operational workflows across both Google Cloud and on-premises environments. Which approach best reflects the stated priorities?
+
+A) Define SLOs for the content delivery and ingestion workflows, alert on burn rate, and use the error budget to decide when to prioritise reliability work over feature delivery.
+
+B) Add redundancy at every layer of the platform, including multi-region deployment of all services, to minimise the chance of any outage.
+
+C) Increase monitoring coverage by collecting every available metric from both environments into Cloud Monitoring and alerting on anomalies.
+
+D) Introduce a change freeze process so that deployments happen only during scheduled maintenance windows.
+
+<details>
+<summary>Answer</summary>
+
+**Correct: A)**
+
+SLOs with error budgets are the mechanism that reconciles the two stated priorities. They define reliability in terms users experience, and the error budget makes the reliability-versus-velocity trade-off explicit rather than implicit. Burn-rate alerting also replaces the ignored email alerts with a small number of meaningful signals.
+
+- **B is wrong** -- redundancy everywhere maximises reliability at the direct expense of cost, which is the other named priority. When a case names two priorities, an answer that sacrifices one for the other has not understood the question.
+- **C is wrong** -- collecting every metric and alerting on anomalies increases cost (ingestion and retention) and increases alert volume, which is the existing problem. More signal is not better signal.
+- **D is wrong** -- change freezes reduce deployment risk by reducing deployment frequency, which conflicts with the requirement to accelerate operational workflows and with modern delivery practice. Lower change failure rate comes from smaller, safer, more frequent changes.
+
+**Exam tip:** when a case states two priorities that pull against each other, the answer is usually the mechanism that makes the trade-off explicit, which for reliability versus cost or velocity means SLOs and error budgets. Options that maximise one dimension are wrong by construction.
+
+Docs: https://cloud.google.com/stackdriver/docs/solutions/slo-monitoring and https://sre.google/workbook/implementing-slos/
+
+</details>
+
+---
+
+## KnightMotives Automotive (Questions 16-20)
+
+> **Case context:** A manufacturer of autonomous, BEV, hybrid and ICE vehicles. IT is largely on-premises with some applications on major cloud platforms. The supply chain runs on an **outdated mainframe** and the **ERP is outdated**. **Dealers have no budget for new equipment.** There are **multiple vehicle code bases and significant technical debt**. **Network connectivity to manufacturing plants and vehicle connectivity in rural areas** are challenges. **Security is paramount due to past data breaches**, and **EU data protection** applies to autonomous platforms. The **online build-to-order system is unreliable**, straining dealer relationships. The case gives **no data volumes and names no specific legacy vendors**.
+
+### Q16.
+
+KnightMotives needs modern dealer tools for sales, service and inventory management, and an improved online build-to-order system. The case states that dealers have no budget for new equipment. Which approach fits the constraint?
+
+A) Deliver dealer tools as browser-based web applications that run on the hardware dealers already have, hosted on Google Cloud.
+
+B) Provide dealers with pre-configured tablets running a native application, funded through a dealer equipment programme.
+
+C) Deploy Google Distributed Cloud appliances at each dealership so tools run locally with low latency.
+
+D) Require dealers to install an on-premises server to host the inventory management system for their location.
+
+<details>
+<summary>Answer</summary>
+
+**Correct: A)**
+
+The dealer budget constraint is stated plainly and eliminates anything requiring hardware at the dealership. Browser-based tools delivered from the cloud run on whatever the dealer already has, and centralise the operational burden with KnightMotives rather than distributing it across a dealer network.
+
+- **B is wrong** -- funding a hardware programme works around the constraint by having KnightMotives pay instead, but the case gives no indication of appetite for that, and it introduces a fleet of managed devices across an independent dealer network. The constraint is there to be respected, not bought out.
+- **C is wrong** -- Distributed Cloud appliances are hardware at each site, which is precisely what dealers cannot fund. It also introduces significant operational complexity for what are essentially CRUD applications.
+- **D is wrong** -- an on-premises server per dealership is the most expensive and least maintainable option, and squarely violates the stated constraint.
+
+**Exam tip:** business and financial constraints eliminate options just as firmly as technical ones, and are easier to miss because they sit in the narrative rather than the requirements list. "No budget for new equipment", "cannot be refactored", "lease is expiring" all do real work in the answer.
+
+Docs: https://cloud.google.com/run/docs and https://cloud.google.com/architecture/framework/system-design
+
+</details>
+
+---
+
+### Q17.
+
+KnightMotives states that security is paramount due to past data breaches, and requires a comprehensive security framework, an incident response plan, and security awareness training for employees. Which three elements belong in the architect's proposal? (Choose THREE.)
+
+A) Centralised detection and posture management across the environment, with findings triaged into a defined response process.
+
+B) A documented and rehearsed incident response plan, including defined roles, escalation paths and post-incident review.
+
+C) A recurring security awareness training programme for employees, tracked to completion.
+
+D) Encrypting all data at rest with customer-managed keys, which removes the need for the other controls.
+
+E) Restricting all cloud access to a single administrator account to reduce the attack surface.
+
+<details>
+<summary>Answer</summary>
+
+**Correct: A), B) and C)**
+
+The case asks for three things and names them explicitly: a security framework, an incident response plan, and security awareness training. The proposal has to cover all three, and the third is a people control rather than a product one, which is what makes this question representative of the case.
+
+- **D is wrong** -- CMEK is a valuable control and appropriate here given EU data protection requirements, but the claim that it removes the need for the others is false. Encryption at rest does not detect intrusions, respond to incidents, or stop an employee falling for a phishing email, and past breaches suggest exactly those paths.
+- **E is wrong** -- a single shared administrator account is an anti-pattern. It destroys attribution, prevents least privilege, and creates a catastrophic single point of compromise. It increases risk while appearing to reduce surface.
+
+**Exam tip:** KnightMotives is the case that makes people and process explicit requirements, including security awareness training, employee upskilling and business-to-technical communication. Those are exam objective 4.2 territory, and questions built on them will have a correct answer that is not a product. Do not discard an option because it is not a service.
+
+Docs: https://cloud.google.com/security-command-center/docs/security-command-center-overview and https://cloud.google.com/architecture/framework/security
+
+</details>
+
+---
+
+### Q18.
+
+KnightMotives wants to monetize corporate data to finance new technology investments, but states that corporate data remains siloed. They must also adhere to European Union data protection regulations. Which approach fits both requirements?
+
+A) Consolidate data into BigQuery, publish curated datasets through Analytics Hub for controlled sharing with partners, and enforce data residency with organization policy location constraints plus CMEK.
+
+B) Export datasets to Cloud Storage and share signed URLs with paying partners, with an agreement governing their use.
+
+C) Give partners read access to the operational databases through a VPN, so data is always current.
+
+D) Publish datasets to a public Cloud Storage bucket with requester-pays enabled, so consumers cover the egress cost.
+
+<details>
+<summary>Answer</summary>
+
+**Correct: A)**
+
+Two requirements have to be satisfied at once. Analytics Hub is built for sharing curated data without copying it, with the publisher retaining control and visibility over subscribers, which is what monetization needs. Location constraints and customer-managed keys address the EU data protection obligation on where data lives and who can decrypt it.
+
+- **B is wrong** -- signed URLs hand over copies of files. Once distributed there is no revocation, no usage visibility, and no control over onward sharing, which is unworkable for monetized data and weak under a data protection regime.
+- **C is wrong** -- exposing production databases to external parties couples partners to the operational schema, creates a serious security exposure for a company that has already suffered breaches, and provides no commercial controls.
+- **D is wrong** -- a public bucket means anyone can access the data. Requester-pays shifts egress cost but does not restrict access, so this monetizes nothing and creates an EU compliance problem.
+
+**Exam tip:** data sharing and monetization questions point at Analytics Hub, because sharing in place with subscriber controls is exactly its purpose. Options that copy or export data lose control, which is nearly always the discriminator when a compliance requirement is also present.
+
+Docs: https://cloud.google.com/bigquery/docs/analytics-hub-introduction and https://cloud.google.com/assured-workloads/docs/overview
+
+</details>
+
+---
+
+### Q19.
+
+KnightMotives runs its supply chain on an outdated mainframe and needs to gradually modernize or replace legacy systems while adopting a hybrid cloud strategy. The case does not state a hard cutover deadline. Which migration approach is most appropriate?
+
+A) Rewrite the supply chain application as cloud-native microservices in a single coordinated cutover once the rewrite is complete.
+
+B) Replatform incrementally, running the mainframe and the migrated components in parallel to validate equivalence before shifting traffic, and retire mainframe functions progressively.
+
+C) Keep the mainframe indefinitely and expose its functions through an API layer, treating modernization as complete.
+
+D) Re-host the mainframe workload unchanged onto Compute Engine instances to exit the data center quickly.
 
 <details>
 <summary>Answer</summary>
 
 **Correct: B)**
 
-This architecture addresses all three requirements comprehensively. **Privacy:** K-anonymity ensures that no individual vehicle can be singled out from the dataset (each record is indistinguishable from at least k-1 others). Differential privacy adds mathematical noise guarantees that prevent re-identification even with auxiliary data. DLP API can detect and redact any remaining PII. **Self-service analytics:** Analytics Hub provides a managed data marketplace where external customers can discover and subscribe to datasets. Looker dashboards serve customers who want insights without writing SQL. **Billing:** Analytics Hub supports per-subscriber pricing, and BigQuery capacity-based pricing models allow usage-based billing.
+The case asks to "gradually modernize or replace legacy systems", and gradual is the operative word. Running old and new in parallel lets each migrated function be validated against the system of record before it carries traffic, which is the only safe way to move a supply chain that the business depends on daily.
 
-- **A is wrong:** Sharing raw telemetry data violates the anonymization requirement. Granting `bigquery.dataViewer` on raw data gives external customers access to potentially identifiable information. Manual invoicing does not scale and doesn't support self-service.
-- **C is wrong:** Simply removing the VIN is not sufficient anonymization -- vehicles can be re-identified through GPS patterns (home location, commute routes), driving behavior signatures, or correlation with other datasets. This is a well-documented privacy failure mode. Signed URLs and a custom billing system add unnecessary operational complexity.
-- **D is wrong:** Streaming raw telemetry to customer projects exposes un-anonymized personal data (location, driving behavior) to external parties. This violates GDPR and the anonymization requirement. Having customers manage their own infrastructure also creates a poor product experience.
+- **A is wrong** -- a full rewrite with a single cutover is the highest-risk option available for a critical system, and it contradicts "gradually". Big-bang cutovers of supply chain systems are where migrations fail.
+- **C is wrong** -- an API façade is a genuinely useful step and often part of a strangler approach, but declaring modernization complete leaves the outdated mainframe in place. The case wants the legacy system modernized or replaced, not wrapped.
+- **D is wrong** -- mainframe workloads do not re-host onto x86 Compute Engine instances unchanged; the architectures are not compatible. Even where emulation is possible, it carries the technical debt forward without addressing the stated problem.
 
-**Exam tip:** Data monetization questions test whether you understand that anonymization means more than removing obvious identifiers. K-anonymity + differential privacy is the gold standard. Simply removing names/IDs is never sufficient (the exam will test this). Analytics Hub is the Google Cloud data marketplace service -- if a question mentions "data sharing" or "data products," Analytics Hub is likely the answer.
+**Exam tip:** the case names no mainframe vendor, no language and no transaction volumes, so any option that depends on those specifics is inventing them. When a case says "gradually", incremental parallel-run approaches beat both big-bang rewrites and do-nothing façades.
+
+Docs: https://cloud.google.com/mainframe-modernization/docs/overview and https://cloud.google.com/architecture/migration-to-gcp-getting-started
+
 </details>
+
+---
+
+### Q20.
+
+KnightMotives identifies vehicle connectivity in rural areas as a challenge, and requires reliable network connectivity to support real-time AI features and data transmission. Which design best accommodates the constraint?
+
+A) Buffer telemetry and AI inference results on the vehicle, run safety-critical inference locally, and synchronise opportunistically when connectivity is available.
+
+B) Require a persistent connection for all AI features, and disable them when the vehicle is out of coverage.
+
+C) Stream all raw sensor data continuously to the cloud for processing, and rely on cellular failover to maintain the connection.
+
+D) Provision satellite connectivity for the entire vehicle fleet so coverage gaps are eliminated.
+
+<details>
+<summary>Answer</summary>
+
+**Correct: A)**
+
+Intermittent connectivity is a property of the environment, not a defect to be engineered away. The design that survives it keeps safety-critical inference local so the vehicle does not depend on a network round trip, buffers what needs to be sent, and syncs when a link is available.
+
+- **B is wrong** -- disabling features in rural areas fails the customers who live there, and the case already says hybrid and ICE drivers view the in-vehicle experience poorly. Degrading it further in exactly the places coverage is worst works against the business goal.
+- **C is wrong** -- streaming all raw sensor data continuously is the most bandwidth-hungry option possible, which is the opposite of what a coverage-constrained environment can support. Cellular failover does not help where there is no cellular coverage.
+- **D is wrong** -- fitting satellite connectivity to an entire consumer vehicle fleet is disproportionate in cost and hardware, and the case gives no indication of that appetite. It also does not remove the need for local inference, since latency still rules out a round trip for safety-critical decisions.
+
+**Exam tip:** for edge and connectivity questions, the pattern is local processing for anything latency-critical or safety-critical, buffering plus opportunistic sync for everything else. Options that assume reliable connectivity have not accepted the stated constraint, and options that eliminate the constraint with hardware are usually disproportionate.
+
+Docs: https://cloud.google.com/distributed-cloud/edge/latest/docs and https://cloud.google.com/architecture/connected-devices
+
+</details>
+
+---
+
+## Working case study questions
+
+The pattern across all twenty:
+
+1. **Find the stated requirement in the stem.** It is usually quoted or closely paraphrased from the case.
+2. **Ask what it rules out.** Most of these are decided by elimination, not by picking the strongest service.
+3. **Check the option against the existing environment.** Rebuilding something the case says already exists is nearly always wrong. Altostrat is already on Google Cloud; Cymbal already runs Kubernetes; EHR has already containerized much of its estate.
+4. **Watch for constraints in the narrative**, not just the requirements list: dealers have no budget, the integrations are not moving, the lease is expiring.
+5. **Use the stated priority as a tie-breaker.** Altostrat says reliability and cost. Cymbal names call center and hosting costs specifically. EHR wants lower administration cost.
+6. **Prefer the cheapest option that meets the requirement**, not the most capable one.
