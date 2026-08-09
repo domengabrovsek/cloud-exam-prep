@@ -78,9 +78,10 @@ A learner who types these gets "unrecognized". Highest-confusion class of error.
 - [x] `docs/03:769-777` - `gcloud dlp inspect-content` / `deidentify-content`. Actual surface is `gcloud alpha dlp text inspect` / `redact`.
 - [x] `docs/03:611-614` and `04:385-387` - `--enable-vulnerability-scanning`. Real flag is `--allow-vulnerability-scanning`.
 - [x] `docs/04:77-84` and `06:1350-1363` and `07:145` - `gcloud monitoring slos create/list/describe`. No `slos` group. SLOs come from the Monitoring API v3, Terraform `google_monitoring_slo`, or the console. Significant because 6.5 is the SLO objective.
-- [ ] `docs/04:713-717` - `gcloud logging metrics create --bucket-options=...`. No such flag; distribution metrics need `--config-from-file`.
+- [x] `docs/04:713-717` - `gcloud logging metrics create --bucket-options=...`. No such flag; distribution metrics need `--config-from-file`.
 - [x] `docs/04:889-898` - `gcloud privatecatalog catalogs create` / `products create`. Not real; the surface is search-only. Product also renamed to Service Catalog in 2022.
-- [ ] `docs/04:1352-1357` - `gcloud monitoring policies create --condition-display-name/--condition-filter/--condition-threshold-value`. Invented flags; takes `--policy` / `--policy-from-file`.
+- [x] `docs/04:1352-1357` - `gcloud monitoring policies create --condition-display-name/--condition-filter/--condition-threshold-value`. Invented flags; takes `--policy` / `--policy-from-file`.
+  Note: `--condition-display-name` and `--condition-filter` do exist; only `--condition-threshold-value` is invented (thresholds use `--if`). Example rewritten to `--policy-from-file` regardless, since the flag form cannot express the condition shown.
 - [x] `docs/06:76`, `06:80-85` - `gcloud monitoring metrics-descriptors list/create`. No such group on any track. GA groups are dashboards, policies, snoozes, uptime.
 - [x] `docs/06:234`, `06:237-240`, `07:139-142` - `gcloud monitoring channels`. Beta only.
 - [x] `docs/06:634` - `gcloud beta error-events list`. Correct group is `gcloud beta error-reporting events list`.
@@ -114,7 +115,8 @@ A learner who types these gets "unrecognized". Highest-confusion class of error.
 - [ ] `docs/02:272-277`, `02:323` - firewall precedence order wrong for the default `AFTER_CLASSIC_FIREWALL` enforcement.
 - [ ] `docs/02:740`, `02:751`, `01:237` - three different Transfer Appliance capacities, all retired. Current models are TA40 (40 TB) and TA300 (300 TB).
 - [ ] `docs/02:1089` - M2 listed as "12-416" vCPUs. M2 starts at 208. M1 and M4 missing entirely.
-- [ ] `docs/03:252` - SDP "150+ built-in detectors". Actual 200+.
+- [x] `docs/03:252` - SDP "150+ built-in detectors". Actual 200+.
+  Could not confirm any published count. The infoTypes reference page explicitly declines to give one and tells you to call `infoTypes.list`. Replaced the number with that instruction rather than swapping one unverifiable figure for another.
 - [ ] `docs/09:311` - Interconnect 99.9% SLA needs two connections in different edge availability domains, not just one metro.
 - [ ] `docs/09:305`, `09:309`, `09:367` - Dedicated Interconnect "10-200 Gbps". Now 10, 100 and 400 Gbps link types.
 - [ ] `docs/09:322`, `09:329`, `09:369` and `02:22` - HA VPN "3 Gbps per tunnel". Documented limit is 250,000 packets/sec, which is 1-3 Gbps depending on packet size.
@@ -125,20 +127,21 @@ A learner who types these gets "unrecognized". Highest-confusion class of error.
 
 ## P1 - facts that are wrong but not numeric
 
-- [ ] `docs/04:305` - "the `images` field does NOT push to a registry". It does. Stated as an exam tip, which makes it worse.
-- [ ] `docs/04:301` - Cloud Build default SA. New projects default to the Compute Engine default SA, not `{PROJECT_NUMBER}@cloudbuild.gserviceaccount.com`.
+- [x] `docs/04:305` - "the `images` field does NOT push to a registry". It does. Stated as an exam tip, which makes it worse.
+- [x] `docs/04:301` - Cloud Build default SA. New projects default to the Compute Engine default SA, not `{PROJECT_NUMBER}@cloudbuild.gserviceaccount.com`.
 - [ ] `docs/04:788`, `04:795`, `04:869` and `05:270` and `07:660` - "Cloud Load Testing" as a Google product, with a doc link that does not resolve. No such product has ever existed.
-- [ ] `docs/04:539-543`, `04:667` - "Cloud Deploy rollback means creating a new release". Native rollback exists (`gcloud deploy targets rollback`) plus automated rollback rules.
-- [ ] `docs/04:668` - "Cloud Deploy canary requires a service mesh". It supports plain Kubernetes service networking.
-- [ ] `docs/04:693` - Cloud Debugger "replaced by Snapshot Debugger". Both are gone; delete the row.
-- [ ] `docs/04:1015` - "Memorystore Redis cross-region replication, Standard tier". Standard tier is cross-zone within one region. Cross-region is a Redis Cluster / Valkey feature.
+  `docs/04` done: all three sites replaced with the Architecture Center guide "Distributed load testing using GKE", plus an explicit callout that no such product exists. `05:270` and `07:660` still open.
+- [x] `docs/04:539-543`, `04:667` - "Cloud Deploy rollback means creating a new release". Native rollback exists (`gcloud deploy targets rollback`) plus automated rollback rules.
+- [x] `docs/04:668` - "Cloud Deploy canary requires a service mesh". It supports plain Kubernetes service networking.
+- [x] `docs/04:693` - Cloud Debugger "replaced by Snapshot Debugger". Both are gone; delete the row.
+- [x] `docs/04:1015` - "Memorystore Redis cross-region replication, Standard tier". Standard tier is cross-zone within one region. Cross-region is a Redis Cluster / Valkey feature.
 - [x] `docs/04:1414` - resource-based CUDs cover Dataflow. They do not.
-- [ ] `docs/04:1291` - "AlloyDB single-region only". AlloyDB supports cross-region replication.
-- [ ] `docs/03:226-227` - "Key Access Justifications only available with EKM". KAJ works on software and HSM keys too.
-- [ ] `docs/03:583`, `03:641` - "Binary Authorization is for GKE". Also Cloud Run, Cloud Service Mesh, Google Distributed Cloud. Contradicts `04:397`.
-- [ ] `docs/03:620-624` - SLSA "Level 1-4". v1.0 Build track has L1-L3 only.
-- [ ] `docs/03:812` - "Artifact Hub" for compliance reports. Not a Google product. Correct: Compliance Reports Manager, and Audit Manager for evidence generation.
-- [ ] `docs/03:853` - Access Transparency "Premium or Enterprise support". Actual: Standard, Enhanced or Premium. Enterprise is not a Care tier.
+- [x] `docs/04:1291` - "AlloyDB single-region only". AlloyDB supports cross-region replication.
+- [x] `docs/03:226-227` - "Key Access Justifications only available with EKM". KAJ works on software and HSM keys too.
+- [x] `docs/03:583`, `03:641` - "Binary Authorization is for GKE". Also Cloud Run, Cloud Service Mesh, Google Distributed Cloud. Contradicts `04:397`.
+- [x] `docs/03:620-624` - SLSA "Level 1-4". v1.0 Build track has L1-L3 only.
+- [x] `docs/03:812` - "Artifact Hub" for compliance reports. Not a Google product. Correct: Compliance Reports Manager, and Audit Manager for evidence generation.
+- [x] `docs/03:853` - Access Transparency "Premium or Enterprise support". Actual: Standard, Enhanced or Premium. Enterprise is not a Care tier.
 - [ ] `docs/06:325` - "Policy Denied logs can exempt specific users". No principal-exemption mechanism; only a Log Router exclusion filter.
 - [ ] `docs/06:1712` - Web Security Scanner "App Engine and Cloud Run". Actual: App Engine, GKE, Compute Engine. Cloud Run not supported. Contradicts `06:1699` two lines earlier.
 - [ ] `docs/06:1993` - VM Manager metadata key `enable-os-config`. Correct key is `enable-osconfig`.
@@ -178,19 +181,24 @@ The Vertex AI rebrand is the big one and is a rewrite, not a find-and-replace.
 - [?] **Vertex AI to Gemini Enterprise Agent Platform.** Rebranded at Cloud Next 2026; Vertex AI left the Console 2026-05-21. "Vertex AI Agent Builder" appears as a *correct answer* in `section-1-designing-planning.md:659` and `:1094`, `section-2-provisioning-infrastructure.md:661`, `case-study-questions.md:207`. Model tables reference SKUs that now 404 (`docs/02:2098-2100`, `02:2190`, `01:787`). Affects docs 01, 02, 09.
   **Decision needed:** the v6.1 exam guide (Oct 2025) still uses Vertex AI naming. Recommendation is to keep exam-guide names primary and add a "now marketed as" note, rather than rewriting to names the exam does not use.
 - [ ] **Anthos to GKE Enterprise**, **Anthos Service Mesh + Traffic Director to Cloud Service Mesh**: `docs/01:279`, `01:641`, `01:742`, `01:1043`, `02:425`, `02:1505`, `04:429`, `04:668`, `04:749`, `04:790`, `04:820`, `04:972`, `06:788`, `06:1586`, `06:1660`, `06:1674`, `07:102`, `07:469`, `07:1005`, `07:1388`, `05:115`.
+  All six `docs/04` sites done. Docs 01, 02, 05, 06, 07 still open.
 - [ ] **Container Registry shut down** (writes 2025-03-18, reads 2025-06-03) but `gcr.io` still used in examples: `docs/02:1363`, `02:1370`, `05:297`, `05:301`, `05:305`, `05:1671`, `06:867`, `06:892`, `06:976`, `06:1000`, `07:178`. Also listed as a VPC-SC protectable service at `03:369`.
+  `03:369` done: Container Registry removed from the VPC-SC list with the shutdown dates stated. `docs/04` deliberately keeps its `gcr.io/cloud-builders/*` references, which are Google-owned images whose gcr.io URLs are served from Artifact Registry and are explicitly unaffected by the shutdown; a note in `04` now says so, since a blanket find-and-replace would break those examples.
 - [ ] **Cloud Functions to Cloud Run functions**: `docs/01:1018`, `05:169`, `05:216`, `05:238`, `06:622`, `06:641`, `07:562`, `07:977`, `07:803`, `07:1109`, `07:1231`, `questions/section-5-managing-implementations.md:229`, `:531`.
 - [ ] **Dataproc to Managed Service for Apache Spark**: `docs/09:62-66`, `09:93`, `09:100`, `09:891`, `09:1002`.
 - [ ] **Migrate for Compute Engine to Migrate to Virtual Machines**: `docs/09:835`, `09:889`, `09:903`, `09:1033`, `05:399`, `05:555`. M4CE v4.11 end of support 2024-04-30.
 - [ ] **BeyondCorp Enterprise to Chrome Enterprise Premium**: `questions/section-3-security-compliance.md:749`.
 - [ ] **Cloud Operations Suite to Google Cloud Observability**: `docs/01:414`, `07:222`, `07:1476`.
 - [ ] **Cloud Source Repositories** closed to new customers 2024-06-17, presented as live: `docs/01:180`, `04:28`, `04:580`. Successor is Secure Source Manager.
+  Both `docs/04` sites done, plus a naming-trap callout. `01:180` still open.
 - [ ] **Deployment Manager** past end of support 2026-03-31, new users blocked from 2026-06-30: `docs/05:1809-1841`, `09:937-941`, `09:967`, `09:974`, `10:592`, `10:600`, `04:881`.
+  `04:881` done. Docs 05, 09, 10 still open.
 - [ ] **Memorystore for Memcached deprecated** (no new instances after 2027-02-01, shutdown 2029-01-31): `docs/09:174`, `09:191`. Memorystore for Valkey missing entirely from the in-memory branch.
 - [ ] **PaLM 2 and Codey retired** April 2025: `docs/02:2156`, `09:634`.
 - [ ] **Model Armor is under Security Command Center**, not Vertex AI: `questions/section-3-security-compliance.md:654`, `docs/03:650-654` (also wrong doc URL).
+  `docs/03:650-654` done: rewritten around the real capability set (prompt injection, jailbreak, malicious URL, SDP integration), the two modes, templates and floor settings, with SCC doc URLs. The question file is still open.
 - [ ] **Cloud Armor Managed Protection Plus to Cloud Armor Enterprise**: `docs/02:214`.
-- [ ] **Private Catalog to Service Catalog** (renamed March 2022): `docs/04:879`, `04:936-937`.
+- [x] **Private Catalog to Service Catalog** (renamed March 2022): `docs/04:879`, `04:936-937`.
 - [ ] **Terraform Cloud to HCP Terraform**: `docs/05:1262`.
 - [ ] **gsutil to gcloud storage.** gsutil leaves the CLI bundle March 2027. `docs/10:806-825` gives gsutil its own section while `gcloud storage` is absent. Invert the emphasis but keep gsutil, since the exam guide still names it.
 - [ ] Dated version pins that will rot: TPU v3 (`questions/section-1-designing-planning.md:472`), GKE 1.28/1.29 (`section-6:587`), pd-ssd with no Hyperdisk (`section-2:492`), provider `~> 5.0` (`docs/10:285-294`, `05:1122-1129`) against a current 7.x, `POSTGRES_15` (`10:505`), CFT module pins (`10:412`, `10:427`).
@@ -221,19 +229,21 @@ The Vertex AI rebrand is the big one and is a rewrite, not a find-and-replace.
 
 - [ ] **Google Cloud VMware Engine** - named verbatim in objective 2.3, zero mentions anywhere. Belongs in `docs/02` under 2.3.
 - [ ] **Infrastructure Manager** - Google's managed Terraform and the named Deployment Manager replacement. Absent from `docs/05` and `docs/09` section 10. Biggest single gap given v6.1 made IaC explicit.
-- [ ] **Confidential Computing** - Confidential VMs, Confidential GKE Nodes, Confidential Space. Absent from `docs/03`.
-- [ ] **Workforce Identity Federation** - absent; only Workload Identity Federation is covered (`docs/03:529-560`). The workforce/workload distinction is a classic trap.
-- [ ] **Privileged Access Manager** - the canonical answer for just-in-time elevation and break-glass. Missing from separation of duties (`docs/03:269-303`).
+- [x] **Confidential Computing** - Confidential VMs, Confidential GKE Nodes, Confidential Space. Absent from `docs/03`.
+- [x] **Workforce Identity Federation** - absent; only Workload Identity Federation is covered (`docs/03:529-560`). The workforce/workload distinction is a classic trap.
+- [x] **Privileged Access Manager** - the canonical answer for just-in-time elevation and break-glass. Missing from separation of duties (`docs/03:269-303`).
 - [ ] **Cloud NGFW Enterprise** - objective 2.1 names intrusion protection; `docs/02:247-266` covers only Cloud IDS, which is detection-only.
 - [ ] **Network Connectivity Center** - two passing rows (`docs/02:188`, `02:344`), absent from the `docs/09` connectivity tree. Objective 2.1 covers exactly this.
 - [ ] **Metrics scopes** - multi-project observability, arguably the architect-level Cloud Monitoring topic. Absent from `docs/06`.
 - [ ] **SLO composition across dependent services** - the multiplicative rule is a classic PCA calculation, absent.
 - [ ] **DORA metrics** - absent from all files despite Google owning the research and citing it throughout WAF.
-- [ ] **Cloud Customer Care tiers** - `docs/04:1327-1377` "customer success" is effectively a second SLO section. Exam items framed as customer success often resolve to picking a support tier, and there is no basis for that here.
+- [x] **Cloud Customer Care tiers** - `docs/04:1327-1377` "customer success" is effectively a second SLO section. Exam items framed as customer success often resolve to picking a support tier, and there is no basis for that here.
+  Basic / Standard / Enhanced / Premium table added with the three published response targets (Standard P2 4h, Enhanced P1 1h, Premium P1 15min) and the TAM discriminator. Prices deliberately omitted: not verified, and `docs/06:1226` already tracks the price errata separately.
 - [ ] **Dynamic Workload Scheduler** - objective 2.4's "optimizing for different consumption models" is exactly this. Absent.
 - [ ] **Gemini Enterprise** (objective 2.5: AI Agents and NotebookLM) - NotebookLM gets one row; AI Agents absent.
 - [ ] Missing decision trees in `docs/09`, ranked by expected yield: resource hierarchy / landing zone, network topology selection, data pipeline and ingestion, multi-tenancy isolation, identity and federation, CI/CD topology, AI/ML serving, caching strategy, observability and logging architecture, cost optimization, compliance and data residency, encryption key strategy.
 - [ ] Thin relative to weight: securing AI (`docs/03:648-681`, 33 lines for a named objective), envisioning future improvements (`docs/01:1177-1237`, all of 1.5), success measurements (`docs/01:331-354`), Cloud Code (`docs/05:661-682`).
+  Securing AI partially addressed: the Model Armor block was rewritten and roughly doubled while fixing its product-family error. Still thin relative to the objective; a fuller build-out of the securing-AI section is not attempted here.
 - [ ] `docs/06:13-22` and `07:53-65` - the operational excellence "key principles" are hand-written SRE principles, not Google's published pillar principles. Objective 6.1 reads verbatim "the principles and recommendations of the operational excellence pillar", so a question quoting Google's wording would not be recognisable.
 
 ## P2 - effort is allocated inversely to exam weight (verified)
@@ -297,15 +307,17 @@ Keep as the model for rewrites: `docs/07:1392-1441` (pillar trade-off matrix, th
 ## P3 - structural defects
 
 - [ ] `docs/06:1166-1187` - the sample runbook is fenced but its internal markdown headings leak into the document outline, appearing as siblings of section 6.4.
-- [ ] `docs/04:1266-1288` - same problem with the ADR example's headings.
+- [x] `docs/04:1266-1288` - same problem with the ADR example's headings.
+  Replaced the fenced markdown ADR with a section table plus a bulleted worked example, so no `#` headings remain inside the block.
 - [ ] `docs/05:1809-1858` - IaC comparison table omits Infrastructure Manager.
 - [ ] `gcp/ace/docs/05-access-and-security.md:3` and `:1150` - `[Back to README](./README.md)` links to a file that does not exist; the README is one level up.
 - [ ] **ACE exam weights disagree across four files.** `gcp/ace/README.md:25-28` says Domain 1 ~23%, Domain 2 ~30%; the doc H1s say ~20% and ~17.5% on the older 5-domain scheme. Root `CLAUDE.md` agrees with the README. Question file headers restate it a fourth time.
 - [ ] **Question counts are maintained in five places**: root `CLAUDE.md`, `.claude/domain-reference.md:130-135` and `:36-46`, `.claude/study-modes.md:15-31`, both exam READMEs, and inside each question file. Single source of truth should be the `Total questions: N` line in each question file.
 - [ ] **The Cloud Storage class table appears in 9 doc files** and has already diverged (see `07:711` vs `02:596` above). Same shape for the Spot VM 60-91% figure (4 PCA files) and CMEK snippets (9 files).
-- [ ] Example timestamps now in the past: `docs/03:59`, `03:68`, `03:200`.
+- [x] Example timestamps now in the past: `docs/03:59`, `03:68`, `03:200`. Rolled forward to 2027.
 - [ ] `docs/07:1207`, `07:1215-1221` - CFE scores from the 2021-2022 dataset. Either refresh or keep only the relative ordering.
-- [ ] `docs/04:1323` - doc link `cloud.google.com/architecture/architecture-decision-records` could not be confirmed to exist.
+- [x] `docs/04:1323` - doc link `cloud.google.com/architecture/architecture-decision-records` could not be confirmed to exist.
+  It exists: "Architecture decision records overview" in the Architecture Center, fetched 200. No change needed; link left in place.
 - [ ] Note: `cloud.google.com/*` doc URLs now 301-redirect to `docs.cloud.google.com/*`. Existing links all resolve, so this is not a defect, but new links should use the new host.
 
 ## Open items needing verification

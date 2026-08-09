@@ -56,7 +56,7 @@ Conditions allow granting access only when specific criteria are met:
 |---------------|---------|----------|
 | Resource type | `resource.type == "storage.googleapis.com/Bucket"` | Limit role to specific resource types |
 | Resource name | `resource.name.startsWith("projects/my-project/zones/us-central1-a")` | Regional restrictions |
-| Time-based | `request.time < timestamp("2026-06-01T00:00:00Z")` | Temporary access |
+| Time-based | `request.time < timestamp("2027-06-01T00:00:00Z")` | Temporary access |
 | Resource tags | `resource.matchTag("env", "production")` | Tag-based access control |
 | IP-based | Via Access Context Manager (not direct IAM) | Network-based access |
 
@@ -65,7 +65,7 @@ Conditions allow granting access only when specific criteria are met:
 gcloud projects add-iam-policy-binding my-project \
   --member="user:contractor@example.com" \
   --role="roles/compute.instanceAdmin.v1" \
-  --condition='expression=request.time < timestamp("2026-06-01T00:00:00Z"),title=temp-access,description=Temporary contractor access'
+  --condition='expression=request.time < timestamp("2027-06-01T00:00:00Z"),title=temp-access,description=Temporary contractor access'
 ```
 
 **IAM Deny Policies:**
@@ -197,7 +197,7 @@ gcloud kms keys create my-key \
   --location=us-central1 \
   --purpose=encryption \
   --rotation-period=90d \
-  --next-rotation-time=2026-04-01T00:00:00Z
+  --next-rotation-time=2027-04-01T00:00:00Z
 
 # Encrypt data
 gcloud kms encrypt \
@@ -221,10 +221,10 @@ gcloud kms keys versions disable 1 \
 - Adds latency (external call for every operation)
 - For extreme compliance requirements (data sovereignty, hold-your-own-key)
 
-**Key Access Justifications:**
+**Key Access Justifications (KAJ):**
 - Shows reason why Google needs to access keys (customer support, maintenance, etc.)
 - Customer can approve/deny access
-- Only available with EKM
+- Works with all Cloud KMS protection levels -- `SOFTWARE`, `HSM`, `EXTERNAL` and `EXTERNAL_VPC`. It is not EKM-only, which is the trap
 
 **Secret Manager:**
 - Store API keys, passwords, certificates
@@ -249,7 +249,7 @@ gcloud secrets add-iam-policy-binding my-secret \
 
 **Sensitive Data Protection (formerly DLP):**
 - Inspect, classify, de-identify sensitive data
-- Supports 150+ built-in detectors (SSN, credit card, email, etc.)
+- Large and growing set of built-in infoType detectors (SSN, credit card, email, etc.). Google does not publish a fixed count -- the authoritative list comes from the `infoTypes.list` API
 - De-identification methods: masking, tokenization, bucketing, format-preserving encryption
 - Integrates with BigQuery, Cloud Storage, Datastore
 
@@ -261,8 +261,9 @@ gcloud secrets add-iam-policy-binding my-secret \
 - Key rings cannot be deleted once created
 - Destroying a key version has a 24-hour default scheduled destruction period (configurable)
 - CMEK + Cloud EKM = strongest key control for data sovereignty
+- "See and approve the reason for every Google key access" → Key Access Justifications. Do NOT reject an answer because the key is software or HSM rather than EKM
 
-**Docs:** [Cloud KMS](https://cloud.google.com/kms/docs), [Secret Manager](https://cloud.google.com/secret-manager/docs), [Sensitive Data Protection](https://cloud.google.com/sensitive-data-protection/docs), [Cloud EKM](https://cloud.google.com/kms/docs/ekm)
+**Docs:** [Cloud KMS](https://cloud.google.com/kms/docs), [Secret Manager](https://cloud.google.com/secret-manager/docs), [Sensitive Data Protection](https://cloud.google.com/sensitive-data-protection/docs), [Cloud EKM](https://cloud.google.com/kms/docs/ekm), [Key Access Justifications](https://cloud.google.com/assured-workloads/key-access-justifications/docs/overview)
 
 ---
 
@@ -295,11 +296,26 @@ gcloud kms keyrings add-iam-policy-binding my-ring \
   --role="roles/cloudkms.cryptoKeyEncrypterDecrypter"
 ```
 
+**Privileged Access Manager (PAM):**
+
+PAM is the managed answer for just-in-time elevation and break-glass access. Instead of holding a privileged role permanently, a principal requests it and holds it only for the grant window.
+
+| Concept | What it is |
+|---------|-----------|
+| **Entitlement** | Who may request, which roles are granted, maximum grant duration, whether justification or approval is required |
+| **Grant** | An activated entitlement. The roles are attached for the grant duration, then automatically revoked |
+| **Approval** | Optional approver step, up to two levels with five approvers per level |
+| **Scope** | Project, folder or organization. Narrow further inside that scope with IAM Conditions on the entitlement |
+
+PAM covers the elevation case that IAM Conditions with a hard-coded expiry timestamp only approximates: the access is requested, justified, approved, time-boxed and audited as one flow.
+
 **Exam tips:**
 - "Ensure no single person can access and manage encryption keys" → separate roles/cloudkms.admin from roles/cloudkms.cryptoKeyEncrypterDecrypter
 - Separation of duties questions test whether you understand that admin roles and usage roles should be held by different principals
+- "Just-in-time elevation", "break-glass", "temporary admin with approval and audit trail" → Privileged Access Manager, not a time-conditioned IAM binding and never a standing role
+- PAM grants are self-revoking. If a question stresses that elevated access must not linger, that is the discriminator
 
-**Docs:** [Separation of Duties](https://cloud.google.com/iam/docs/understanding-roles#separation_of_duties)
+**Docs:** [Separation of Duties](https://cloud.google.com/iam/docs/understanding-roles#separation_of_duties), [Privileged Access Manager](https://cloud.google.com/iam/docs/pam-overview)
 
 ---
 
@@ -366,7 +382,9 @@ gcloud access-context-manager perimeters dry-run create my-perimeter \
 ```
 
 **VPC-SC supported services (commonly tested):**
-BigQuery, Cloud Storage, Cloud SQL, Spanner, Bigtable, Pub/Sub, Dataflow, Dataproc, Cloud KMS, Vertex AI, Artifact Registry, Container Registry, Secret Manager, Cloud Functions, Cloud Run.
+BigQuery, Cloud Storage, Cloud SQL, Spanner, Bigtable, Pub/Sub, Dataflow, Dataproc, Cloud KMS, Vertex AI, Artifact Registry, Secret Manager, Cloud Run functions, Cloud Run.
+
+Container Registry is no longer a protectable service in its own right -- it was shut down (writes 2025-03-18, reads 2025-06-03) and Artifact Registry is the perimeter-protected registry.
 
 **Organization Policies as Security Guardrails:**
 
@@ -483,6 +501,38 @@ gcloud resource-manager org-policies set-policy cmek-policy.yaml \
 
 ---
 
+### Confidential Computing
+
+CMEK and CSEK protect data **at rest**. TLS protects data **in transit**. Confidential Computing closes the third gap: data **in use**, encrypted in memory by the CPU so neither the hypervisor nor a Google operator can read it. When a scenario says "even the cloud provider must not be able to see the data while it is being processed", the at-rest and in-transit answers are all wrong.
+
+| Product | What it is | Reach for it when |
+|---------|-----------|-------------------|
+| **Confidential VM** | Compute Engine instances with hardware-based memory encryption in a Trusted Execution Environment | A regulated workload needs in-use protection on plain VMs |
+| **Confidential GKE Nodes** | Node pools built on Confidential VM | The same requirement, but the workload is containerized on GKE |
+| **Confidential Space** | Hardened, attested TEE where mutually distrusting parties compute on pooled data | Multi-party data collaboration where no party -- including the operator -- may see the others' raw data |
+| **Google Cloud Attestation** | Remote verifier that issues identity tokens proving what is actually running in the TEE | The design needs proof of the workload, not just isolation of it |
+
+**Underlying technologies:**
+
+| Technology | Machine series |
+|-----------|----------------|
+| AMD SEV | N2D, C2D, C3D, C4D |
+| AMD SEV-SNP (adds tamper protection against a malicious hypervisor) | N2D |
+| Intel TDX | C3, C4, A3 |
+| NVIDIA Confidential Computing (extends the TEE to attached GPUs) | GPU machine types for confidential AI/ML |
+
+Confidential VM technology also backs confidential variants of Dataflow, Managed Service for Apache Spark and Vertex AI Workbench.
+
+**Exam tips:**
+- "Protect data in use" / "encrypted while being processed" → Confidential Computing. Not CMEK, which is at rest
+- "Two companies want to run a joint analysis without either seeing the other's raw data" → Confidential Space. A shared BigQuery dataset with column-level ACLs does not clear this bar
+- Confidential GKE Nodes is a node-pool property, so it constrains machine type selection. Expect trade-off questions on machine family availability
+- Enabling Confidential VM costs a memory-encryption performance overhead and narrows machine type choice -- it is not free, which is why "enable it everywhere" is usually the wrong answer
+
+**Docs:** [Confidential Computing](https://cloud.google.com/confidential-computing/docs/confidential-computing-overview), [Confidential VM](https://cloud.google.com/confidential-computing/confidential-vm/docs/confidential-vm-overview), [Confidential GKE Nodes](https://cloud.google.com/kubernetes-engine/docs/how-to/confidential-gke-nodes), [Confidential Space](https://cloud.google.com/confidential-computing/confidential-space/docs/confidential-space-overview)
+
+---
+
 ### Secure Remote Access
 
 **Identity-Aware Proxy (IAP):**
@@ -559,6 +609,21 @@ gcloud iam service-accounts add-iam-policy-binding my-sa@my-project.iam.gservice
   --role="roles/iam.workloadIdentityUser"
 ```
 
+**Workforce Identity Federation:**
+
+The counterpart to Workload Identity Federation, and the pair is a classic exam trap. Workload federates **machines**; workforce federates **people**. Workforce Identity Federation lets employees, partners and contractors sign in to Google Cloud with your existing IdP without ever provisioning them a Google Account or Cloud Identity user.
+
+| | Workload Identity Federation | Workforce Identity Federation |
+|---|---|---|
+| **Federates** | Applications, CI/CD jobs, external workloads | Human users and groups |
+| **Pool type** | Workload identity pool | Workforce pool (created at org level) |
+| **Protocols** | OIDC, SAML, AWS STS | OIDC, SAML 2.0 |
+| **Typical IdP** | GitHub Actions, GitLab CI, AWS, Azure | Microsoft Entra ID, AD FS, Okta |
+| **Principal** | `principalSet://iam.googleapis.com/projects/NUM/locations/global/workloadIdentityPools/POOL/...` | `principal://iam.googleapis.com/locations/global/workforcePools/POOL/subject/SUBJECT` |
+| **Replaces** | Service account keys | Directory sync into Cloud Identity |
+
+The workforce case is sync-less: identities stay in the external IdP rather than being copied into Cloud Identity with Google Cloud Directory Sync. That is the discriminator when a scenario refuses to duplicate its user directory.
+
 **OS Login:**
 - SSH access management through IAM (replaces SSH key management)
 - Users login with their Google identity
@@ -572,17 +637,19 @@ gcloud iam service-accounts add-iam-policy-binding my-sa@my-project.iam.gservice
 - "Temporary elevated access" → service account impersonation
 - "Manage SSH access through IAM" → OS Login
 - Workload Identity Federation is the preferred alternative to SA keys for external workloads
+- "Let employees sign in with the corporate IdP without creating Google Accounts" → Workforce Identity Federation. If the subject is a pipeline or an application, it is Workload Identity Federation instead
 
-**Docs:** [IAP](https://cloud.google.com/iap/docs), [Workload Identity Federation](https://cloud.google.com/iam/docs/workload-identity-federation), [OS Login](https://cloud.google.com/compute/docs/instances/managing-instance-access)
+**Docs:** [IAP](https://cloud.google.com/iap/docs), [Workload Identity Federation](https://cloud.google.com/iam/docs/workload-identity-federation), [Workforce Identity Federation](https://cloud.google.com/iam/docs/workforce-identity-federation), [OS Login](https://cloud.google.com/compute/docs/instances/managing-instance-access)
 
 ---
 
 ### Securing Software Supply Chain
 
 **Binary Authorization:**
-- Admission control for GKE -- only allows deploying container images that have been signed by trusted authorities
+- Deploy-time admission control -- only allows deploying container images that have been signed by trusted authorities
 - Based on attestations (cryptographic signatures)
 - Integrates with Artifact Registry vulnerability scanning
+- Supported platforms: **GKE, Cloud Run, Cloud Service Mesh, and Google Distributed Cloud software**. "Binary Authorization is GKE-only" is a distractor
 
 ```bash
 # Enable Binary Authorization on a GKE cluster
@@ -618,10 +685,15 @@ gcloud artifacts docker images scan us-central1-docker.pkg.dev/my-project/my-rep
 ```
 
 **SLSA Framework (Supply chain Levels for Software Artifacts):**
-- Level 1: Build process documented
-- Level 2: Automated build, version control
-- Level 3: Hardened build platform, provenance verification
-- Level 4: Two-person review, hermetic/reproducible build
+
+The v1.0 Build track defines **L1 to L3**. There is no L4 in v1.0 -- the two-person-review and hermetic-build requirements people remember as "Level 4" came from the pre-1.0 draft and were dropped.
+
+| Level | Requirement |
+|-------|-------------|
+| Build L0 | No guarantees. The absence of SLSA, not a level you claim |
+| Build L1 | Provenance exists: the package ships a record of how it was built |
+| Build L2 | Hosted build platform, provenance signed by that platform |
+| Build L3 | Hardened build platform with strong tamper protection on the provenance |
 
 **Cloud Build integration:**
 - Cloud Build can generate SLSA provenance metadata
@@ -638,21 +710,22 @@ gcloud artifacts docker images scan us-central1-docker.pkg.dev/my-project/my-rep
 - "Only allow verified images in production GKE" → Binary Authorization
 - "Scan container images for vulnerabilities" → Artifact Registry scanning
 - "Secure the entire CI/CD pipeline" → Software Delivery Shield
-- Binary Authorization works at the cluster level -- it's enforced on GKE admission
-- Artifact Registry replaces Container Registry (GCR) -- GCR is legacy
+- Binary Authorization is enforced at deploy time. On GKE that is cluster admission; on Cloud Run it is service deployment. Do not eliminate an option just because the platform is not GKE
+- Artifact Registry replaces Container Registry (GCR). Container Registry is shut down, not merely legacy
+- SLSA v1.0 stops at Build L3. An option offering "SLSA Level 4" is written from the old draft
 
-**Docs:** [Binary Authorization](https://cloud.google.com/binary-authorization/docs), [Artifact Registry](https://cloud.google.com/artifact-registry/docs), [Software Delivery Shield](https://cloud.google.com/software-supply-chain-security/docs/overview)
+**Docs:** [Binary Authorization](https://cloud.google.com/binary-authorization/docs), [Artifact Registry](https://cloud.google.com/artifact-registry/docs), [Software Delivery Shield](https://cloud.google.com/software-supply-chain-security/docs/overview), [SLSA levels](https://slsa.dev/spec/v1.0/levels)
 
 ---
 
 ### Securing AI
 
 **Model Armor:**
-- Content safety filters for AI/ML models
-- Screens prompts and responses for harmful content
-- Supports Vertex AI models and third-party models
-- Categories: hate speech, harassment, dangerous content, sexually explicit, self-harm
-- Configurable sensitivity levels
+- A **Security Command Center** service, not a Vertex AI feature. Getting the product family right matters because the exam uses it to separate AI-platform answers from security answers
+- Screens LLM prompts and responses for prompt injection and jailbreak attempts, malicious URLs, sensitive data leakage (via Sensitive Data Protection) and harmful content
+- Two modes: **inspect only** (log the violation, let the request through) and **inspect and block** (log and stop it)
+- Configured through **templates** (filters and confidence thresholds) with org-level **floor settings** that templates cannot weaken
+- Model-agnostic: it sits in front of the model rather than inside it
 
 **Sensitive Data Protection for AI:**
 - Inspect training data for PII before model training
@@ -672,12 +745,13 @@ gcloud artifacts docker images scan us-central1-docker.pkg.dev/my-project/my-rep
 - Audit logging for model access and predictions
 
 **Exam tips:**
-- "Filter harmful content from AI responses" → Model Armor
+- "Filter harmful content or prompt injection from AI prompts and responses" → Model Armor, found under Security Command Center
 - "Protect PII in training data" → Sensitive Data Protection
 - "Prevent data exfiltration from Vertex AI" → VPC Service Controls
+- "Enforce a minimum safety bar across every team's AI app" → Model Armor floor settings at the org or folder, not per-template configuration
 - AI security is new on the PCA exam -- expect 1-2 questions
 
-**Docs:** [Model Armor](https://cloud.google.com/vertex-ai/docs/generative-ai/model-armor), [Responsible AI](https://cloud.google.com/responsible-ai)
+**Docs:** [Model Armor](https://cloud.google.com/security-command-center/docs/model-armor-overview), [Model Armor floor settings](https://cloud.google.com/security-command-center/docs/model_armor_floor_settings), [Responsible AI](https://cloud.google.com/responsible-ai)
 
 ---
 
@@ -807,16 +881,22 @@ gcloud alpha dlp text redact --content="My SSN is 123-45-6789" \
 | CSA STAR | Cloud Security Alliance | Cloud security assessment |
 
 **Accessing compliance reports:**
-- Compliance Reports Manager in Cloud Console
-- Artifact Hub (download SOC reports, ISO certificates)
-- Google Cloud trust center: cloud.google.com/security/compliance
+
+| Surface | What you get |
+|---------|-------------|
+| **Compliance Reports Manager** | On-demand download of Google's own attestations: SOC 1/2/3 reports, ISO/IEC certificates, self-assessments. Free |
+| **Audit Manager** | Runs a compliance audit against **your** environment for a chosen framework and generates the evidence report. Also the console path for downloading Google's compliance documents |
+| **Compliance Manager** (Security Command Center) | Continuous framework-based posture assessment and audit across the resource hierarchy |
+
+The distinction the exam cares about: Compliance Reports Manager proves **Google** is compliant, Audit Manager produces evidence that **your workload** is.
 
 **Exam tips:**
 - "US federal government workload" → FedRAMP certified services + Assured Workloads
-- "Financial audit requirements" → SOC 2 Type II report
+- "Financial audit requirements" → SOC 2 Type II report, downloaded from Compliance Reports Manager
+- "Auditor wants evidence our own environment meets the control set" → Audit Manager, not Compliance Reports Manager
 - Google Cloud compliance does NOT automatically make YOUR application compliant -- shared responsibility
 
-**Docs:** [Compliance Offerings](https://cloud.google.com/security/compliance/offerings)
+**Docs:** [Compliance Offerings](https://cloud.google.com/security/compliance/offerings), [Compliance Reports Manager](https://cloud.google.com/security/compliance/compliance-reports-manager), [Audit Manager](https://cloud.google.com/audit-manager/docs/download_compliance_documents), [Compliance Manager](https://cloud.google.com/security-command-center/docs/compliance-manager-overview)
 
 ---
 
@@ -849,7 +929,7 @@ gcloud logging sinks create audit-sink \
 
 **Access Transparency:**
 - Shows logs of Google personnel accessing your data (customer support, engineering)
-- Available with Premium or Enterprise support
+- Requires a Cloud Customer Care tier of **Standard, Enhanced or Premium**. Basic does not qualify, and "Enterprise" is not a Care tier at all
 - Read-only -- you can see but not block
 
 **Access Approval:**

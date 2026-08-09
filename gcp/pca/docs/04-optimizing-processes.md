@@ -24,12 +24,14 @@ The PCA exam expects you to understand how cloud-native development workflows op
 ```
 Local Dev
   → Cloud Workstations (managed dev environment)
-    → Push to Source Repository (Cloud Source Repos / GitHub / GitLab)
+    → Push to Source Repository (GitHub / GitLab / Secure Source Manager)
       → Cloud Build (CI: build, test, scan)
         → Artifact Registry (store images, packages)
           → Cloud Deploy (CD: promote through environments)
             → Target (GKE / Cloud Run / GCE)
 ```
+
+> **Naming trap:** **Cloud Source Repositories** has been closed to new customers since 2024-06-17. An organization that never used it cannot enable the API. Google's managed source host for new work is [Secure Source Manager](https://cloud.google.com/secure-source-manager/docs/overview). Treat "Cloud Source Repositories" in an option as a signal the option was written against an older exam guide, unless the scenario explicitly describes an existing deployment.
 
 **Cloud Workstations**
 
@@ -299,11 +301,11 @@ steps:
 
 **Exam tips:**
 - Cloud Build steps run sequentially by default. Use `waitFor: ['-']` to run a step in parallel (it waits for nothing). Use `waitFor: ['step-id']` to create custom dependency chains.
-- The default service account for Cloud Build is `{PROJECT_NUMBER}@cloudbuild.gserviceaccount.com`. For least privilege, create a custom service account and assign it to the trigger.
+- Which service account Cloud Build defaults to depends on when the project first built. Projects created after the mid-2024 change use the **Compute Engine default service account** (`PROJECT_NUMBER-compute@developer.gserviceaccount.com`); older projects keep the legacy Cloud Build service account (`PROJECT_NUMBER@cloudbuild.gserviceaccount.com`). Neither is a good answer -- both are over-privileged. For least privilege, create a dedicated service account and assign it to the trigger.
 - `$PROJECT_ID`, `$COMMIT_SHA`, `$SHORT_SHA`, `$BRANCH_NAME`, `$TAG_NAME`, `$REPO_NAME`, and `$BUILD_ID` are built-in substitutions. Custom substitutions start with `_` (underscore).
 - Private pools are the answer when a question says "build needs to access resources in a private VPC" or "build must not use public internet."
 - `gcloud builds submit` is for ad-hoc builds. Triggers automate builds on source events.
-- The `images` field at the top level of cloudbuild.yaml stores images in Cloud Build's built-in storage (shows in Build History). It does NOT push to a registry -- you still need a `docker push` step.
+- The `images` field at the top level of cloudbuild.yaml **is** the push: Cloud Build pushes the listed images to Artifact Registry after all steps succeed. An explicit `docker push` step is one way to do it, `images` is the other, and using both is merely redundant. Two consequences the exam can turn into a question: an image built during the run but not listed in `images` is **discarded** when the build finishes, and listing an image the build never produced **fails** the build.
 
 **Docs:**
 - [Cloud Build Overview](https://cloud.google.com/build/docs/overview)
@@ -411,7 +413,8 @@ gcloud container binauthz attestations sign-and-create \
 ```
 
 **Exam tips:**
-- Artifact Registry replaces Container Registry (gcr.io). If a question mentions gcr.io, the modern answer is Artifact Registry unless the question specifically says "existing gcr.io setup."
+- Artifact Registry replaces Container Registry. Container Registry is shut down, not deprecated: writes stopped 2025-03-18, reads 2025-06-03. Your own images belong at `REGION-docker.pkg.dev/PROJECT/REPO/IMAGE`.
+- **Not every `gcr.io` URL is stale.** Google-owned images such as the Cloud Build builders (`gcr.io/cloud-builders/docker`, `gcr.io/cloud-builders/gcloud`) keep their `gcr.io` addresses and are served from Artifact Registry. The shutdown applies to customer registries, so leave builder-image references alone.
 - Remote repositories are the answer for "reduce dependency on external registries" or "cache public packages inside your organization."
 - Virtual repositories are the answer for "developers need a single endpoint to pull from multiple repositories."
 - Binary Authorization + Artifact Registry is the answer for "ensure only scanned and signed images are deployed."
@@ -427,7 +430,7 @@ gcloud container binauthz attestations sign-and-create \
 
 #### Cloud Deploy
 
-Cloud Deploy is a managed continuous delivery service that handles progressive delivery to GKE, Cloud Run, and GKE Enterprise (Anthos).
+Cloud Deploy is a managed continuous delivery service that handles progressive delivery to GKE, Cloud Run, and GKE Enterprise (the product formerly marketed as Anthos).
 
 **Core Concepts:**
 - **Delivery Pipeline:** Defines the sequence of targets (environments) a release passes through.
@@ -537,11 +540,11 @@ gcloud deploy releases list \
   --delivery-pipeline=my-app-pipeline \
   --region=us-central1
 
-# Rollback: create a new release from a previous known-good version
-gcloud deploy releases create rollback-001 \
+# Roll a target back. Cloud Deploy creates a new rollout from the last known-good
+# release on that target; --release and --rollout-id pick a different one.
+gcloud deploy targets rollback prod \
   --delivery-pipeline=my-app-pipeline \
-  --region=us-central1 \
-  --images=my-app=us-central1-docker.pkg.dev/my-project/my-repo/my-app:v0.9
+  --region=us-central1
 
 # Check rollout status
 gcloud deploy rollouts list \
@@ -578,7 +581,7 @@ strategy:
 
 The typical end-to-end pipeline:
 
-1. Developer pushes code to GitHub/Cloud Source Repos
+1. Developer pushes code to GitHub, GitLab or Secure Source Manager
 2. Cloud Build trigger fires, runs tests, builds container image
 3. Cloud Build pushes image to Artifact Registry
 4. Cloud Build creates a Cloud Deploy release
@@ -665,8 +668,9 @@ jobs:
 **Exam tips:**
 - Cloud Deploy is for CD only -- it does not build or test. Cloud Build handles CI. This is a common distractor.
 - `requireApproval: true` on a target means a human must approve before rollout proceeds. This is tested in "separation of duties" scenarios.
-- Rollback in Cloud Deploy means creating a new release with the previous image, not "undoing" a rollout.
-- Canary deployments in Cloud Deploy require service mesh (Anthos Service Mesh) or Gateway API for GKE. For Cloud Run, traffic splitting is native.
+- Cloud Deploy has **native rollback**: `gcloud deploy targets rollback TARGET --delivery-pipeline=PIPELINE`. It creates a fresh rollout from the last known-good release on that target. Hand-rolling a new release from the old image is the manual fallback, not the mechanism.
+- Rollback can also be **automated** via a `repairRolloutRule` automation: it retries the failed rollout, and if the retries are exhausted or none are configured it rolls back to the most recent successful release. The other automation rules are `promoteReleaseRule`, `timedPromoteRule` and `advanceRolloutRule`.
+- GKE canary in Cloud Deploy does **not** require a service mesh. `serviceNetworking` uses plain Kubernetes Service selectors and splits by pod count; `gatewayServiceMesh` via the Gateway API is what you pick when you need true traffic-percentage splitting. For Cloud Run, traffic splitting is native.
 - When the exam says "managed progressive delivery service," the answer is Cloud Deploy, not Spinnaker or Jenkins.
 - Workload Identity Federation is the recommended way to authenticate from external CI/CD (GitHub Actions, GitLab CI). Never use exported service account keys.
 
@@ -674,6 +678,9 @@ jobs:
 - [Cloud Deploy Overview](https://cloud.google.com/deploy/docs/overview)
 - [Delivery Pipeline Configuration](https://cloud.google.com/deploy/docs/config-files)
 - [Deployment Strategies](https://cloud.google.com/deploy/docs/deployment-strategies)
+- [Roll back a target](https://cloud.google.com/deploy/docs/roll-back)
+- [Automate your deployment](https://cloud.google.com/deploy/docs/automation)
+- [Canary on GKE with service networking](https://cloud.google.com/deploy/docs/deployment-strategies/canary/gke/service-networking)
 - [Cloud Build + Cloud Deploy](https://cloud.google.com/deploy/docs/integrating-ci)
 
 ---
@@ -691,7 +698,8 @@ The exam tests your ability to choose the right observability tool for a given d
 | **Cloud Trace** | Distributed tracing for request latency | Diagnosing slow requests across microservices |
 | **Error Reporting** | Aggregates and deduplicates errors | Finding top errors, tracking error rates over time |
 | **Cloud Profiler** | Continuous CPU/memory profiling in production | Identifying performance bottlenecks, memory leaks |
-| **Cloud Debugger** (deprecated) | Now replaced by Snapshot Debugger | Inspect application state without stopping it |
+
+> **Retired, and therefore a distractor:** Cloud Debugger was shut down on 2023-05-31, and its open-source successor Snapshot Debugger was archived on 2023-09-07. Neither is a live product. Production state inspection is now a logging and tracing problem: structured logs, Cloud Trace spans, and Cloud Profiler.
 
 **Systematic Debugging Approach:**
 
@@ -710,11 +718,11 @@ gcloud logging metrics create error-count \
   --description="Count of application errors" \
   --log-filter='severity>=ERROR AND resource.type="k8s_container"'
 
-# Create a distribution metric (extracts numeric values)
+# Distribution metrics cannot be defined with flags. The flag form only accepts
+# --description and --log-filter; anything with a value extractor, bucket options
+# or user-defined labels goes through a config file.
 gcloud logging metrics create response-latency \
-  --description="API response latency" \
-  --log-filter='resource.type="cloud_run_revision" AND httpRequest.latency!=""' \
-  --bucket-options=exponential=8,1.5,0.1
+  --config-from-file=response-latency.yaml
 ```
 
 **Log Sinks (Routing):**
@@ -746,7 +754,7 @@ Key concepts:
 - **Trace context propagation:** Headers (`traceparent` for W3C, `X-Cloud-Trace-Context` for Google) must be forwarded between services.
 
 For GKE microservices, enable tracing via:
-- Managed service mesh (Anthos Service Mesh / Istio) for automatic tracing
+- Managed service mesh (Cloud Service Mesh, which absorbed Anthos Service Mesh and Traffic Director) for automatic tracing
 - OpenTelemetry SDK for application-level instrumentation
 - Cloud Trace API for direct integration
 
@@ -786,20 +794,17 @@ The PCA exam tests whether you know the types of testing and which GCP services 
 | **Unit Tests** | Individual functions/methods | Run in Cloud Build steps |
 | **Integration Tests** | Service-to-service interactions | Cloud Build + test environment |
 | **End-to-End (E2E) Tests** | Full user workflows | Cloud Build + test deployment |
-| **Load/Performance Tests** | System behavior under load | Cloud Load Testing, Locust on GKE |
+| **Load/Performance Tests** | System behavior under load | Distributed load testing on GKE (Locust, k6, JMeter) |
 | **Security Scanning** | Vulnerabilities in images and code | Artifact Analysis, Web Security Scanner |
-| **Chaos Engineering** | System resilience to failures | Fault injection in ASM, Gremlin |
+| **Chaos Engineering** | System resilience to failures | Fault injection in Cloud Service Mesh, Gremlin |
 | **Infrastructure Validation** | IaC correctness | `terraform validate`, `terraform plan`, Sentinel/OPA |
 
 **Load Testing:**
 
-Cloud Load Testing (based on open-source Locust) allows you to simulate traffic against your services.
+> **There is no Google Cloud product called "Cloud Load Testing."** Google's answer to load testing is a reference architecture, not a service: [Distributed load testing using GKE](https://cloud.google.com/architecture/distributed-load-testing-using-gke), which runs an open-source generator (Locust in the guide; k6 and JMeter follow the same shape) as a master-and-workers deployment on a GKE cluster you size to the load you need. An option naming a managed Google load-testing service is fabricated.
 
 ```bash
-# Deploy a Locust-based load test on GKE
-# (Cloud Load Testing is integrated into Cloud Console)
-
-# Alternative: use Cloud Build to run load tests
+# Run the load generator from a Cloud Build step against a deployed service
 # cloudbuild.yaml step:
 steps:
   - name: 'python:3.11'
@@ -818,7 +823,7 @@ steps:
 
 Chaos engineering on GCP involves deliberately introducing failures to test resilience:
 
-- **Fault injection with Anthos Service Mesh (ASM):** Inject delays and aborts at the mesh level.
+- **Fault injection with Cloud Service Mesh:** Inject delays and aborts at the mesh level.
 - **Network disruption:** Use VPC firewall rules to simulate network partitions.
 - **Instance termination:** Delete instances to test auto-healing in MIGs.
 - **Zone failure simulation:** Drain a zone's instances to test multi-zone resilience.
@@ -867,8 +872,8 @@ spec:
 - `terraform plan` output should be reviewed before `terraform apply` -- this is a governance control.
 
 **Docs:**
-- [Cloud Load Testing](https://cloud.google.com/load-testing/docs)
-- [GKE Policy Controller](https://cloud.google.com/anthos-config-management/docs/concepts/policy-controller)
+- [Distributed load testing using GKE](https://cloud.google.com/architecture/distributed-load-testing-using-gke)
+- [GKE Policy Controller](https://cloud.google.com/kubernetes-engine/enterprise/policy-controller/docs/overview)
 - [Web Security Scanner](https://cloud.google.com/security-command-center/docs/concepts-web-security-scanner-overview)
 
 ---
@@ -877,13 +882,13 @@ spec:
 
 Service Catalog enables organizations to create curated, pre-approved solutions that teams can self-service deploy.
 
-**Private Catalog (Google Cloud Service Catalog)**
+**Service Catalog (renamed from Private Catalog in 2022)**
 
-Private Catalog allows platform teams to publish Terraform modules, Deployment Manager templates, or solution packages that other teams can discover and deploy through a controlled interface.
+Service Catalog lets platform teams publish curated solutions that other teams in the organization can discover and deploy through a controlled interface.
 
 **Key Concepts:**
-- **Catalog:** A collection of solutions shared with specific GCP projects or folders.
-- **Solution:** A deployable package (Terraform module, container image, Deployment Manager template).
+- **Catalog:** A collection of solutions created under the organization and shared with specific projects or folders.
+- **Solution:** A deployable package. The supported types are **Terraform configurations** and **reference links** to verified external content. Deployment Manager templates were the original type, but Deployment Manager reached end of support on 2026-03-31 and new users have been blocked since 2026-06-30, so **Terraform is the only live authoring path**. [Infrastructure Manager](https://cloud.google.com/infrastructure-manager/docs/overview) is Google's named replacement for Deployment Manager.
 - **Version:** Each solution can have multiple versions for controlled rollouts.
 
 ```bash
@@ -895,7 +900,7 @@ Private Catalog allows platform teams to publish Terraform modules, Deployment M
 gcloud privatecatalog products search --query="web application"
 ```
 
-**Terraform Modules as Service Catalog Entries:**
+**Terraform Configurations as Service Catalog Entries:**
 
 Platform teams create standardized Terraform modules that enforce organizational standards:
 
@@ -930,12 +935,15 @@ module "standard_gke" {
 ```
 
 **Exam tips:**
-- Private Catalog is the answer when the scenario asks for "self-service deployment of standardized solutions" or "curated catalog of approved architectures."
-- The exam tests that you understand the difference between Private Catalog (curated, approved solutions) and Marketplace (third-party or Google solutions).
-- Terraform modules in a centralized repository are a common pattern for standardization without Private Catalog.
+- Service Catalog is the answer when the scenario asks for "self-service deployment of standardized solutions" or "curated catalog of approved architectures." The exam guide and older material may still call it Private Catalog -- same product.
+- The exam tests that you understand the difference between Service Catalog (internal, curated, approved by your own platform team) and Marketplace (third-party or Google solutions).
+- Terraform modules in a centralized repository are a common pattern for standardization without Service Catalog.
+- Any option that proposes publishing **Deployment Manager** templates is dated. Deployment Manager is past end of support; Infrastructure Manager (managed Terraform) is the successor.
 
 **Docs:**
-- [Private Catalog](https://cloud.google.com/private-catalog/docs)
+- [Service Catalog](https://cloud.google.com/service-catalog/docs)
+- [Infrastructure Manager](https://cloud.google.com/infrastructure-manager/docs/overview)
+- [Deployment Manager deprecation](https://cloud.google.com/deployment-manager/docs/deprecations)
 - [Terraform Google Modules](https://registry.terraform.io/namespaces/terraform-google-modules)
 
 ---
@@ -966,7 +974,7 @@ DR is one of the most frequently tested topics in this section. You must be able
 | Service | DR Strategy | Implementation |
 |---------|-------------|----------------|
 | **Compute Engine** | Machine images, snapshots | Schedule snapshots cross-region; use instance templates + MIG for fast recovery |
-| **GKE** | Multi-cluster, backup/restore | GKE Backup for cluster state; Anthos for multi-cluster management |
+| **GKE** | Multi-cluster, backup/restore | Backup for GKE for cluster state; GKE Enterprise fleets for multi-cluster management |
 | **Cloud Run** | Multi-region deployment | Deploy to multiple regions behind Global LB; traffic auto-failover |
 
 ```bash
@@ -1008,8 +1016,9 @@ gcloud container backup-restore backup-plans create my-backup-plan \
 | **Cloud Spanner** | Multi-region config (built-in) | Zero (sync replication) | `nam-eur-asia1`, `nam6`, `eur6` configs are inherently DR-ready |
 | **Firestore** | Multi-region location | Zero (sync replication within location) | Choose `nam5` or `eur3` for multi-region |
 | **Bigtable** | Cross-region replication | Minutes (async) | Add a cluster in DR region; automatic failover with app profiles |
-| **AlloyDB** | Cross-region replication | Minutes (async) | Cross-region replicas for DR |
-| **Memorystore (Redis)** | Cross-region replication | Minutes | Standard tier with replicas |
+| **AlloyDB** | Cross-region replication | Minutes (async) | Up to five secondary clusters in other regions; promote for DR, or switchover with zero data loss for a planned move |
+| **Memorystore for Redis** (non-cluster) | Cross-**zone** replication only | Seconds within the region | Standard tier places replicas in other zones of the same region. It is HA, not DR |
+| **Memorystore for Redis Cluster / Valkey** | Cross-region replication | Minutes (async) | Secondary clusters in another region, with switchover. This is the cross-region answer |
 
 ```bash
 # Cloud SQL: Create a cross-region read replica
@@ -1098,10 +1107,14 @@ A managed backup and disaster recovery service that provides:
 - Spanner multi-region is the most expensive DR solution but provides the strongest guarantees (zero RPO, automatic failover).
 - **Trap:** "Cold standby" does NOT mean infrastructure is running. It means data is replicated and infrastructure is defined (e.g., in Terraform) but not provisioned.
 - Machine images capture everything (boot disk, additional disks, machine config, metadata). Snapshots capture only disk data. For DR, machine images are more complete.
-- GKE Backup for GKE is the managed solution for backing up Kubernetes workloads (namespaces, PVs, cluster configuration).
+- Backup for GKE is the managed solution for backing up Kubernetes workloads (namespaces, PVs, cluster configuration).
+- **Memorystore trap:** Standard tier on Memorystore for Redis replicates across **zones**, not regions. If a scenario needs a cache available after a regional outage, the answer is Memorystore for Redis Cluster or Valkey with a secondary cluster, or rebuilding the cache from the source of truth.
+- AlloyDB is not single-region. It supports cross-region secondary clusters, promotion for DR and zero-data-loss switchover -- do not eliminate it on a cross-region requirement.
 
 **Docs:**
 - [DR Planning Guide](https://cloud.google.com/architecture/dr-scenarios-planning-guide)
+- [Memorystore cross-region replication](https://cloud.google.com/memorystore/docs/cluster/about-cross-region-replication)
+- [AlloyDB cross-region replication](https://cloud.google.com/alloydb/docs/cross-region-replication/about-cross-region-replication)
 - [DR for Data](https://cloud.google.com/architecture/dr-scenarios-for-data)
 - [DR for Applications](https://cloud.google.com/architecture/dr-scenarios-for-applications)
 - [Cloud SQL HA and DR](https://cloud.google.com/sql/docs/mysql/high-availability)
@@ -1255,38 +1268,25 @@ Architects must make and document decisions in a structured, defensible way.
 
 ADRs document the context, decision, and consequences of significant architecture choices. They create a history of why decisions were made.
 
-**ADR Template:**
+**ADR structure:**
 
-```markdown
-# ADR-001: Use Cloud Spanner for Global Transaction Processing
+| Section | What it holds |
+|---------|--------------|
+| **Title** | The decision as a statement, numbered for reference |
+| **Status** | Proposed, Accepted, or Superseded by a later ADR. A reversed decision creates a new ADR rather than editing the old one |
+| **Context** | The forces in play: requirements, constraints, what the current design cannot do |
+| **Decision** | The choice made, stated in one or two sentences |
+| **Consequences** | What this buys, and what it costs. The negative half is the part that earns the document its keep |
+| **Alternatives considered** | Each option and the specific reason it lost |
 
-## Status
-Accepted
+**Worked example, ADR-001 "Use Cloud Spanner for global transaction processing":**
 
-## Context
-Our application requires globally consistent transactions with <10ms read latency.
-Current PostgreSQL deployment cannot scale beyond a single region.
-We need multi-region active-active with zero RPO.
-
-## Decision
-Use Cloud Spanner with multi-region configuration (nam-eur-asia1).
-
-## Consequences
-### Positive
-- Zero RPO, automatic failover
-- Global consistency without application-level conflict resolution
-- Scales horizontally without manual sharding
-
-### Negative
-- Higher cost than Cloud SQL (~10x for equivalent compute)
-- Requires schema design changes (interleaved tables, UUID keys)
-- Team needs Spanner-specific training
-
-## Alternatives Considered
-- CockroachDB on GKE: More control, but operational burden
-- Cloud SQL with cross-region replicas: Lower cost, but eventual consistency
-- AlloyDB: PostgreSQL compatible, but single-region only
-```
+- **Status:** Accepted
+- **Context:** Globally consistent transactions with sub-10ms reads. The current PostgreSQL deployment cannot scale past one region. Multi-region active-active with zero RPO is required.
+- **Decision:** Cloud Spanner in a multi-region configuration.
+- **Consequences, positive:** zero RPO with automatic failover; global consistency without application-level conflict resolution; horizontal scale without manual sharding.
+- **Consequences, negative:** materially higher cost than Cloud SQL; schema design changes (interleaved tables, key choice to avoid hotspotting); the team needs Spanner-specific training.
+- **Alternatives considered:** CockroachDB on GKE, rejected for operational burden. Cloud SQL with cross-region read replicas, rejected because failover is a manual promotion with an async RPO. AlloyDB, rejected because the requirement is synchronous multi-region writes, which its cross-region secondary clusters do not provide -- note that AlloyDB **is** cross-region capable, so "single-region only" would be the wrong reason to reject it.
 
 **Build vs Buy Analysis:**
 
@@ -1323,7 +1323,24 @@ The architect's role is to present these trade-offs clearly to stakeholders, not
 
 ### Customer Success Management
 
-Architects ensure that deployed solutions continue to meet customer and business needs.
+Architects ensure that deployed solutions continue to meet customer and business needs. Two levers show up in exam scenarios: the SLOs you define for your own users, and the Google support relationship you buy underneath them.
+
+**Cloud Customer Care tiers:**
+
+A surprising number of "customer success" and "operational readiness" items resolve to picking a support tier, so know the four and what separates them.
+
+| Tier | Technical support cases | Response target | Signature feature |
+|------|------------------------|-----------------|-------------------|
+| **Basic** | None. Docs, community, billing support and Active Assist only | n/a | Included free with every account |
+| **Standard** | Unlimited 1:1 technical support | P2 first meaningful response within 4 hours | Cloud Support API. Aimed at workloads still in development |
+| **Enhanced** | Unlimited 1:1 technical support | P1 first meaningful response within 1 hour | Third-party technology support; Technical Account Advisor available as an add-on. The usual floor for production |
+| **Premium** | Unlimited 1:1 technical support | P1 first meaningful response within 15 minutes | Assigned **Technical Account Manager** and Customer Aware Support; Mission Critical Services available as an add-on |
+
+Reading the tiers on the exam:
+- "Production workload, needs a committed response time on outages" → Enhanced at minimum. Basic is disqualified because it carries no technical support cases at all.
+- "Named Google contact who knows our architecture", "TAM", "quarterly business reviews" → Premium. The TAM is the discriminator, not the response time.
+- "Fastest possible response on a P1" → Premium, 15 minutes.
+- Support tier is also a **feature gate**, not only a response-time purchase: Access Transparency requires Standard, Enhanced or Premium (see `docs/03`, Audits and Logs). "Enterprise" is not a Care tier name.
 
 **Monitoring Customer-Facing SLOs:**
 
@@ -1345,13 +1362,11 @@ gcloud monitoring uptime create my-check \
   --http-check='{"path":"/health","port":443,"use_ssl":true}' \
   --period=60s
 
-# Create an alerting policy
+# Create an alerting policy. The policy body comes from a file (or an inline
+# --policy string); there is no --condition-threshold-value flag. Thresholds are
+# expressed with --if, e.g. --if='> 0.01'.
 gcloud monitoring policies create \
-  --display-name="High Error Rate" \
-  --condition-display-name="Error rate > 1%" \
-  --condition-filter='metric.type="run.googleapis.com/request_count" AND metric.labels.response_code_class="5xx"' \
-  --condition-threshold-value=0.01 \
-  --notification-channels=projects/my-project/notificationChannels/123
+  --policy-from-file=high-error-rate.yaml
 ```
 
 **Feedback Loops:**
@@ -1365,8 +1380,11 @@ gcloud monitoring policies create \
 - SLOs should measure user experience, not just infrastructure metrics. "Server CPU < 80%" is not an SLO; "99.9% of requests complete in < 200ms" is.
 - Error budgets link reliability to feature velocity: if the error budget is healthy, ship features faster; if exhausted, focus on reliability.
 - Blameless postmortems are a Google SRE principle frequently tested on the PCA exam.
+- Read "customer success" scenarios twice: some are SLO questions, some are support-tier questions. A stem about response commitments, a named Google contact, or third-party technology support is asking you to pick a Customer Care tier, not to design an alert.
 
 **Docs:**
+- [Cloud Customer Care](https://cloud.google.com/support)
+- [Standard Support](https://cloud.google.com/support/docs/standard), [Enhanced Support](https://cloud.google.com/support/docs/enhanced), [Premium Support](https://cloud.google.com/support/docs/premium)
 - [SLO Monitoring](https://cloud.google.com/monitoring/slo)
 - [Alerting Policies](https://cloud.google.com/monitoring/alerts)
 - [Incident Response](https://sre.google/sre-book/managing-incidents/)
@@ -1818,8 +1836,10 @@ BIA is the process of identifying critical business functions and quantifying th
 | **Recommender** | Cost Optimization | Right-sizing, idle resource detection |
 | **Active Assist** | Cost Optimization | Unified recommendation platform |
 | **Cloud Billing** | Cost Optimization | Budgets, alerts, exports |
-| **GKE Backup** | DR | Kubernetes workload backup/restore |
+| **Backup for GKE** | DR | Kubernetes workload backup/restore |
 | **Backup and DR** | DR | Managed backup for Compute, GKE, Cloud SQL |
+| **Service Catalog** | Governance | Curated, self-service internal solutions (Terraform configurations, reference links) |
+| **Cloud Customer Care** | Business process | Support tiers: Basic, Standard, Enhanced, Premium |
 
 ---
 
