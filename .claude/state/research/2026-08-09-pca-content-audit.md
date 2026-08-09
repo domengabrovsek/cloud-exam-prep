@@ -98,7 +98,7 @@ A learner who types these gets "unrecognized". Highest-confusion class of error.
 - [ ] `docs/06:1226` - Enhanced support minimum "$500/month" (actual $100); Premium "contact sales" (published minimum $15,000/month).
 - [ ] `docs/06:2034`, `06:2105` - GKE maintenance exclusion `no_upgrades` "cannot exceed 180 days". Actual 90 days, plus a 48-hours-per-92-day-window rule.
 - [ ] `docs/05:621`, `05:647`, `05:727` - Cloud Shell "resets after 120 min inactivity" / "20 min idle". Actual: session ends after 40 minutes idle, 12-hour session cap, `$HOME` deleted after 120 days.
-- [ ] `docs/09:118` - Spanner "~$650/mo min". Wrong by 10x. Minimum is 100 processing units; 1000 PU = 1 node.
+- [x] `docs/09:118` - Spanner "~$650/mo min". Wrong by 10x. Minimum is 100 processing units; 1000 PU = 1 node.
 - [ ] `docs/01:576` - Spanner "1 node ~ 10,000 reads/sec or 2,000 writes/sec". Current: 22,500 peak reads/sec, 3,500 peak writes/sec (22,500 with throughput-optimized writes).
 - [ ] `docs/02:873` - Bigtable "10K rows/sec reads and writes". Current SSD node: up to 17,000 reads/sec, 14,000 writes/sec.
 - [ ] `docs/07:624` - `nam14` replica list wrong. Actual: read-write in us-east4 (default leader) and northamerica-northeast1, witness in us-east1.
@@ -115,9 +115,9 @@ A learner who types these gets "unrecognized". Highest-confusion class of error.
 - [ ] `docs/02:740`, `02:751`, `01:237` - three different Transfer Appliance capacities, all retired. Current models are TA40 (40 TB) and TA300 (300 TB).
 - [ ] `docs/02:1089` - M2 listed as "12-416" vCPUs. M2 starts at 208. M1 and M4 missing entirely.
 - [ ] `docs/03:252` - SDP "150+ built-in detectors". Actual 200+.
-- [ ] `docs/09:311` - Interconnect 99.9% SLA needs two connections in different edge availability domains, not just one metro.
-- [ ] `docs/09:305`, `09:309`, `09:367` - Dedicated Interconnect "10-200 Gbps". Now 10, 100 and 400 Gbps link types.
-- [ ] `docs/09:322`, `09:329`, `09:369` and `02:22` - HA VPN "3 Gbps per tunnel". Documented limit is 250,000 packets/sec, which is 1-3 Gbps depending on packet size.
+- [x] `docs/09:311` - Interconnect 99.9% SLA needs two connections in different edge availability domains, not just one metro.
+- [x] `docs/09:305`, `09:309`, `09:367` - Dedicated Interconnect "10-200 Gbps". Now 10, 100 and 400 Gbps link types.
+- [ ] `docs/09:322`, `09:329`, `09:369` and `02:22` - HA VPN "3 Gbps per tunnel". Documented limit is 250,000 packets/sec, which is 1-3 Gbps depending on packet size. (`docs/09` occurrences fixed; `02:22` still open.)
 - [ ] `docs/07:858-862` - inter-region egress "$0.01/GB". Within North America it is $0.02/GB.
 - [x] `docs/07:711` and `02:596` conflict on storage class SLAs. `02:596` is correct (99.9% multi/dual-region, 99.0% regional for the cold classes). `07:711` flattens all three to 99.0% and is wrong.
 - [ ] `docs/01:727` - Dedicated Interconnect "99.9% (1 link)". A single link carries no SLA.
@@ -146,21 +146,21 @@ A learner who types these gets "unrecognized". Highest-confusion class of error.
 - [ ] `docs/05:165` - "Apigee Integrated" tier does not exist. Tiers are Standard, Enterprise, Enterprise Plus, plus pay-as-you-go.
 - [ ] `docs/05:372-397` - the entire Migrate to Containers section is dead. `migctl` and the processing-cluster flow were removed in May 2024.
 - [ ] `docs/05:2271` - decision tree offers "service account with key (or WIF)" for CI/CD. Keys should be a distractor, not a branch. Contradicts `05:2055`.
-- [ ] `docs/09:15`, `09:98` - "Autopilot has no DaemonSets" and "need DaemonSets or GPUs, use Standard". Both wrong, stated twice. Autopilot supports both.
-- [ ] `docs/09:148`, `09:200` - "Firestore cannot change mode after creation". An empty database can switch, and both modes can coexist in one project.
-- [ ] `docs/09:141` - "Firestore under 10 TB" as a branch condition. No such documented limit; invented threshold.
-- [ ] `docs/09:157` - "Bigtable has no SQL". GoogleSQL for Bigtable is GA.
-- [ ] `docs/09:113` - "Spanner 99.999% SLA" as the entry condition. Five nines is multi-region only; regional is 99.99%.
-- [ ] `docs/09:120`, `09:196` - AlloyDB "4x Cloud SQL performance". The claim is 4x standard PostgreSQL.
-- [ ] `docs/09:556` - conflates CSEK and EKM. The file's own tip at `09:602` gets it right.
-- [ ] `docs/09:540-542` - recommends network tags over service accounts for firewall targeting. Google recommends the opposite; secure tags now close the gap.
-- [ ] `docs/09:808` - "Cloud SQL cross-region DR requires manual promotion". Enterprise Plus supports advanced DR with replica failover and zero-data-loss switchover.
-- [ ] `docs/09:765` - turbo replication placed in "hot DR, RPO seconds to minutes". Its guarantee is 15 minutes, matching `09:281`/`09:809`.
-- [ ] `docs/10:765` - "network policy requires Calico, enabled by default on Standard". Not enabled by default; Dataplane V2 is the recommended plugin and the Autopilot default.
-- [ ] `docs/10:136-139` - the global external ALB snippet builds a classic ALB. Needs `--load-balancing-scheme=EXTERNAL_MANAGED` on backend service and forwarding rule. Contradicts `09:410-411`.
-- [ ] `docs/10:113-116` - HA VPN example uses `--peer-gcp-gateway` (VPC-to-VPC) while the text describes the on-prem case, which needs `--peer-external-gateway`.
-- [ ] `docs/10:57-61` - WIF OIDC provider created with no `--attribute-condition`. For the GitHub issuer this lets any repository mint tokens. Must be repository-scoped.
-- [ ] `docs/10:815` - `gsutil signurl` requires a downloaded SA key, contradicting `09:506` ("no service account keys, ever"). Use `gcloud storage sign-url --impersonate-service-account`.
+- [x] `docs/09:15`, `09:98` - "Autopilot has no DaemonSets" and "need DaemonSets or GPUs, use Standard". Both wrong, stated twice. Autopilot supports both.
+- [x] `docs/09:148`, `09:200` - "Firestore cannot change mode after creation". An empty database can switch, and both modes can coexist in one project.
+- [x] `docs/09:141` - "Firestore under 10 TB" as a branch condition. No such documented limit; invented threshold.
+- [x] `docs/09:157` - "Bigtable has no SQL". GoogleSQL for Bigtable is GA.
+- [x] `docs/09:113` - "Spanner 99.999% SLA" as the entry condition. Five nines is multi-region only; regional is 99.99%.
+- [x] `docs/09:120`, `09:196` - AlloyDB "4x Cloud SQL performance". The claim is 4x standard PostgreSQL.
+- [x] `docs/09:556` - conflates CSEK and EKM. The file's own tip at `09:602` gets it right.
+- [x] `docs/09:540-542` - recommends network tags over service accounts for firewall targeting. Google recommends the opposite; secure tags now close the gap.
+- [x] `docs/09:808` - "Cloud SQL cross-region DR requires manual promotion". Enterprise Plus supports advanced DR with replica failover and zero-data-loss switchover.
+- [x] `docs/09:765` - turbo replication placed in "hot DR, RPO seconds to minutes". Its guarantee is 15 minutes, matching `09:281`/`09:809`.
+- [x] `docs/10:765` - "network policy requires Calico, enabled by default on Standard". Not enabled by default; Dataplane V2 is the recommended plugin and the Autopilot default.
+- [x] `docs/10:136-139` - the global external ALB snippet builds a classic ALB. Needs `--load-balancing-scheme=EXTERNAL_MANAGED` on backend service and forwarding rule. Contradicts `09:410-411`.
+- [x] `docs/10:113-116` - HA VPN example uses `--peer-gcp-gateway` (VPC-to-VPC) while the text describes the on-prem case, which needs `--peer-external-gateway`.
+- [x] `docs/10:57-61` - WIF OIDC provider created with no `--attribute-condition`. For the GitHub issuer this lets any repository mint tokens. Must be repository-scoped.
+- [x] `docs/10:815` - `gsutil signurl` requires a downloaded SA key, contradicting `09:506` ("no service account keys, ever"). Use `gcloud storage sign-url --impersonate-service-account`.
 - [ ] `docs/01:1082` - "Migration Center (formerly Migrate for Compute Engine)". False lineage; M4CE became Migrate to VMs, Migration Center is a separate product. File contradicts itself at `01:1093`.
 - [ ] `docs/01:795` - "Vertex AI Conversation replaces Dialogflow CX for new projects". Dialogflow CX is the underlying engine, rebranded Conversational Agents. Never replaced.
 - [ ] `docs/01:949`, `01:676` - dual-region "sub-second failover" / "near-zero RPO". No such guarantee. Default is most objects within 15 minutes; turbo guarantees 15 min for 100%.
@@ -180,19 +180,19 @@ The Vertex AI rebrand is the big one and is a rewrite, not a find-and-replace.
 - [ ] **Anthos to GKE Enterprise**, **Anthos Service Mesh + Traffic Director to Cloud Service Mesh**: `docs/01:279`, `01:641`, `01:742`, `01:1043`, `02:425`, `02:1505`, `04:429`, `04:668`, `04:749`, `04:790`, `04:820`, `04:972`, `06:788`, `06:1586`, `06:1660`, `06:1674`, `07:102`, `07:469`, `07:1005`, `07:1388`, `05:115`.
 - [ ] **Container Registry shut down** (writes 2025-03-18, reads 2025-06-03) but `gcr.io` still used in examples: `docs/02:1363`, `02:1370`, `05:297`, `05:301`, `05:305`, `05:1671`, `06:867`, `06:892`, `06:976`, `06:1000`, `07:178`. Also listed as a VPC-SC protectable service at `03:369`.
 - [ ] **Cloud Functions to Cloud Run functions**: `docs/01:1018`, `05:169`, `05:216`, `05:238`, `06:622`, `06:641`, `07:562`, `07:977`, `07:803`, `07:1109`, `07:1231`, `questions/section-5-managing-implementations.md:229`, `:531`.
-- [ ] **Dataproc to Managed Service for Apache Spark**: `docs/09:62-66`, `09:93`, `09:100`, `09:891`, `09:1002`.
-- [ ] **Migrate for Compute Engine to Migrate to Virtual Machines**: `docs/09:835`, `09:889`, `09:903`, `09:1033`, `05:399`, `05:555`. M4CE v4.11 end of support 2024-04-30.
+- [x] **Dataproc to Managed Service for Apache Spark**: `docs/09:62-66`, `09:93`, `09:100`, `09:891`, `09:1002`.
+- [ ] **Migrate for Compute Engine to Migrate to Virtual Machines**: `docs/09:835`, `09:889`, `09:903`, `09:1033`, `05:399`, `05:555`. M4CE v4.11 end of support 2024-04-30. (`docs/09` occurrences fixed, including a fifth in the migration execution step; `docs/05` still open.)
 - [ ] **BeyondCorp Enterprise to Chrome Enterprise Premium**: `questions/section-3-security-compliance.md:749`.
 - [ ] **Cloud Operations Suite to Google Cloud Observability**: `docs/01:414`, `07:222`, `07:1476`.
 - [ ] **Cloud Source Repositories** closed to new customers 2024-06-17, presented as live: `docs/01:180`, `04:28`, `04:580`. Successor is Secure Source Manager.
 - [ ] **Deployment Manager** past end of support 2026-03-31, new users blocked from 2026-06-30: `docs/05:1809-1841`, `09:937-941`, `09:967`, `09:974`, `10:592`, `10:600`, `04:881`.
-- [ ] **Memorystore for Memcached deprecated** (no new instances after 2027-02-01, shutdown 2029-01-31): `docs/09:174`, `09:191`. Memorystore for Valkey missing entirely from the in-memory branch.
+- [x] **Memorystore for Memcached deprecated** (no new instances after 2027-02-01, shutdown 2029-01-31): `docs/09:174`, `09:191`. Memorystore for Valkey missing entirely from the in-memory branch.
 - [ ] **PaLM 2 and Codey retired** April 2025: `docs/02:2156`, `09:634`.
 - [ ] **Model Armor is under Security Command Center**, not Vertex AI: `questions/section-3-security-compliance.md:654`, `docs/03:650-654` (also wrong doc URL).
 - [ ] **Cloud Armor Managed Protection Plus to Cloud Armor Enterprise**: `docs/02:214`.
 - [ ] **Private Catalog to Service Catalog** (renamed March 2022): `docs/04:879`, `04:936-937`.
 - [ ] **Terraform Cloud to HCP Terraform**: `docs/05:1262`.
-- [ ] **gsutil to gcloud storage.** gsutil leaves the CLI bundle March 2027. `docs/10:806-825` gives gsutil its own section while `gcloud storage` is absent. Invert the emphasis but keep gsutil, since the exam guide still names it.
+- [x] **gsutil to gcloud storage.** gsutil leaves the CLI bundle March 2027. `docs/10:806-825` gives gsutil its own section while `gcloud storage` is absent. Invert the emphasis but keep gsutil, since the exam guide still names it.
 - [ ] Dated version pins that will rot: TPU v3 (`questions/section-1-designing-planning.md:472`), GKE 1.28/1.29 (`section-6:587`), pd-ssd with no Hyperdisk (`section-2:492`), provider `~> 5.0` (`docs/10:285-294`, `05:1122-1129`) against a current 7.x, `POSTGRES_15` (`10:505`), CFT module pins (`10:412`, `10:427`).
 - [ ] `docs/06:1589` - Istio `networking.istio.io/v1alpha3`. Current is `v1` since Istio 1.22.
 - [ ] `docs/02:5` claims "Last updated: February 2026", now stale and predating the rebrand. `docs/01` has no last-updated marker.
@@ -220,19 +220,19 @@ The Vertex AI rebrand is the big one and is a rewrite, not a find-and-replace.
 ## P3 - coverage gaps against the v6.1 exam guide
 
 - [ ] **Google Cloud VMware Engine** - named verbatim in objective 2.3, zero mentions anywhere. Belongs in `docs/02` under 2.3.
-- [ ] **Infrastructure Manager** - Google's managed Terraform and the named Deployment Manager replacement. Absent from `docs/05` and `docs/09` section 10. Biggest single gap given v6.1 made IaC explicit.
+- [ ] **Infrastructure Manager** - Google's managed Terraform and the named Deployment Manager replacement. Absent from `docs/05` and `docs/09` section 10. Biggest single gap given v6.1 made IaC explicit. (Added to the `docs/09` IaC tree, quick reference and exam tips, and to the `docs/10` IaC comparison table; `docs/05` still open.)
 - [ ] **Confidential Computing** - Confidential VMs, Confidential GKE Nodes, Confidential Space. Absent from `docs/03`.
 - [ ] **Workforce Identity Federation** - absent; only Workload Identity Federation is covered (`docs/03:529-560`). The workforce/workload distinction is a classic trap.
 - [ ] **Privileged Access Manager** - the canonical answer for just-in-time elevation and break-glass. Missing from separation of duties (`docs/03:269-303`).
 - [ ] **Cloud NGFW Enterprise** - objective 2.1 names intrusion protection; `docs/02:247-266` covers only Cloud IDS, which is detection-only.
-- [ ] **Network Connectivity Center** - two passing rows (`docs/02:188`, `02:344`), absent from the `docs/09` connectivity tree. Objective 2.1 covers exactly this.
+- [ ] **Network Connectivity Center** - two passing rows (`docs/02:188`, `02:344`). Now covered in the new `docs/09` section 12 network topology tree; `docs/02` still open. Objective 2.1 covers exactly this.
 - [ ] **Metrics scopes** - multi-project observability, arguably the architect-level Cloud Monitoring topic. Absent from `docs/06`.
 - [ ] **SLO composition across dependent services** - the multiplicative rule is a classic PCA calculation, absent.
 - [ ] **DORA metrics** - absent from all files despite Google owning the research and citing it throughout WAF.
 - [ ] **Cloud Customer Care tiers** - `docs/04:1327-1377` "customer success" is effectively a second SLO section. Exam items framed as customer success often resolve to picking a support tier, and there is no basis for that here.
 - [ ] **Dynamic Workload Scheduler** - objective 2.4's "optimizing for different consumption models" is exactly this. Absent.
 - [ ] **Gemini Enterprise** (objective 2.5: AI Agents and NotebookLM) - NotebookLM gets one row; AI Agents absent.
-- [ ] Missing decision trees in `docs/09`, ranked by expected yield: resource hierarchy / landing zone, network topology selection, data pipeline and ingestion, multi-tenancy isolation, identity and federation, CI/CD topology, AI/ML serving, caching strategy, observability and logging architecture, cost optimization, compliance and data residency, encryption key strategy.
+- [ ] Missing decision trees in `docs/09`, ranked by expected yield. Resource hierarchy / landing zone (now section 11) and network topology selection (now section 12) are done. Still missing: data pipeline and ingestion, multi-tenancy isolation, identity and federation, CI/CD topology, AI/ML serving, caching strategy, observability and logging architecture, cost optimization, compliance and data residency, encryption key strategy.
 - [ ] Thin relative to weight: securing AI (`docs/03:648-681`, 33 lines for a named objective), envisioning future improvements (`docs/01:1177-1237`, all of 1.5), success measurements (`docs/01:331-354`), Cloud Code (`docs/05:661-682`).
 - [ ] `docs/06:13-22` and `07:53-65` - the operational excellence "key principles" are hand-written SRE principles, not Google's published pillar principles. Objective 6.1 reads verbatim "the principles and recommendations of the operational excellence pillar", so a question quoting Google's wording would not be recognisable.
 
