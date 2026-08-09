@@ -12,7 +12,8 @@ What is the workload?
 │
 ├── Containers / microservices?
 │   │
-│   ├── Need full K8s control (node pools, GPUs, DaemonSets, custom schedulers)?
+│   ├── Need node-level access (privileged containers, unsafe sysctls,
+│   │   custom node image or kernel tuning, SSH to nodes)?
 │   │   └── ✅ GKE Standard
 │   │       ├── Stateful workloads (StatefulSets, PVCs)? → GKE Standard
 │   │       ├── Multi-cluster mesh / Anthos? → GKE Enterprise (fleet)
@@ -20,7 +21,11 @@ What is the workload?
 │   │
 │   ├── K8s but no node ops (pay-per-pod, auto-secured)?
 │   │   └── ✅ GKE Autopilot
-│   │       ⚠️  No SSH to nodes, no privileged pods, no DaemonSets
+│   │       ⚠️  DaemonSets, GPUs and TPUs all work on Autopilot. "We need
+│   │           DaemonSets" or "we need GPUs" is NOT a reason to pick Standard
+│   │       ⚠️  What Autopilot actually blocks: SSH to nodes, privileged
+│   │           containers (outside the partner allowlist), host namespaces,
+│   │           unsafe sysctls, and any change to the node image
 │   │       ⚠️  Best for teams that want K8s API without infra burden
 │   │
 │   ├── Single container, request-driven, no cluster overhead?
@@ -60,10 +65,13 @@ What is the workload?
 │   │       ⚠️  Provisions VMs automatically, supports GPU, Spot
 │   │
 │   ├── Apache Spark / Hadoop / Hive / Presto ecosystem?
-│   │   └── ✅ Dataproc
-│   │       ├── Short-lived cluster per job? → Dataproc on Compute Engine
-│   │       ├── Shared multi-tenant? → Dataproc on GKE
-│   │       └── Serverless, no cluster management? → Dataproc Serverless
+│   │   └── ✅ Managed Service for Apache Spark (formerly Dataproc)
+│   │       ├── Short-lived cluster per job? → cluster deployment
+│   │       ├── Shared multi-tenant on K8s? → Spark on GKE
+│   │       └── No cluster to manage at all? → serverless deployment
+│   │       ⚠️  The exam guide, the API and most docs URLs still say "Dataproc".
+│   │           Same product: cluster and serverless deployments were unified
+│   │           under the Managed Service for Apache Spark name
 │   │
 │   └── Apache Beam (unified batch + stream)?
 │       └── ✅ Dataflow
@@ -90,14 +98,14 @@ What is the workload?
 | "SAP HANA, Oracle DB, BYOL" | Sole-tenant nodes | Dedicated physical servers, license compliance |
 | "HPC, MPI, tightly coupled" | CE + compact placement | Low-latency node-to-node networking |
 | "1000 rendering jobs, tolerate preemption" | Cloud Batch + Spot | Automatic VM provisioning, retry on preempt |
-| "Migrate Spark pipelines from on-prem" | Dataproc | Drop-in Hadoop/Spark, ephemeral clusters |
+| "Migrate Spark pipelines from on-prem" | Managed Service for Apache Spark (Dataproc) | Drop-in Hadoop/Spark, ephemeral clusters |
 | "Real-time stream + batch in one pipeline" | Dataflow | Apache Beam, auto-scaling, exactly-once |
 | "Legacy App Engine app, minimal changes" | App Engine Flexible | Docker-based, compatible with legacy config |
 
 **Exam Tips:**
-- GKE Autopilot vs Standard is a frequent question -- Autopilot = no node management, no SSH, no DaemonSets, Pod Security enforced.
+- GKE Autopilot vs Standard is a frequent question, and the distinguishing axis is **node-level access**, not workload type. Autopilot = no SSH, no privileged containers, no host namespaces, no unsafe sysctls, no node image control. DaemonSets, GPUs and TPUs are all supported on Autopilot, so an option that justifies Standard with "they need DaemonSets" or "they need GPUs" is a distractor. ([Autopilot security measures](https://cloud.google.com/kubernetes-engine/docs/concepts/autopilot-security), [Autopilot vs Standard comparison](https://cloud.google.com/kubernetes-engine/docs/resources/autopilot-standard-feature-comparison))
 - Cloud Run functions (2nd gen) is built on Cloud Run. If the question says "serverless function," either answer may apply -- look for "no infrastructure" = Cloud Run functions, "container" = Cloud Run.
-- Dataproc is the answer whenever you see Spark, Hadoop, Hive, or Presto. Dataflow is for Beam.
+- [Managed Service for Apache Spark](https://cloud.google.com/products/managed-service-for-apache-spark) (the product formerly named Dataproc) is the answer whenever you see Spark, Hadoop, Hive, or Presto. Dataflow is for Beam. Exam options will most likely still be worded "Dataproc".
 - Cloud Batch is the answer for "schedule thousands of containerized jobs with retries" (not Dataflow, not Dataproc).
 - App Engine: one per project, cannot delete. If the question involves multiple apps in one project, that is a trap.
 
@@ -110,19 +118,30 @@ What is the data model and scale?
 │
 ├── Relational (SQL, ACID, joins)?
 │   │
-│   ├── Global scale, 99.999% SLA, unlimited horizontal scaling?
+│   ├── Horizontal write scaling with strong global consistency?
 │   │   └── ✅ Cloud Spanner
-│   │       ├── Multi-region for HA? → Multi-region Spanner config
+│   │       ├── Single region? → regional config, 99.99% SLA
+│   │       ├── Five nines needed? → multi-region or dual-region config,
+│   │       │   99.999% SLA, and that tier requires the Enterprise Plus edition
 │   │       ├── Need PostgreSQL interface? → Spanner PostgreSQL dialect
 │   │       └── Financial / inventory (strong global consistency)? → Spanner
-│   │       ⚠️  Starts at ~$0.90/node/hr (~$650/mo min). Cost-justified at scale.
+│   │       ⚠️  Editions: Standard, Enterprise, Enterprise Plus. Graph, full-text
+│   │           and vector search start at Enterprise; 99.999% and geo-partitioning
+│   │           need Enterprise Plus
+│   │       ⚠️  Compute is bought in processing units. Minimum is 100 PU and
+│   │           1000 PU = 1 node, so the entry point is a tenth of a node, not a
+│   │           whole one. "Spanner forces you to buy a full node" is a trap
 │   │
-│   ├── PostgreSQL-compatible, need 4x Cloud SQL performance?
+│   ├── PostgreSQL-compatible, need more headroom than Cloud SQL gives?
 │   │   └── ✅ AlloyDB
 │   │       ├── HTAP (transactions + analytics on same data)? → AlloyDB
+│   │       │   columnar engine
 │   │       ├── AI/ML embeddings, vector search? → AlloyDB AI
 │   │       └── Cross-region read replicas? → AlloyDB
 │   │       ⚠️  PostgreSQL only. No MySQL, no SQL Server.
+│   │       ⚠️  Google's published speed multiplier is against standard open-source
+│   │           PostgreSQL, not against Cloud SQL. An option that reads "4x faster
+│   │           than Cloud SQL" is restating the benchmark wrongly
 │   │
 │   ├── Standard managed RDBMS (MySQL, PostgreSQL, SQL Server)?
 │   │   └── ✅ Cloud SQL
@@ -138,14 +157,18 @@ What is the data model and scale?
 │
 ├── NoSQL -- Document / key-value?
 │   │
-│   ├── Mobile/web, real-time sync, offline support, < 10 TB?
+│   ├── Mobile/web, real-time sync, offline support?
 │   │   └── ✅ Firestore (Native mode)
 │   │       ├── Strong consistency, real-time listeners? → Native mode
 │   │       └── Need Datastore API backward compatibility? → Datastore mode
 │   │
 │   └── Large-scale server-side only, no real-time sync needed?
 │       └── ✅ Firestore (Datastore mode)
-│           ⚠️  Cannot switch modes after creation
+│           ⚠️  Mode is NOT welded on at creation: an EMPTY database can be
+│               switched between Native and Datastore mode. Only a database that
+│               already holds documents or entities is locked
+│           ⚠️  One project can hold many databases, and they can be a mix of both
+│               modes. "You must create a new project to change mode" is stale
 │
 ├── NoSQL -- Wide-column (time-series, IoT, high throughput)?
 │   │
@@ -154,8 +177,12 @@ What is the data model and scale?
 │       ├── Time-series, IoT sensor data, financial ticks? → Bigtable
 │       ├── Serving layer for ML feature store? → Bigtable
 │       └── HBase migration? → Bigtable (HBase-compatible API)
-│       ⚠️  No multi-row transactions. No SQL (use Bigtable client or cbt).
-│       ⚠️  Min 1 node (~$0.65/hr). Not cost-effective for small datasets.
+│       ⚠️  No multi-row transactions.
+│       ⚠️  GoogleSQL for Bigtable exists -- "Bigtable has no SQL" is out of date.
+│           It is SELECT-only: no INSERT/UPDATE/DELETE, no DDL, and no JOIN,
+│           UNION, CTEs or subqueries. So Bigtable is still the wrong answer for
+│           "we need joins", but right for "query it with familiar SQL syntax"
+│       ⚠️  Not cost-effective for small datasets -- you pay for provisioned nodes.
 │
 ├── Analytics / data warehouse?
 │   │
@@ -171,9 +198,16 @@ What is the data model and scale?
 └── In-memory cache / session store?
     │
     └── ✅ Memorystore
-        ├── Key-value cache, pub/sub, Lua scripting? → Memorystore for Redis
-        ├── Simple object caching, multi-threaded? → Memorystore for Memcached
-        └── Redis Cluster mode (> 300 GB, sharding)? → Memorystore for Redis Cluster
+        ├── New build, open-source engine, cluster mode on or off?
+        │   → Memorystore for Valkey
+        │     (shards of 1 primary + up to 5 replicas, spread across zones)
+        ├── Existing Redis workload, key-value cache, pub/sub, Lua scripting?
+        │   → Memorystore for Redis
+        ├── Sharded Redis, horizontal scaling? → Memorystore for Redis Cluster
+        └── Memcached protocol specifically? → Memorystore for Memcached
+            ⚠️  DEPRECATED (announced 2026-01-20). No new instances in projects
+                that do not already have one after 2027-02-01; shutdown
+                2029-01-31. Google's stated migration target is Valkey
 ```
 
 ### Database Quick Reference
@@ -189,15 +223,19 @@ What is the data model and scale?
 | "Petabyte analytics, ad hoc SQL" | BigQuery | Serverless warehouse, pay-per-query option |
 | "ML training on warehouse data" | BigQuery ML | Train models with SQL, no data movement |
 | "Session cache, sub-ms reads" | Memorystore (Redis) | In-memory, managed, HA available |
+| "New in-memory cache, no Redis licence baggage" | Memorystore for Valkey | Open-source engine, cluster mode optional |
+| "Existing Memcached workload to modernise" | Memorystore for Valkey | Memcached is deprecated; Valkey is the stated target |
 | "Cross-cloud query (S3 data)" | BigQuery Omni | Run BQ on AWS/Azure storage in-place |
 
 **Exam Tips:**
 - Spanner vs Cloud SQL: if the question mentions "global," "horizontal scaling for writes," or "five 9s," it is Spanner. If "single region" and "MySQL/PostgreSQL," it is Cloud SQL.
-- AlloyDB appears when the question says "PostgreSQL" + "analytics on operational data" or "4x performance."
-- Bigtable is never the answer for "complex queries" or "joins." It is for single-key or range-scan workloads at massive scale.
+- Spanner's five-nines number is **configuration-dependent**, not a property of the product. Regional Spanner is 99.99%. Only multi-region and dual-region configurations reach 99.999%, and that SLA tier belongs to the Enterprise Plus edition. An option that offers "regional Spanner for a 99.999% requirement" is wrong. ([Spanner SLA](https://cloud.google.com/spanner/sla), [Spanner editions](https://cloud.google.com/spanner/docs/editions-overview))
+- Spanner sizing is in processing units: 100 PU minimum, 1000 PU = 1 node. Small instances are genuinely small. ([Compute capacity](https://cloud.google.com/spanner/docs/compute-capacity))
+- AlloyDB appears when the question says "PostgreSQL" + "analytics on operational data." Its performance comparison is published against standard PostgreSQL, not against Cloud SQL. ([AlloyDB](https://cloud.google.com/alloydb/docs/overview))
+- Bigtable is never the answer for "joins." [GoogleSQL for Bigtable](https://cloud.google.com/bigtable/docs/googlesql-overview) added SQL SELECT queries, but joins, subqueries and DML are still unsupported, so "no SQL at all" and "full SQL" are both wrong descriptions.
 - BigQuery is not OLTP. If the scenario requires low-latency transactional reads/writes, BigQuery is the wrong answer.
 - Bare Metal Solution: if you see "Oracle RAC" or "cannot modify application," this is likely the answer.
-- Firestore: cannot change mode (Native vs Datastore) after database creation.
+- [Firestore mode](https://cloud.google.com/firestore/docs/firestore-or-datastore): switchable while the database is empty, and a single project can hold both Native-mode and Datastore-mode databases. Treat "mode is permanent, create a new project" as the distractor.
 
 ---
 
@@ -302,14 +340,18 @@ What type of storage?
 ```
 Connect on-premises / other cloud to GCP?
 │
-├── Need highest bandwidth (10-200 Gbps), dedicated physical line?
+├── Need highest bandwidth, dedicated physical line?
 │   │
 │   ├── Can colocate at a Google edge PoP?
 │   │   └── ✅ Dedicated Interconnect
-│   │       ├── 10 Gbps or 100 Gbps circuits
-│   │       ├── 99.99% SLA requires 4 connections across 2 metro areas
-│   │       ├── 99.9% SLA requires 2 connections in 1 metro area
+│   │       ├── Link types: 10, 100 or 400 Gbps, up to 8 circuits per Interconnect
+│   │       ├── 99.99% SLA requires 4 connections: 2 in one metro and 2 in a
+│   │       │   second metro, and the pair inside each metro must sit in
+│   │       │   different edge availability domains
+│   │       ├── 99.9% SLA requires 2 connections in one metro, and they too must
+│   │       │   be in different edge availability domains
 │   │       └── Not encrypted by default (add MACsec or VPN overlay)
+│   │       ⚠️  Link type cannot be changed later -- size it at order time
 │   │       ⚠️  8-12 week lead time for provisioning
 │   │
 │   └── Cannot reach Google PoP directly?
@@ -319,14 +361,17 @@ Connect on-premises / other cloud to GCP?
 │           └── 99.99% SLA requires redundant connections
 │           ⚠️  Lower cost than Dedicated, but shared infrastructure
 │
-├── Need encrypted tunnel, moderate bandwidth (up to 3 Gbps/tunnel)?
+├── Need encrypted tunnel, moderate bandwidth?
 │   │
 │   └── ✅ HA VPN
 │       ├── 99.99% SLA (requires 2 tunnels + BGP)
 │       ├── IPsec encrypted by default
 │       ├── Quick to provision (hours, not weeks)
 │       ├── Can run over internet or over Interconnect (for encryption)
-│       └── Max 3 Gbps per tunnel (aggregate with multiple tunnels)
+│       └── Throttled at 250,000 packets/sec per tunnel, counting ingress and
+│           egress together. That is roughly 1-3 Gbps depending on average
+│           packet size, so a flat "3 Gbps per tunnel" figure is a simplification
+│           that breaks on small-packet traffic. Aggregate tunnels to go higher
 │       ⚠️  Classic VPN is deprecated for new deployments
 │
 ├── Connect to another cloud provider (AWS, Azure, Oracle)?
@@ -364,9 +409,9 @@ Connect on-premises / other cloud to GCP?
 
 | Scenario | Service | Architect Rationale |
 |----------|---------|---------------------|
-| "100 Gbps, lowest latency, can colocate" | Dedicated Interconnect | Physical cross-connect at Google PoP |
+| "100 or 400 Gbps, lowest latency, can colocate" | Dedicated Interconnect | Physical cross-connect at Google PoP |
 | "Need 1 Gbps, no Google PoP nearby" | Partner Interconnect | Provider extends reach |
-| "Encrypted tunnel, fast setup, < 10 Gbps" | HA VPN | IPsec, 99.99% SLA, quick provisioning |
+| "Encrypted tunnel, fast setup" | HA VPN | IPsec, 99.99% SLA, ~250k packets/sec per tunnel |
 | "Encrypt traffic over Interconnect" | HA VPN over Interconnect | VPN tunnels ride the Interconnect link |
 | "Connect GCP to AWS VPC directly" | Cross-Cloud Interconnect | Google-managed, dedicated cross-cloud |
 | "Multi-cloud, need encryption" | Cross-Cloud Interconnect + HA VPN overlay | CCI for bandwidth, VPN for encryption |
@@ -378,7 +423,8 @@ Connect on-premises / other cloud to GCP?
 **Exam Tips:**
 - Dedicated Interconnect is NOT encrypted by default. If the question asks for encryption + high bandwidth, the answer is HA VPN over Interconnect (or MACsec).
 - Cross-Cloud Interconnect is the PCA-level answer for "connect GCP to AWS/Azure with dedicated bandwidth." Do not confuse with Partner Interconnect (that is for on-prem).
-- 99.99% SLA for Dedicated Interconnect requires connections in 2 different metro areas (not just 2 connections in 1 metro).
+- Interconnect SLA tiers turn on **edge availability domains**, not just connection count. 99.9% needs 2 connections in one metro but in different edge availability domains; 99.99% needs 4 connections, 2 per metro across 2 metros, again split across domains within each metro. "Two connections in one metro" with no mention of domains does not earn 99.9%. ([Dedicated Interconnect overview](https://cloud.google.com/network-connectivity/docs/interconnect/concepts/dedicated-overview))
+- Cloud VPN's published limit is 250,000 packets/sec per tunnel, not a bandwidth number. If a question gives you a packet rate rather than a bit rate, that is the figure it is testing. ([Cloud VPN quotas](https://cloud.google.com/network-connectivity/docs/vpn/quotas))
 - Direct Peering is rarely the right answer on the PCA exam. It is for public Google service access, not private VPC connectivity.
 - Private Service Connect (PSC) is the modern answer for "access Google services with an internal IP." It replaces Private Google Access in many scenarios.
 
@@ -537,9 +583,20 @@ What security control is needed?
 │   │       └── No VPN needed for remote access
 │   │
 │   └── Firewall rules?
-│       ├── VPC Firewall Rules → basic allow/deny by IP, protocol, port
-│       ├── Firewall Policies → hierarchical (org → folder → project)
-│       └── Network tags vs service accounts → tags for firewall targeting
+│       ├── VPC firewall rules → basic allow/deny by IP, protocol, port
+│       ├── Firewall policies → hierarchical (org → folder → project), plus
+│       │   global and regional network firewall policies
+│       └── How do I target the rule at the right VMs?
+│           ├── Service accounts (target/source) → Google's recommendation when
+│           │   you need strict control. Attaching one needs permission on the
+│           │   service account, so the target set cannot be widened casually
+│           ├── Network tags → free-form strings. Anyone with instance edit
+│           │   permission can add a tag and pull a VM into a rule's scope,
+│           │   which is exactly why they are the weaker choice
+│           └── Secure tags (Resource Manager tags) → IAM-governed key/value
+│               pairs, usable as sources and targets in network firewall
+│               policies. These close the governance gap that made plain
+│               network tags a poor control
 │
 ├── Encryption & key management?
 │   │
@@ -552,10 +609,21 @@ What security control is needed?
 │   │       ├── Automatic rotation schedules
 │   │       └── IAM controls who can use/manage keys
 │   │
-│   ├── Customer holds key outside Google entirely?
-│   │   └── ✅ Cloud EKM (External Key Manager) -- CSEK or EKM
-│   │       ├── Key never leaves customer's external KMS
-│   │       └── Key Access Justifications (see why Google needs key)
+│   ├── Key material must stay in the customer's own key manager?
+│   │   └── ✅ Cloud EKM (External Key Manager)
+│   │       ├── Key never leaves the external KMS; Cloud KMS holds a reference
+│   │       │   and calls out to it for each cryptographic operation
+│   │       └── Pairs with Key Access Justifications (see, and optionally deny,
+│   │           the stated reason for each access)
+│   │
+│   ├── Customer supplies a raw key on every single API call?
+│   │   └── ✅ CSEK (customer-supplied encryption keys)
+│   │       ⚠️  NOT the same thing as EKM. With CSEK you pass a base64 AES-256
+│   │           key with each request; Google keeps only a hash for validation
+│   │           and never stores the key, so losing it means losing the data
+│   │       ⚠️  Narrow surface (Cloud Storage objects, Compute Engine disks) and
+│   │           no bucket-level default. CMEK is the architect answer in almost
+│   │           every "customer controls the key" scenario
 │   │
 │   └── Confidential computing (encrypt data in use)?
 │       └── ✅ Confidential VMs / Confidential GKE Nodes
@@ -603,6 +671,7 @@ What security control is needed?
 - Binary Authorization: if the question mentions "only allow vetted images," "container signing," or "attestation," this is the answer.
 - IAM Deny policies: these are evaluated before allow policies. Use them for hard guardrails that cannot be overridden by lower-level allows.
 - IAP replaces VPN for BeyondCorp / zero-trust access. If the question says "no VPN," think IAP.
+- Firewall targeting: Google recommends **target and source service accounts** over network tags where strict control matters, because a network tag can be attached by anyone with instance edit permission while attaching a service account requires permission on that service account. [Secure tags](https://cloud.google.com/firewall/docs/tags-firewalls-overview) are the IAM-governed middle ground and work as sources and targets in network firewall policies. An answer that recommends network tags "for tighter security" is inverted. ([VPC firewall rules](https://cloud.google.com/vpc/docs/firewalls))
 
 ---
 
@@ -760,9 +829,13 @@ What are the RPO / RTO requirements?
 │       │   RTO: minutes (DNS switch, health check failover)
 │       │   Cost: $$$ (full duplicate infrastructure)
 │       │
-│       ├── Cloud SQL: HA config (auto-failover within region)
+│       ├── Cloud SQL: HA config in-region, plus Enterprise Plus advanced DR
+│       │   (designated cross-region DR replica, failover, and a zero-data-loss
+│       │   switchover for failback and DR drills)
 │       ├── Spanner: multi-region (automatic)
-│       ├── GCS: turbo replication (< 15 min RPO)
+│       ├── GCS: dual-region + turbo replication. Note the guarantee is 15
+│       │   MINUTES, not seconds -- turbo tightens the tail, it does not make
+│       │   object replication synchronous
 │       └── GCLB: health checks auto-route away from failed region
 │
 └── RPO: zero, RTO: zero, highest cost?
@@ -805,7 +878,7 @@ What are the RPO / RTO requirements?
 **Exam Tips:**
 - PCA exam loves RPO/RTO questions. Map requirements to the strategy: zero RPO = active-active or synchronous replication, hours RPO = async + backups.
 - Spanner multi-region gives you active-active out of the box. If the question mentions "global consistency + zero RPO," Spanner is the database answer.
-- Cloud SQL HA is intra-region only (automatic failover to standby zone). Cross-region DR requires manually promoting a cross-region read replica.
+- Cloud SQL HA is intra-region (automatic failover to a standby in another zone). For cross-region DR the answer now depends on edition: **Enterprise** means promoting a cross-region read replica, which is manual and one-way. **Enterprise Plus** adds [advanced disaster recovery](https://cloud.google.com/sql/docs/postgres/intro-to-cloud-sql-disaster-recovery) -- you fail over to a designated DR replica, the old primary automatically rejoins as a replica instead of being orphaned, and a switchover operation gives zero-data-loss failback. That switchover is also what makes non-destructive DR drills possible.
 - Turbo replication on dual-region GCS buckets gives < 15 min RPO. Without turbo, replication is "best effort."
 - The PCA exam often asks you to balance cost vs RTO/RPO. Cold is cheapest but slowest. Active-active is fastest but most expensive. A good architect picks the cheapest option that meets the SLA.
 
@@ -832,7 +905,9 @@ What should you do with this application?
 │   │
 │   ├── Lift-and-shift (VM → VM, no code changes)?
 │   │   └── ✅ Rehost
-│   │       ├── Migrate for Compute Engine (M4CE) → automated VM migration
+│   │       ├── Migrate to Virtual Machines → automated VM migration from
+│   │       │   VMware, AWS, Azure or VMware Engine (this is the product
+│   │       │   formerly called Migrate for Compute Engine / M4CE)
 │   │       ├── Bare Metal Solution → Oracle, SAP (no changes)
 │   │       ├── Fastest migration path
 │   │       └── Does NOT leverage cloud-native benefits
@@ -841,7 +916,7 @@ What should you do with this application?
 │   └── Move + optimize (change platform, not code)?
 │       └── ✅ Replatform
 │           ├── MySQL on VM → Cloud SQL (managed, same engine)
-│           ├── Hadoop on-prem → Dataproc (managed Hadoop)
+│           ├── Hadoop on-prem → Managed Service for Apache Spark
 │           ├── Redis on VM → Memorystore (managed Redis)
 │           ├── Containers on VM → GKE or Cloud Run
 │           └── Moderate effort, good cloud-native gains
@@ -878,7 +953,7 @@ Step 3: Execute
 ├── Foundation: landing zone (org, folders, VPC, IAM, logging)
 ├── Networking: Interconnect / VPN to on-prem
 ├── Data: Database Migration Service, Storage Transfer Service
-├── Compute: Migrate for Compute Engine, containerization
+├── Compute: Migrate to Virtual Machines, containerization
 └── Validate: parallel run, cut-over, decommission source
 ```
 
@@ -886,9 +961,9 @@ Step 3: Execute
 
 | Scenario | Strategy | Key Services |
 |----------|----------|-------------|
-| "Move 200 VMs fast, no code changes" | Rehost | Migrate for Compute Engine (M4CE) |
+| "Move 200 VMs fast, no code changes" | Rehost | Migrate to Virtual Machines |
 | "MySQL on VM → managed MySQL" | Replatform | Database Migration Service → Cloud SQL |
-| "On-prem Hadoop → cloud" | Replatform | Dataproc (managed Spark/Hadoop) |
+| "On-prem Hadoop → cloud" | Replatform | Managed Service for Apache Spark (Dataproc) |
 | "Monolith → microservices on K8s" | Refactor | GKE, Cloud Run, Pub/Sub |
 | "Replace Exchange with Gmail" | Repurchase | Google Workspace |
 | "Oracle RAC, cannot change anything" | Rehost | Bare Metal Solution |
@@ -900,7 +975,7 @@ Step 3: Execute
 **Exam Tips:**
 - The PCA exam tests the 6 R's extensively. The key is matching the scenario constraints (time, budget, skill, business criticality) to the right strategy.
 - "Minimal changes" + "fastest migration" = Rehost. "Some changes to platform" = Replatform. "Redesign for cloud" = Refactor.
-- Migrate for Compute Engine (M4CE) is the go-to tool for VM rehosting. Database Migration Service (DMS) is for database replatforming.
+- [Migrate to Virtual Machines](https://cloud.google.com/migrate/virtual-machines/docs) is the go-to tool for VM rehosting. It is the current name for what older material calls Migrate for Compute Engine or M4CE, and it is a different product from Migration Center (which does assessment and portfolio discovery, not the move). Database Migration Service (DMS) is for database replatforming.
 - Rehost is often a stepping stone. The architect answer may be "rehost now, refactor later" (two-phase migration).
 - Landing zone first: the exam expects you to set up org hierarchy, IAM, networking, and logging BEFORE migrating workloads.
 - Wave planning: migrate tightly coupled apps together. Do not break dependencies across migration waves.
@@ -932,13 +1007,29 @@ How to manage GCP infrastructure as code?
 │       └── Reconciliation loop (controller continuously enforces state)
 │       ⚠️  Only GCP resources. Not multi-cloud.
 │
+├── Want Terraform, but without running the state and the runners yourself?
+│   │
+│   └── ✅ Infrastructure Manager (Infra Manager)
+│       ├── Runs standard Terraform HCL -- no new language, no rewrite
+│       ├── Google stores state, revisions and logs per deployment
+│       ├── Executes terraform in ephemeral Cloud Build jobs under a service
+│       │   account you nominate
+│       ├── Config source: Cloud Storage, a Git repo, or a local directory
+│       └── Preview a deployment before applying it
+│       ⚠️  This is the named successor to Deployment Manager, and it is the
+│           answer to "we want IaC on Google Cloud but do not want to own a
+│           state bucket and a CI runner"
+│
 ├── Google-native, YAML-based, no external tooling?
 │   │
-│   └── ⚠️  Deployment Manager (DEPRECATED for new projects)
-│       ├── Legacy GCP-native IaC
-│       ├── Jinja2 / Python templates
-│       └── Migrate to Terraform or KCC
-│       ⚠️  Only valid answer if question says "existing Deployment Manager"
+│   └── ⚠️  Deployment Manager (PAST END OF SUPPORT)
+│       ├── End of support 2026-04-01; new users blocked from 2026-06-30;
+│       │   full shutdown 2027-06-30
+│       ├── Jinja2 / Python templates over YAML
+│       └── Convert with DM Convert, then run the output through Infrastructure
+│           Manager or your own Terraform pipeline
+│       ⚠️  Only ever appears as "we have existing Deployment Manager templates",
+│           and then the answer is migrate -- never "keep using it"
 │
 ├── Multi-cloud, prefer general-purpose language (Python, Go, TS)?
 │   │
@@ -960,21 +1051,182 @@ How to manage GCP infrastructure as code?
 | Scenario | Tool | Architect Rationale |
 |----------|------|---------------------|
 | "Multi-cloud IaC, industry standard" | Terraform | Broadest provider support, largest community |
+| "Terraform, but no state bucket or CI runner to own" | Infrastructure Manager | Google-managed state and Cloud Build execution |
 | "GCP landing zone, best practices" | Terraform + CFT | Google-maintained modules for org setup |
 | "Team uses K8s for everything, wants one API" | Config Connector (KCC) | GCP resources as K8s CRDs, kubectl workflow |
 | "GitOps for GKE fleet config" | Config Sync | Git-driven cluster configuration |
 | "Enforce policies across Terraform" | OPA / Sentinel | Policy-as-code, pre-apply validation |
-| "Existing Deployment Manager templates" | Migrate to Terraform | DM is deprecated, use DM Converter tool |
+| "Existing Deployment Manager templates" | DM Convert → Terraform → Infrastructure Manager | DM is past end of support (2026-04-01) |
 | "IaC in Python, no HCL" | Pulumi | General-purpose languages for IaC |
 | "Remote Terraform state, team collaboration" | GCS backend + state locking | Prevent concurrent state corruption |
 | "Drift detection on GCP resources" | Config Connector (reconciliation) | Controller continuously enforces desired state |
 
 **Exam Tips:**
 - Terraform is almost always the correct IaC answer on the PCA exam unless the question specifically mentions Kubernetes-native management (Config Connector) or existing Deployment Manager.
-- Deployment Manager is deprecated for new projects. If the exam mentions it, the answer is usually "migrate to Terraform."
+- [Infrastructure Manager](https://cloud.google.com/infrastructure-manager/docs/overview) is Google's managed Terraform: same HCL, but Google owns the state, the revisions and the Cloud Build execution. Reach for it when the scenario says "we want IaC without operating the tooling" or "we need a Google-supported replacement for Deployment Manager." The v6.1 exam guide made IaC explicit, so this is worth knowing by name.
+- [Deployment Manager](https://cloud.google.com/deployment-manager/docs/deprecations) is past end of support (2026-04-01, shutdown 2027-06-30). If the exam mentions it, the answer is migrate: DM Convert produces Terraform, which you then run in Infrastructure Manager or your own pipeline.
 - Cloud Foundation Toolkit (CFT) is the architect-level Terraform answer for "set up a GCP organization following best practices."
 - Config Sync + Policy Controller is the answer for "enforce consistent policies across a fleet of GKE clusters."
 - State management: Terraform state in GCS with locking. Never store state locally in production.
+
+---
+
+## 11. Resource Hierarchy and Landing Zone
+
+```
+How should the organization be laid out?
+│
+├── What shape should the folder tree take?
+│   │   (Google's landing zone guidance gives three starting points, and says
+│   │    most organizations end up with a hybrid. It also says NOT to mirror
+│   │    the corporate org chart -- model policy needs, not reporting lines.)
+│   │
+│   ├── Dev / test / prod need different policy and different admins?
+│   │   └── ✅ Hierarchy based on application environments
+│   │       └── Folders: dev, nonprod, prod. Environment-specific org policies
+│   │           and IAM attach at the folder, not per project
+│   │
+│   ├── Regions or subsidiaries operate independently, with their own
+│   │   compliance and their own platform teams?
+│   │   └── ✅ Hierarchy based on regions or subsidiaries
+│   │       └── Use when data residency or local regulation differs, so the
+│   │           policy boundary genuinely follows geography
+│   │
+│   └── Clear per-product ownership, independent workloads, few shared policies?
+│       └── ✅ Hierarchy based on an accountability framework
+│           └── Each product team owns its subtree end to end
+│
+├── Where does a given control belong?
+│   │
+│   ├── Must apply everywhere and must not be opted out of?
+│   │   └── ✅ Organization policy at the org node
+│   │       └── e.g. disable service account key creation, restrict external IPs,
+│   │           require Shielded VM. Constraints inherit downward
+│   │
+│   ├── Applies to a class of projects (all prod, all of one subsidiary)?
+│   │   └── ✅ Org policy and IAM at the FOLDER
+│   │       └── This is the whole reason folders exist. Granting at the folder
+│   │           beats granting the same role on twenty projects
+│   │
+│   └── Applies to one workload?
+│       └── ✅ IAM at the project, or on the individual resource
+│           ⚠️  IAM allow policies are additive down the tree: you cannot
+│               subtract a grant made higher up by granting less lower down.
+│               To take something away you need an IAM deny policy, which is
+│               evaluated before allow policies
+│
+├── How finely should projects be split?
+│   │
+│   └── ✅ One project per application per environment is the usual default
+│       ├── Project is the billing boundary, the quota boundary and the
+│       │   default blast radius for IAM
+│       ├── Project ID is globally unique and cannot be changed after creation
+│       └── Shared services (logging, monitoring, networking, CI) get their own
+│           projects rather than living inside an application project
+│
+└── What must exist before the first workload lands?
+    ├── Identity: Cloud Identity or Workspace, groups as the IAM principals
+    │   (grant roles to groups, never to individual users)
+    ├── Hierarchy: folders and the org policies attached to them
+    ├── Networking: Shared VPC host projects, hybrid connectivity, DNS
+    ├── Logging: org-level aggregated sink to a dedicated logging project
+    ├── Billing: budgets and alerts on every project at creation time
+    └── Essential Contacts, so security and billing notices reach a human
+```
+
+### Hierarchy Quick Reference
+
+| Scenario | Answer | Architect Rationale |
+|----------|--------|---------------------|
+| "Same guardrail for every project, no exceptions" | Org policy at the organization node | Inherits down, cannot be granted away by project owners |
+| "Security team owns controls, app teams own workloads" | Policies at folder, IAM at project | Separation of duties follows the hierarchy |
+| "Revoke a permission someone inherited from a folder" | IAM deny policy | Allow policies are additive; only deny subtracts |
+| "Centralized network, many app teams" | Shared VPC host project + service projects | One network to administer, many projects to deploy into |
+| "Per-team cost visibility" | Project per app per env + labels + budgets | Project is the natural billing rollup |
+| "Stop spend when the budget is hit" | Budget alert plus a programmatic response | A budget alert on its own only notifies; it never stops spending |
+
+**Exam Tips:**
+- Folders can nest up to **10 levels** deep, and one parent can hold at most **300** direct child folders. Depth is almost never the real constraint; over-nesting is. ([Managing folders](https://cloud.google.com/resource-manager/docs/creating-managing-folders))
+- The classic trap: **budgets do not cap spending.** A budget with an alert threshold sends a notification. Actually stopping spend needs the Pub/Sub notification wired to something that disables billing or scales resources down.
+- IAM inheritance is a **union**. A role granted at the org is held on every project underneath it, and no project-level grant can reduce it. Only [IAM deny policies](https://cloud.google.com/iam/docs/deny-overview) subtract, and they evaluate first.
+- Grant roles to **groups**, not to users or to individual service accounts. Any question where access must survive people joining and leaving is testing this.
+- Google's landing zone guidance explicitly warns against mapping the corporate org chart onto the folder tree. If an option justifies a hierarchy with "it mirrors our reporting structure," that is the distractor. ([Decide resource hierarchy](https://cloud.google.com/architecture/landing-zones/decide-resource-hierarchy))
+
+---
+
+## 12. Network Topology Selection
+
+```
+How should these networks reach each other?
+│
+├── One network, many teams deploying into it, central network admins?
+│   └── ✅ Shared VPC
+│       ├── Host project owns the network and subnets
+│       ├── Service projects attach and place resources into those subnets
+│       ├── Network admins keep control; app teams never touch routing
+│       └── Single organization only
+│       ⚠️  This is the default answer for "centralized network, multiple teams"
+│
+├── Two networks need to route to each other, and there are only a few?
+│   └── ✅ VPC Network Peering
+│       ├── Both sides must create the peering; it is not one-sided
+│       ├── Subnet CIDRs must not overlap
+│       └── Works across projects and across organizations
+│       ⚠️  NON-TRANSITIVE. A peered to B and B peered to C does NOT give
+│           A to C. N networks needing any-to-any means N*(N-1)/2 peerings,
+│           which is the pain that pushes you to the next branch
+│
+├── Many VPCs, plus hybrid links, all needing any-to-any?
+│   └── ✅ Network Connectivity Center (hub and spoke)
+│       ├── VPC spokes exchange subnet routes with every other VPC spoke on
+│       │   the hub, giving full connectivity without pair-wise peerings
+│       ├── Hybrid spokes: HA VPN, Interconnect, router appliances
+│       └── One hub to operate instead of a peering mesh
+│       ⚠️  Mixing NCC and VPC Peering does not chain: a VPC reached through
+│           a peering is not reachable through the hub
+│
+├── Consuming a managed service privately, want no CIDR negotiation?
+│   └── ✅ Private Service Connect (PSC)
+│       ├── One internal IP in the consumer VPC represents the service
+│       ├── Traffic is NAT'd, so consumer and producer ranges can overlap
+│       ├── Producer explicitly authorizes which consumers may connect
+│       └── Works for Google APIs, Google-managed services and third-party SaaS
+│       ⚠️  Endpoints are consumer-to-producer. PSC interfaces are the separate
+│           mechanism for a producer initiating back toward the consumer
+│
+├── Managed service that requires an allocated range in your VPC?
+│   └── ✅ Private Service Access (service networking)
+│       ├── You reserve an IP range and Google peers the producer VPC to yours
+│       ├── The long-standing path for Cloud SQL, Memorystore, AlloyDB private IP
+│       └── Because it is peering underneath, it consumes address space and
+│           inherits peering's non-transitivity
+│       ⚠️  Where a service offers both, PSC is the more modern answer: no range
+│           to reserve and no peering side effects
+│
+└── Reaching Google APIs, not a VPC?
+    ├── From VMs with no external IP → ✅ Private Google Access (subnet setting)
+    ├── From on-premises over VPN/Interconnect → ✅ Private Google Access for
+    │   on-premises hosts (private.googleapis.com / restricted.googleapis.com)
+    └── Want an internal IP you control for a specific API → ✅ PSC endpoint
+```
+
+### Network Topology Quick Reference
+
+| Scenario | Answer | Architect Rationale |
+|----------|--------|---------------------|
+| "Central network team, many app projects" | Shared VPC | One network, delegated deployment |
+| "Two VPCs, mutual access, different orgs" | VPC Network Peering | Cross-org, no gateway, non-transitive |
+| "Twelve VPCs plus on-prem, all-to-all" | Network Connectivity Center | Hub replaces a 66-link peering mesh |
+| "Overlapping RFC 1918 after an acquisition" | Private Service Connect | NAT means no range renumbering |
+| "Cloud SQL on a private IP" | Private Service Access (or PSC where offered) | Producer peering with an allocated range |
+| "Expose our SaaS to customer VPCs privately" | PSC service attachment | Producer publishes, consumers get an endpoint |
+| "VMs with no public IP must call Cloud Storage" | Private Google Access | Subnet-level setting, no extra cost |
+
+**Exam Tips:**
+- **VPC Peering is non-transitive** and this is tested constantly. Any scenario with three or more networks and any-to-any requirements is pointing at [Network Connectivity Center](https://cloud.google.com/network-connectivity/docs/network-connectivity-center/concepts/vpc-spokes-overview), not at more peerings.
+- Overlapping IP ranges kill peering and Private Service Access, but not [Private Service Connect](https://cloud.google.com/vpc/docs/private-service-connect), because PSC NATs. "We acquired a company and the ranges collide" is a PSC question.
+- Shared VPC and VPC Peering solve different problems. Shared VPC is one network with delegated use; peering is two networks that stay separate and exchange routes. If the question stresses *who administers the network*, it is Shared VPC.
+- Private Google Access is a **subnet setting**, not a resource you create, and it costs nothing. If an option says you must deploy something to get it, that is wrong.
 
 ---
 
@@ -984,7 +1236,7 @@ Comprehensive mapping of common PCA exam scenarios to the recommended service or
 
 | # | Scenario | Recommended Service / Approach |
 |---|----------|-------------------------------|
-| 1 | "Global relational DB, 99.999% SLA, strong consistency" | Cloud Spanner (multi-region) |
+| 1 | "Global relational DB, 99.999% SLA, strong consistency" | Cloud Spanner, multi-region config, Enterprise Plus edition (regional Spanner is 99.99%) |
 | 2 | "PostgreSQL, need analytics on transactional data" | AlloyDB |
 | 3 | "Lift-and-shift MySQL to managed service" | Cloud SQL (via Database Migration Service) |
 | 4 | "Oracle RAC, cannot modify application" | Bare Metal Solution |
@@ -999,18 +1251,18 @@ Comprehensive mapping of common PCA exam scenarios to the recommended service or
 | 13 | "Stateless containers, scale to zero" | Cloud Run |
 | 14 | "Complex K8s, custom scheduling, node tuning" | GKE Standard |
 | 15 | "K8s without node management, enforced security" | GKE Autopilot |
-| 16 | "Spark/Hadoop migration from on-prem" | Dataproc |
+| 16 | "Spark/Hadoop migration from on-prem" | Managed Service for Apache Spark (formerly Dataproc) |
 | 17 | "Real-time stream processing, exactly-once" | Dataflow |
 | 18 | "Batch: 10,000 container jobs with retries" | Cloud Batch |
 | 19 | "SAP HANA, dedicated hardware" | Sole-tenant nodes (or Bare Metal Solution) |
 | 20 | "HPC, tightly coupled, MPI" | Compute Engine + compact placement policy |
-| 21 | "Highest bandwidth on-prem to GCP" | Dedicated Interconnect (10/100 Gbps) |
+| 21 | "Highest bandwidth on-prem to GCP" | Dedicated Interconnect (10 / 100 / 400 Gbps link types) |
 | 22 | "On-prem connectivity, no Google PoP nearby" | Partner Interconnect |
 | 23 | "Encrypted tunnel, quick setup" | HA VPN |
 | 24 | "Connect GCP to AWS with dedicated link" | Cross-Cloud Interconnect |
 | 25 | "Encrypt traffic over Interconnect" | HA VPN over Interconnect |
 | 26 | "Private access to Google APIs, no public IP" | Private Google Access / Private Service Connect |
-| 27 | "99.99% Interconnect SLA" | Dedicated Interconnect: 4 connections, 2 metros |
+| 27 | "99.99% Interconnect SLA" | Dedicated Interconnect: 4 connections, 2 per metro across 2 metros, split across edge availability domains |
 | 28 | "Global HTTPS, CDN, WAF" | Global External Application LB + Cloud Armor + Cloud CDN |
 | 29 | "Preserve client IP, UDP traffic" | External Passthrough Network LB |
 | 30 | "Internal microservices, gRPC routing" | Regional Internal Application LB |
@@ -1019,7 +1271,7 @@ Comprehensive mapping of common PCA exam scenarios to the recommended service or
 | 33 | "WAF, DDoS, OWASP Top 10" | Cloud Armor |
 | 34 | "Zero-trust app access, no VPN" | Identity-Aware Proxy (IAP) |
 | 35 | "Customer controls encryption keys" | Cloud KMS (CMEK) |
-| 36 | "Key must never leave customer's infrastructure" | Cloud EKM (External Key Manager) |
+| 36 | "Key must never leave customer's infrastructure" | Cloud EKM (External Key Manager) -- not CSEK, which is a raw key passed per request |
 | 37 | "Only deploy signed container images" | Binary Authorization |
 | 38 | "GitHub Actions → GKE, no service account keys" | Workload Identity Federation |
 | 39 | "GKE pod accesses Cloud Storage" | Workload Identity (K8s SA → GCP SA) |
@@ -1030,9 +1282,10 @@ Comprehensive mapping of common PCA exam scenarios to the recommended service or
 | 44 | "Zero downtime, global SaaS" | Active-Active: Spanner multi-region + GCLB + multi-region Cloud Run |
 | 45 | "DR for e-commerce, 1-hour RTO" | Warm DR: cross-region DB replica + scaled-down standby |
 | 46 | "Cheapest DR, 24-hour RPO acceptable" | Cold DR: GCS backups + Terraform |
-| 47 | "Move 200 VMs to GCP, no code changes" | Rehost: Migrate for Compute Engine (M4CE) |
+| 47 | "Move 200 VMs to GCP, no code changes" | Rehost: Migrate to Virtual Machines (formerly M4CE) |
 | 48 | "Monolith to microservices" | Refactor: GKE/Cloud Run + Pub/Sub + managed DBs |
 | 49 | "IaC, multi-cloud, industry standard" | Terraform |
+| 49b | "Terraform without owning state or CI runners" / "replace Deployment Manager" | Infrastructure Manager |
 | 50 | "GCP landing zone, org best practices" | Terraform + Cloud Foundation Toolkit (CFT) |
 | 51 | "GitOps for fleet of GKE clusters" | Config Sync + Policy Controller |
 | 52 | "Org-wide constraint: no external IPs" | Organization Policy (`vmExternalIpAccess`) |

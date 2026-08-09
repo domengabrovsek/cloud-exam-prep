@@ -55,10 +55,17 @@ gcloud auth print-access-token --impersonate-service-account=SA@PROJECT.iam.gser
 
 # Workload Identity Federation - create pool
 gcloud iam workload-identity-pools create github-pool --location=global
+
+# The --attribute-condition is not optional in practice. GitHub, GitLab and HCP
+# Terraform each publish ONE issuer shared by every customer, so a provider with
+# no condition will accept a token from any repository on GitHub and let it
+# impersonate your service account. Scope it to your org, and to the repo if the
+# service account is repo-specific.
 gcloud iam workload-identity-pools providers create-oidc github \
   --workload-identity-pool=github-pool --location=global \
   --issuer-uri="https://token.actions.githubusercontent.com" \
-  --attribute-mapping="google.subject=assertion.sub"
+  --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.repository_owner=assertion.repository_owner" \
+  --attribute-condition="assertion.repository_owner=='my-org' && assertion.repository=='my-org/my-repo'"
 
 # IAM Recommender
 gcloud recommender recommendations list \
@@ -110,10 +117,18 @@ gcloud compute vpn-gateways create my-vpn-gw --network=my-vpc --region=us-centra
 gcloud compute routers create my-router --network=my-vpc --region=us-central1 --asn=65001
 
 # Create VPN tunnels (HA -- need two tunnels)
+# To an ON-PREMISES or third-party-cloud peer: --peer-external-gateway, which
+# refers to an external-vpn-gateway resource describing the far end's interfaces.
+gcloud compute external-vpn-gateways create onprem-gw \
+  --interfaces=0=203.0.113.10
 gcloud compute vpn-tunnels create tunnel-0 \
-  --vpn-gateway=my-vpn-gw --peer-gcp-gateway=peer-gw \
+  --vpn-gateway=my-vpn-gw --peer-external-gateway=onprem-gw \
+  --peer-external-gateway-interface=0 \
   --region=us-central1 --ike-version=2 --shared-secret=SECRET \
-  --router=my-router --vpn-gateway-interface=0
+  --router=my-router --interface=0
+
+# --peer-gcp-gateway is the OTHER case: HA VPN between two Google Cloud VPC
+# networks. Picking it for an on-premises peer is a common wrong answer.
 
 # Create hierarchical firewall policy
 gcloud compute firewall-policies create --organization=ORG_ID --short-name=org-fw
@@ -133,10 +148,20 @@ gcloud compute interconnects create my-interconnect \
   --location=FACILITY --requested-link-count=1
 
 # Load balancer (global external Application LB)
-gcloud compute backend-services create my-backend --global --protocol=HTTP
+# --load-balancing-scheme=EXTERNAL_MANAGED is what makes this the modern
+# Envoy-based global external ALB. Omitting it defaults to EXTERNAL, which builds
+# the Classic Application LB and silently gives up advanced traffic management.
+# The scheme must match on the backend service AND the forwarding rule.
+gcloud compute backend-services create my-backend \
+  --global --protocol=HTTP \
+  --load-balancing-scheme=EXTERNAL_MANAGED \
+  --health-checks=http-basic-check
 gcloud compute url-maps create my-url-map --default-service=my-backend
 gcloud compute target-https-proxies create my-proxy --url-map=my-url-map --ssl-certificates=my-cert
-gcloud compute forwarding-rules create my-lb --global --target-https-proxy=my-proxy --ports=443
+gcloud compute forwarding-rules create my-lb \
+  --global --target-https-proxy=my-proxy --ports=443 \
+  --load-balancing-scheme=EXTERNAL_MANAGED \
+  --network-tier=PREMIUM
 ```
 
 ### Cloud KMS
@@ -279,17 +304,19 @@ gcloud beta container backup-restore backup-plans create my-plan \
 ### Provider Configuration
 
 ```hcl
-# Required provider configuration
+# Required provider configuration.
+# Pin the major version only. The Google provider ships weekly, so a floating
+# constraint means an unreviewed provider upgrade lands in the middle of a plan.
 terraform {
   required_version = ">= 1.5"
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "~> 5.0"
+      version = "~> 7.0"
     }
     google-beta = {
       source  = "hashicorp/google-beta"
-      version = "~> 5.0"
+      version = "~> 7.0"
     }
   }
 }
@@ -299,12 +326,25 @@ provider "google" {
   region  = var.region
 }
 
-# Beta provider for preview features
+# Only declare google-beta if you actually use a beta-only field. Most things
+# people reach for it out of habit (Autopilot, private clusters, Cloud Run v2)
+# have been GA in the main provider for years.
 provider "google-beta" {
   project = var.project_id
   region  = var.region
 }
 ```
+
+**Version and destroy-time gotcha.** The provider is on the 7.x line, so material
+pinned to `~> 5.0` is two majors behind. The upgrade that surprises people is
+`deletion_protection`: `google_container_cluster` and `google_sql_database_instance`
+both default it to `true`, and provider 6.0 extended the same pattern to
+`google_folder` and `google_project`. A `terraform destroy` on a tear-down
+environment fails until you set the field to `false` and apply that change first,
+which means two applies, not one. It also does nothing about deletion performed
+outside Terraform.
+
+**Docs:** [Google provider](https://registry.terraform.io/providers/hashicorp/google/latest/docs), [6.0.0 upgrade guide](https://registry.terraform.io/providers/hashicorp/google/latest/docs/guides/version_6_upgrade)
 
 ### State Management
 
@@ -441,14 +481,18 @@ module "gke" {
 ### Key Resource Examples
 
 ```hcl
-# GKE Autopilot cluster
+# GKE Autopilot cluster.
+# No provider = google-beta here: enable_autopilot has been GA in the main
+# provider for years. Older examples carry the beta pin for no reason.
 resource "google_container_cluster" "autopilot" {
-  provider = google-beta
-
   name     = "autopilot-cluster"
   location = "us-central1"
 
   enable_autopilot = true
+
+  # Defaults to true. Left explicit so the tear-down behaviour is visible at the
+  # call site rather than discovered when terraform destroy refuses to run.
+  deletion_protection = true
 
   release_channel {
     channel = "REGULAR"
@@ -502,9 +546,12 @@ resource "google_cloud_run_v2_service" "api" {
 # Cloud SQL with private IP and CMEK
 resource "google_sql_database_instance" "main" {
   name             = "prod-db"
-  database_version = "POSTGRES_15"
+  database_version = "POSTGRES_17"
   region           = "us-central1"
   encryption_key_name = google_kms_crypto_key.sql_key.id
+
+  # Defaults to true. Explicit here for the same reason as on the GKE cluster.
+  deletion_protection = true
 
   settings {
     tier              = "db-custom-4-16384"
@@ -583,13 +630,14 @@ steps:
 
 **Terraform vs alternatives:**
 
-| Feature | Terraform | Config Connector | Deployment Manager | Pulumi |
-|---------|-----------|-------------------|-------------------|--------|
-| Language | HCL | Kubernetes YAML | YAML/Jinja/Python | Python/TypeScript/Go |
-| State | Explicit (GCS) | Kubernetes API | Google-managed | Explicit |
-| Multi-cloud | Yes | No (GCP only) | No (GCP only) | Yes |
-| Ecosystem | Largest | Limited | Limited | Growing |
-| Status | Recommended | Active | Deprecated | Active |
+| Feature | Terraform | Infrastructure Manager | Config Connector | Deployment Manager | Pulumi |
+|---------|-----------|------------------------|-------------------|-------------------|--------|
+| Language | HCL | HCL (runs Terraform) | Kubernetes YAML | YAML/Jinja/Python | Python/TypeScript/Go |
+| State | You own it (GCS) | Google-managed, per revision | Kubernetes API | Google-managed | Explicit |
+| Execution | Your CI | Ephemeral Cloud Build jobs | In-cluster controller | Google-managed | Your CI |
+| Multi-cloud | Yes | No (GCP only) | No (GCP only) | No (GCP only) | Yes |
+| Ecosystem | Largest | Terraform's | Limited | Limited | Growing |
+| Status | Recommended | Active, DM's named successor | Active | End of support 2026-04-01 | Active |
 
 **Exam tips for Terraform:**
 - "Infrastructure as Code for GCP" --> Terraform (default answer)
@@ -597,9 +645,10 @@ steps:
 - State locking prevents concurrent modifications
 - `terraform import` brings existing resources under Terraform management
 - CFT modules are the Google-recommended starting point
-- Deployment Manager is DEPRECATED -- Terraform is the replacement
+- Deployment Manager is past end of support (2026-04-01, shutdown 2027-06-30). The named successor is [Infrastructure Manager](https://cloud.google.com/infrastructure-manager/docs/overview): convert with DM Convert, then run the resulting Terraform there.
+- "Managed Terraform on Google Cloud" is Infrastructure Manager, not Terraform Cloud. Both are valid, but only one is a Google product.
 
-**Docs:** [Terraform on Google Cloud](https://cloud.google.com/docs/terraform), [CFT](https://cloud.google.com/foundation-toolkit), [Config Connector](https://cloud.google.com/config-connector/docs)
+**Docs:** [Terraform on Google Cloud](https://cloud.google.com/docs/terraform), [Infrastructure Manager](https://cloud.google.com/infrastructure-manager/docs/overview), [CFT](https://cloud.google.com/foundation-toolkit), [Config Connector](https://cloud.google.com/config-connector/docs)
 
 ---
 
@@ -762,7 +811,7 @@ kubectl rollout resume deployment/my-app  # Continue rollout
 
 **Exam tips for kubectl:**
 - RBAC: ClusterRole/ClusterRoleBinding for cluster-wide, Role/RoleBinding for namespace-scoped
-- Network Policies require a CNI that supports them (Calico on GKE -- enabled by default on Standard)
+- NetworkPolicy needs a network plugin that enforces it, and on GKE that is now **Dataplane V2** (based on Cilium), which is the recommended plugin for all clusters and the default on Autopilot. Calico is the older plugin and is Standard-only. On a Standard cluster with Dataplane V2 you write NetworkPolicy objects directly; on a Standard cluster without it you must first turn network policy enforcement on. Either way it is **not on by default on Standard**, so a manifest applied to a fresh Standard cluster can silently do nothing. ([Network policies](https://cloud.google.com/kubernetes-engine/docs/how-to/network-policy), [Dataplane V2](https://cloud.google.com/kubernetes-engine/docs/concepts/dataplane-v2))
 - ResourceQuota is per namespace -- use for multi-tenant clusters
 - `kubectl rollout undo` rolls back to previous revision
 
@@ -803,21 +852,55 @@ export PUBSUB_EMULATOR_HOST=localhost:8085
 
 ---
 
-## 5. gsutil and bq at Architect Level
+## 5. Cloud Storage and BigQuery CLIs at Architect Level
 
-### gsutil Advanced
+### gcloud storage (the current CLI)
+
+`gcloud storage` is the supported Cloud Storage CLI and is generally faster than
+`gsutil` on large transfers. `gsutil` leaves the gcloud bundle in March 2027, so
+treat `gcloud storage` as the default and `gsutil` as the legacy form you still
+need to recognise, because the exam guide and older material name it.
+
+```bash
+# Copy, with parallelism handled automatically
+gcloud storage cp large-file.tar.gz gs://bucket/
+gcloud storage rsync ./local-dir gs://bucket/prefix --recursive
+
+# Generate a signed URL WITHOUT downloading a service account key.
+# Impersonation uses the IAM Credentials API to sign, so nothing is written to
+# disk. This is the form to use: gsutil signurl takes a key FILE, which
+# contradicts the "no service account keys, ever" rule elsewhere in this repo.
+# The caller needs roles/iam.serviceAccountTokenCreator on the signing SA.
+gcloud storage sign-url gs://bucket/object \
+  --duration=1h \
+  --impersonate-service-account=signer@project.iam.gserviceaccount.com
+
+# Set lifecycle policy
+gcloud storage buckets update gs://bucket/ --lifecycle-file=lifecycle.json
+
+# Run any command as another identity
+gcloud storage cp gs://src-bucket/file gs://dst-bucket/ \
+  --impersonate-service-account=sa@project.iam.gserviceaccount.com
+
+# Pub/Sub notifications on a bucket
+gcloud storage buckets notifications create gs://my-bucket --topic=my-topic
+```
+
+### gsutil (legacy, still recognised)
 
 ```bash
 # Parallel composite upload (for large files)
 gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp large-file.tar.gz gs://bucket/
 
-# Generate signed URL (temporary access)
+# Signed URL. Note the positional key.json: gsutil signurl needs a downloaded
+# service account key unless you have one of the newer impersonation options.
+# Prefer gcloud storage sign-url --impersonate-service-account instead.
 gsutil signurl -d 1h key.json gs://bucket/object
 
 # Set lifecycle policy
 gsutil lifecycle set lifecycle.json gs://bucket/
 
-# Cross-project copy with service account
+# Cross-project copy with service account impersonation
 gsutil -i sa@project.iam.gserviceaccount.com cp gs://src-bucket/file gs://dst-bucket/
 
 # Configure notifications (to Pub/Sub)
@@ -851,9 +934,10 @@ bq query --dry_run --use_legacy_sql=false 'SELECT * FROM `project.dataset.table`
 ```
 
 **Exam tips:**
-- `gsutil signurl` generates pre-signed URLs for temporary access without IAM
+- Signed URLs give time-limited access to an object without the caller having any IAM grant or Google account. Generate them with `gcloud storage sign-url --impersonate-service-account`, which signs through the IAM Credentials API. The `gsutil signurl` form takes a key file on disk, which is exactly the pattern the rest of this material tells you to avoid, so prefer impersonation whenever both appear as options.
+- `gcloud storage` is the current CLI; `gsutil` exits the gcloud bundle in March 2027. Exam wording still uses `gsutil`, so recognise both and prefer `gcloud storage` in anything you would actually build.
 - `bq --dry_run` estimates query cost without running it
 - BigQuery slot reservations provide predictable pricing for heavy analytics
 - INFORMATION_SCHEMA queries are free (metadata only)
 
-**Docs:** [gsutil](https://cloud.google.com/storage/docs/gsutil), [bq CLI](https://cloud.google.com/bigquery/docs/reference/bq-cli-reference)
+**Docs:** [gcloud storage](https://cloud.google.com/sdk/gcloud/reference/storage), [Signed URLs](https://cloud.google.com/storage/docs/access-control/signed-urls), [gsutil](https://cloud.google.com/storage/docs/gsutil), [bq CLI](https://cloud.google.com/bigquery/docs/reference/bq-cli-reference)
