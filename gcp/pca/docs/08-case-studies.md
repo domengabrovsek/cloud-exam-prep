@@ -326,8 +326,6 @@ Two patterns worth noticing:
 
 ## Practice
 
-Practice questions: [case-study-questions.md](../questions/case-study-questions.md).
-
-Note that those 20 questions were written against the previous, partly invented version of this file and have not yet been rebuilt. Several of them test details that are not in the official case studies. Use them for the reasoning pattern, not for the facts, until they are reworked. This is tracked in the errata at `.claude/state/research/2026-08-09-pca-content-audit.md`.
+Practice questions: [case-study-questions.md](../questions/case-study-questions.md). Those 20 questions were rebuilt from these same sources on 2026-08-09, so every stem quotes or closely paraphrases a real requirement.
 
 Use `drill EHR` (or any case name) for a constraint-by-constraint drill against this file.
