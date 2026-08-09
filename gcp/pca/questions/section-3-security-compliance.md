@@ -753,7 +753,7 @@ IAP integrates with Access Context Manager to enforce context-aware access. You 
 
 ---
 
-### Q40. You need to enable OS Login for all Compute Engine VMs in the production project to centrally manage SSH access. Some team members need root access on specific VMs while others should have standard user access. How should you configure this? (Choose TWO.)
+### Q40. You need to enable OS Login for all Compute Engine VMs in the production project to centrally manage SSH access. Some team members need root access on specific VMs while others should have standard user access. How should you configure this? (Choose THREE.)
 
 A) Enable OS Login at the project level by setting the `enable-oslogin` metadata key to `TRUE`
 B) Grant `roles/compute.osLogin` to team members who need standard user access
@@ -764,13 +764,9 @@ E) Grant `roles/compute.instanceAdmin.v1` to all team members
 <details>
 <summary>Answer</summary>
 
-**Correct: A) and B) + C) (select A and whichever login role applies; the question asks for TWO, so A plus either B or C -- but since both B and C are needed for the full solution, the best TWO are A and C if root is required, or A and B for standard users)**
+**Correct: A), B) and C)**
 
-Actually, let me clarify: **A), B), and C)** are all correct actions in the full solution. Since the question asks for TWO and describes both user types, the best two answers that enable the overall solution are:
-
-**Correct: A) and C)**
-
-OS Login must be enabled at the project level (A) by setting the metadata flag. Then, `roles/compute.osAdminLogin` (C) provides root/sudo access for those who need it, while `roles/compute.osLogin` (B) provides standard access. Since the question specifically highlights root access as a requirement, C is the more critical role to select alongside A. Option D -- manual SSH key management is what OS Login replaces. Option E -- `instanceAdmin.v1` grants VM management permissions, not SSH access.
+The scenario describes two classes of user, so the complete solution needs the switch plus both roles. A enables OS Login project-wide via the `enable-oslogin` metadata key, which is the prerequisite for either role to do anything. B grants `roles/compute.osLogin` for standard, non-sudo SSH. C grants `roles/compute.osAdminLogin` for the users who need root. Option D is wrong because per-user SSH keys in project metadata are exactly the practice OS Login replaces; keys in metadata are not centrally revocable and do not follow the IAM lifecycle. Option E is wrong because `roles/compute.instanceAdmin.v1` confers VM management rights (start, stop, delete, change machine type) and does not by itself grant SSH access, so granting it to all team members hands out destructive permissions while still not solving the login problem.
 
 **Exam tip:** OS Login roles: `compute.osLogin` = standard SSH (no sudo), `compute.osAdminLogin` = SSH with sudo. OS Login replaces SSH key management with IAM-based access. Both require the `enable-oslogin` metadata flag.
 </details>

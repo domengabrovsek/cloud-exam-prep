@@ -45,7 +45,7 @@ Partner Interconnect is ideal when you need private connectivity to Google Cloud
 ### Q3. You are designing a network for a SaaS platform that serves customers globally. The platform has backend services in us-central1 and europe-west1. You need to route users to the closest healthy backend with a single anycast IP address. Which load balancer should you use?
 
 A) Regional external Application Load Balancer
-B) Global external Application Load Balancer (Classic)
+B) Global external Application Load Balancer
 C) Global external proxy Network Load Balancer
 D) Regional internal passthrough Network Load Balancer
 
@@ -281,7 +281,7 @@ Bigtable replication provides automatic, near-real-time replication between clus
 
 ---
 
-### Q17. A startup wants to migrate 200 TB of on-premises data to Cloud Storage. Their internet bandwidth is 1 Gbps. They need the data migrated within 2 weeks. Which transfer method should you recommend?
+### Q17. A startup wants to migrate 200 TB of on-premises data to Cloud Storage. Their internet bandwidth is 1 Gbps. They need the data migrated within 30 days. Which transfer method should you recommend?
 
 A) Use gsutil rsync over the internet
 B) Use Transfer Appliance
@@ -293,7 +293,9 @@ D) Use a Dedicated Interconnect provisioned for the migration
 
 **Correct: B)**
 
-At 1 Gbps, transferring 200 TB over the internet would take approximately 18.5 days (200 TB * 8 bits / 1 Gbps / 86400 seconds), exceeding the 2-week deadline even at 100% utilization, which is unrealistic. Transfer Appliance is a physical device shipped to your data center that you load with data and ship back to Google, supporting up to 300 TB per appliance and completing large transfers within days of Google receiving the device. Option A (gsutil) uses internet bandwidth and would exceed the deadline. Option C (Storage Transfer Service) also uses internet bandwidth with the same time constraint. Option D (Dedicated Interconnect) takes weeks to provision and is expensive for a one-time migration.
+At 1 Gbps, transferring 200 TB over the internet takes roughly 18.5 days at 100% link utilization (200 TB * 8 bits / 1 Gbps / 86400 seconds), and no production link sustains 100%. Realistically this overruns 30 days while also saturating the company's only internet connection for a month. Transfer Appliance is a physical device shipped to your data center, loaded, and shipped back; the TA300 model holds 300 TB, and the full round trip plus ingest fits inside 30 days. Option A (gsutil) is the same internet-bandwidth constraint, plus `gcloud storage` has superseded gsutil. Option C (Storage Transfer Service) also moves data over the network, so it hits the same ceiling. Option D (Dedicated Interconnect) takes weeks to provision and is heavy capital work for a one-time move.
+
+**Exam tip:** do the bandwidth arithmetic before picking. Divide the data volume by the link rate, then assume you only get 50-70% of nominal throughput. If the result is a meaningful fraction of the deadline, the answer is Transfer Appliance. Current models are TA40 (40 TB) and TA300 (300 TB).
 </details>
 
 ---
@@ -370,7 +372,7 @@ Cloud Run is the best fit for a containerized application with variable traffic 
 ### Q22. A gaming company needs to run game servers that require consistent, high single-thread performance and low latency. The servers are stateful and each instance handles up to 64 concurrent player connections. Which Compute Engine machine family should you recommend?
 
 A) E2 general-purpose (cost-optimized)
-B) C3D compute-optimized
+B) C2D compute-optimized
 C) N2 general-purpose with sole-tenant nodes
 D) M3 memory-optimized
 
@@ -379,7 +381,9 @@ D) M3 memory-optimized
 
 **Correct: B)**
 
-C3D (and C3) compute-optimized machine types deliver the highest per-core performance in Compute Engine, with sustained all-core turbo frequencies. Game servers that depend on high single-thread performance and low latency benefit directly from compute-optimized instances. Option A (E2) uses shared-core and burstable configurations that deliver inconsistent performance. Option C (N2 with sole-tenant nodes) provides dedicated hardware for licensing or compliance but does not deliver higher per-core performance than C3D. Option D (M3 memory-optimized) is designed for in-memory databases and SAP workloads; while it provides large memory, its per-core performance focus is not as high as compute-optimized families.
+C2D is a compute-optimized machine family, built for sustained high per-core performance with all-core turbo frequencies. Game servers that depend on single-thread performance and low latency benefit directly from it. Option A (E2) uses shared-core and burstable configurations, so performance is inconsistent by design. Option C (N2 with sole-tenant nodes) buys dedicated physical hardware for licensing or compliance reasons; it does not raise per-core performance. Option D (M3 memory-optimized) targets in-memory databases and SAP, trading per-core speed for memory capacity.
+
+**Exam tip:** know which family is which, because the exam leans on it. Compute-optimized is H3, H4D, C2 and C2D. C3, C3D, C4, N2 and E2 are general-purpose despite C3/C4 sounding like the C2 line. M-series is memory-optimized. "Consistent high single-thread performance" means compute-optimized; "large in-memory dataset" means memory-optimized.
 </details>
 
 ---
@@ -438,7 +442,7 @@ GKE Enterprise (formerly Anthos) provides fleet management for centralized visib
 ### Q26. You are designing a GKE architecture for a fintech company. They need to ensure that their Kubernetes workloads meet PCI-DSS compliance requirements. The cluster must provide workload isolation, binary authorization for container images, and network policy enforcement. Which configuration should you use?
 
 A) GKE Autopilot with Binary Authorization enabled
-B) GKE Standard with GKE Sandbox (gVisor), Binary Authorization, and Calico network policies enabled
+B) GKE Standard with GKE Sandbox (gVisor), Binary Authorization, and Dataplane V2 network policies enabled
 C) GKE Standard with default settings and namespace-level RBAC
 D) Cloud Run with container image signing
 
@@ -447,7 +451,9 @@ D) Cloud Run with container image signing
 
 **Correct: B)**
 
-GKE Sandbox (gVisor) provides an additional layer of workload isolation by running containers in a sandboxed kernel, which is important for PCI-DSS compliance where multi-tenant workload isolation is required. Binary Authorization ensures only trusted, signed container images are deployed. Calico network policies (enabled via the `--enable-network-policy` flag) enforce pod-to-pod traffic restrictions. Together, these features address the three compliance requirements. Option A (Autopilot) supports Binary Authorization and has built-in security hardening but does not support GKE Sandbox for the deepest workload isolation. Option C (default GKE Standard) lacks all three required features. Option D (Cloud Run) does not support network policies or GKE Sandbox-level isolation.
+Option B is the only choice that explicitly addresses all three stated requirements. GKE Sandbox (gVisor) runs containers against a user-space kernel, which is the workload isolation PCI-DSS asks for in multi-tenant clusters. Binary Authorization gates deployment on signed, attested images. Dataplane V2 (Cilium/eBPF) enforces pod-to-pod network policy and is the recommended plugin; Calico is the legacy dataplane. Option A is incomplete rather than impossible: Autopilot does support GKE Sandbox, Binary Authorization, and network policy via Dataplane V2 by default, but the option as written enables only Binary Authorization and says nothing about isolation or network policy, so it does not answer two of the three requirements. Option C (default Standard) has none of the three. Option D (Cloud Run) supports Binary Authorization but offers neither Kubernetes network policy nor gVisor-level workload isolation.
+
+**Exam tip:** be careful with "Autopilot cannot do X" reasoning. Autopilot supports GKE Sandbox, Spot Pods, GPUs, DaemonSets and network policy, and much older study material says otherwise. The genuine Standard-only cases are node-level access: custom sysctls, privileged DaemonSets, and specific node OS or kernel tuning. See the [Autopilot and Standard comparison](https://cloud.google.com/kubernetes-engine/docs/resources/autopilot-standard-feature-comparison).
 </details>
 
 ---
@@ -506,7 +512,7 @@ pd-ssd (SSD Persistent Disk) provides consistent, sub-millisecond latency for ra
 ### Q30. Your company needs to run 100 parallel rendering jobs. Each job requires 96 vCPUs, 360 GB of RAM, and 4 NVIDIA T4 GPUs, and runs for approximately 4 hours. Jobs can be checkpointed and restarted. What is the most cost-effective compute configuration?
 
 A) 100 n2-highmem-96 instances with T4 GPUs attached, using on-demand pricing
-B) 100 a2-highgpu-4g instances using Spot VMs with checkpointing to Cloud Storage
+B) 100 n1-custom instances with 4 T4 GPUs attached, using Spot VMs with checkpointing to Cloud Storage
 C) GKE Autopilot with GPU node pools
 D) 100 c2d-highcpu-112 instances without GPUs, using software rendering
 
@@ -515,7 +521,9 @@ D) 100 c2d-highcpu-112 instances without GPUs, using software rendering
 
 **Correct: B)**
 
-A2 instances are optimized for GPU workloads and come with NVIDIA A100 GPUs. However, for T4 GPUs, you would use N1 or custom machine types with T4 GPUs attached as Spot VMs. The key insight is that since jobs can be checkpointed and restarted, Spot VMs provide up to 91% cost savings. Checkpointing progress to Cloud Storage ensures that preempted jobs can resume rather than restart from scratch. Option A (on-demand) costs 60-91% more than Spot VMs for the same configuration. Option C (GKE Autopilot) adds Kubernetes overhead for simple batch jobs and provides less control over GPU VM selection. Option D (software rendering without GPUs) would take dramatically longer and likely cost more in compute hours despite not paying for GPUs.
+T4 GPUs attach to N1 machine types, so an N1 custom configuration is what actually satisfies the stated 96 vCPU / 360 GB / 4x T4 requirement. The decisive fact is that the jobs are checkpointable and restartable, which is exactly the workload profile Spot VMs are priced for: 60-91% off on-demand, at the cost of preemption with 30 seconds notice. Checkpointing to Cloud Storage means a preempted job resumes instead of restarting. Option A specifies the right hardware but pays on-demand rates for a workload that tolerates preemption, so it is several times more expensive for no benefit. Option C (Autopilot) adds Kubernetes for what is a plain batch workload, and gives less direct control over GPU and machine selection. Option D drops the GPUs entirely; software rendering would run far longer and cost more in CPU hours than the GPUs saved.
+
+**Exam tip:** match the accelerator to the machine family before comparing prices. T4 and V100 attach to N1; A100 comes with A2; H100 with A3; L4 with G2. An option pairing an A2 machine with a T4 requirement is wrong on hardware alone, whatever its pricing story. Then look for "checkpointable", "fault-tolerant" or "can be restarted", which is the exam signalling Spot.
 </details>
 
 ---
@@ -532,12 +540,12 @@ D) GKE Autopilot with DaemonSets to configure kernel parameters
 
 **Correct: B)**
 
-GKE Standard is required when workloads need custom kernel parameters (sysctl settings), privileged containers, or other node-level customizations that Autopilot restricts for security. Autopilot manages the nodes entirely and does not allow sysctl modifications or privileged access. While the team has limited Kubernetes expertise, the custom kernel parameter requirement makes Standard the only viable GKE option. The team should invest in Kubernetes training or use managed services like Config Sync for operational simplification. Option A (Autopilot) cannot accommodate the sysctl requirement. Option C (Cloud Run) cannot run 15 interconnected microservices with custom networking requirements as effectively as GKE. Option D is incorrect because Autopilot restricts DaemonSets to system-level add-ons and does not allow custom sysctl modifications.
+GKE Standard is required when workloads need custom kernel parameters (sysctl settings), privileged containers, or other node-level customizations that Autopilot restricts for security. Autopilot manages the nodes entirely and does not allow sysctl modifications or privileged access. While the team has limited Kubernetes expertise, the custom kernel parameter requirement makes Standard the only viable GKE option. The team should invest in Kubernetes training or use managed services like Config Sync for operational simplification. Option A (Autopilot) cannot accommodate the sysctl requirement. Option C (Cloud Run) cannot run 15 interconnected microservices with custom networking requirements as effectively as GKE. Option D is incorrect because the sysctl requirement is the blocker, not DaemonSets: Autopilot does run user DaemonSets, but it does not permit custom kernel parameter changes. The allowlist people remember applies to privileged workloads, not to DaemonSets generally.
 </details>
 
 ---
 
-### Q32. You are designing a compute solution for a scientific simulation that requires 4 TB of RAM and 224 vCPUs. The simulation runs for 72 hours and the dataset must remain in memory throughout. Which machine type family should you use?
+### Q32. You are designing a compute solution for a scientific simulation that requires 3 TB of RAM and 128 vCPUs. The simulation runs for 72 hours and the dataset must remain in memory throughout. Which machine type family should you use?
 
 A) N2 general-purpose with extended memory
 B) M3 memory-optimized
@@ -549,7 +557,9 @@ D) A3 accelerator-optimized
 
 **Correct: B)**
 
-M3 memory-optimized machine types offer up to 30 TB of memory, making them ideal for workloads that require extremely large in-memory datasets. The m3-megamem-128 provides 128 vCPUs and 1.9 TB of RAM, while the m3-ultramem-128 provides up to 3.8 TB. For 4 TB of RAM with 224 vCPUs, you would use a combination or the largest M3 configuration available. Option A (N2 with extended memory) supports custom memory configurations but maxes out well below 4 TB per instance. Option C (C3 compute-optimized) is optimized for CPU performance and does not offer the memory capacity needed. Option D (A3 accelerator-optimized) is designed for GPU workloads and does not provide 4 TB of system memory.
+The M-series is the memory-optimized family, built for workloads whose dataset must stay resident in RAM. `m3-ultramem-128` provides 128 vCPUs with roughly 3.9 TB of memory, which covers the stated 3 TB / 128 vCPU requirement in a single instance. Option A (N2 with extended memory) allows custom memory ratios but tops out well below 3 TB per instance. Option C (C3) is general-purpose despite the name and is tuned for per-core throughput, not memory capacity. Option D (A3 accelerator-optimized) exists to carry H100 GPUs; its system memory is sized to feed the accelerators, not to hold a multi-terabyte working set.
+
+**Exam tip:** for memory questions, check the ceiling of the family you pick against the number in the stem. M3 reaches about 3.9 TB, M2 about 12 TB, M4 up to 6 TB with 224 vCPUs, and X4 goes higher still. If a scenario needs both very high memory and very high vCPU counts, M3 is often the wrong pick, because its vCPU count caps at 128.
 </details>
 
 ---
